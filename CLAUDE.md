@@ -1,6 +1,6 @@
 # CLAUDE.md — LexEuropa
 
-Guidance for working in this repo. See `README.md` for the full long-term project vision; this file covers what's actually built (Stage 1: Legal RAG) plus setup and commands.
+Guidance for working in this repo. See `docs/VISION.md` for the full long-term project vision; this file covers what's actually built (Stage 1: Legal RAG) plus setup and commands.
 
 ## What's implemented
 
@@ -13,7 +13,7 @@ User question → reference resolver + BM25 + dense (bge-large-en-v1.5) → RRF 
               → answer with per-claim labels
 ```
 
-Stages 3–4 from the README (continued pretraining, a custom foundation
+Stages 3–4 from `docs/VISION.md` (continued pretraining, a custom foundation
 model, the knowledge graph) are **not** built. Stage 2 (fine-tuning) has
 been run once end-to-end — a real LoRA adapter trained, merged, deployed
 for eval, and compared against the baseline — see "Stage 2: Fine-tuning"
@@ -174,7 +174,7 @@ tests/               offline unit tests + tests/fixtures/ (real cached CELLAR XH
 
 - **English-only, by explicit request.** The seed corpus, `LANG_TO_CELLAR`,
   `INSTRUMENT_ALIASES` and the system prompt are all single-language. The
-  README's long-term vision still describes a multilingual system (§6) —
+  vision doc's long-term plan still describes a multilingual system (§6) —
   that's the target architecture, not what's built.
 - **EUR-Lex's own site is not fetched.** A live check showed
   `eur-lex.europa.eu` sits behind a CloudFront WAF that returns HTTP 202

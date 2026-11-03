@@ -1,6 +1,15 @@
 [project]
 name = "lexeuropa"
 version = "0.1.0"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Florian Braun" }]
+keywords = ["rag", "legal", "eu-law", "gdpr", "cjeu", "citation-verification", "lora"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Linguistic",
+]
 description = "Stage-1 (Legal RAG) vertical slice for LexEuropa: EU legal research grounded in CELLAR-fetched sources with citation verification."
 requires-python = ">=3.11"
 dependencies = [
@@ -10,6 +19,10 @@ dependencies = [
     "sentence-transformers>=3.0",
     "certifi>=2024.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/iPwnds/LexEuropa"
+Issues = "https://github.com/iPwnds/LexEuropa/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

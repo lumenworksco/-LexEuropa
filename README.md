@@ -1,271 +1,84 @@
 # LexEuropa
 
-### A Custom AI Legal Intelligence System for European Union Law
+[![CI](https://github.com/iPwnds/LexEuropa/actions/workflows/ci.yml/badge.svg)](https://github.com/iPwnds/LexEuropa/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 
-LexEuropa is an AI legal intelligence project focused on understanding, researching, and reasoning over European Union law.
+**Citation-verified legal research over EU law, using open-weight models.**
 
-The goal is to build a specialized legal AI that can assist with legal research, case-law analysis, legislation, document analysis, legal reasoning, and drafting while grounding its answers in authoritative European legal sources.
+LexEuropa fetches real EU legal texts from the Publications Office CELLAR service, chunks them at article/paragraph granularity, retrieves with a hybrid BM25 + dense + exact-reference pipeline, generates an answer as structured *claims with citations*, and then **checks every citation against what was actually retrieved**. Each claim in the answer carries a label: `supported`, `interpretative`, `analysis`, `unsupported` or `uncertain`.
 
-Rather than relying solely on a general-purpose chatbot, LexEuropa will combine a custom-trained legal language model with a structured European legal knowledge base, retrieval-augmented generation (RAG), multilingual capabilities, and automated citation verification.
+> Not legal advice. This is a research prototype; its output does not replace a qualified legal professional.
 
-The long-term objective is to develop a custom European legal foundation model capable of understanding the complex relationships between EU legislation, regulations, directives, treaties, CJEU case law, and national implementation.
+## How it works
 
----
+```
+question
+  → reference resolver ("Art. 17(1) GDPR", "C-131/12")  ┐
+  → BM25 keyword search                                 ├→ RRF fusion → cross-encoder rerank
+  → dense search (bge-large-en-v1.5)                    ┘
+  → LLM generation → { claims: [{ text, citations }] }
+  → verification: existence gate (hard check) + LLM judge, per cited chunk
+  → answer with per-claim labels
+```
 
-## AI Architecture
+| Component | Implementation |
+|---|---|
+| Corpus | GDPR + two CJEU judgments (C-131/12 *Google Spain*, C-136/17), English only, 569 chunks |
+| Retrieval | `rank_bm25`, `BAAI/bge-large-en-v1.5` via HF Inference, regex/alias reference resolver, reciprocal rank fusion |
+| Reranker | `BAAI/bge-reranker-v2-m3`, local on CPU |
+| Generation | `Qwen2.5-3B-Instruct` + LoRA fine-tune (merged), on a scale-to-zero HF Inference Endpoint |
+| Judge | stock `Qwen2.5-7B-Instruct` via HF Inference Providers, deliberately a different model from the generator |
+| Verification | A cited chunk that was not retrieved is `unsupported` with no LLM call. Source-identity check catches claims naming one case but citing another. Each citation is judged independently, concurrently. |
 
-LexEuropa will use a hybrid architecture rather than attempting to train a large language model completely from scratch at the beginning.
+## Quickstart
 
-### 1. Foundation Model
+Requires Python 3.11+ and a [Hugging Face token](https://huggingface.co/settings/tokens) with Inference Providers access.
 
-The initial system will use a capable open-weight language model as its foundation, with candidate model families including Qwen, Llama, Mistral, and Gemma.
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+echo "HF_TOKEN=hf_..." > .env
 
-The model will be evaluated specifically for:
+python -m lexeuropa.cli ingest
+python -m lexeuropa.cli ask "What are the conditions for erasure under Article 17 GDPR?" --instrument gdpr
+```
 
-- Legal reasoning
-- Multilingual understanding
-- Long-context processing
-- Instruction following
-- Citation behavior
-- Structured output
-- European legal terminology
+The default generator points at a private dedicated Endpoint. To run without it, point generation at any OpenAI-compatible server:
 
-The selected model will then be adapted to European legal tasks through supervised fine-tuning and parameter-efficient methods such as LoRA or QLoRA.
+```bash
+export LEXEUROPA_LLM_BASE_URL=https://router.huggingface.co/v1
+export LEXEUROPA_LLM_MODEL=Qwen/Qwen2.5-7B-Instruct
+```
 
-As the project matures, LexEuropa can progress toward continued pretraining and eventually a fully custom European legal foundation model.
+Tests (the offline subset needs no network or token):
 
----
+```bash
+python -m pytest tests/ -v -k "not full_hybrid"
+```
 
-## 2. European Legal Knowledge Base
+## Fine-tuning result
 
-The system will maintain a structured legal corpus containing authoritative European legal materials, including:
+A LoRA adapter (r=16) was trained on 506 examples built deterministically from real chunk text, with a provision-level held-out split. On 42 held-out questions:
 
-- EU treaties
-- Regulations
-- Directives
-- Decisions
-- Consolidated legislation
-- CJEU judgments
-- Advocate General opinions
-- Relevant preparatory documents
-- Legal metadata and relationships between documents
+| | citation precision | citation recall |
+|---|---|---|
+| Stock Qwen2.5-7B | 0.24 | 0.26 |
+| Qwen2.5-3B + LoRA | 0.29 | 0.29 |
 
-Where possible, legal documents will retain identifiers such as CELEX numbers, dates, provisions, jurisdictions, subjects, and relationships to other legal authorities.
+A modest gain from a model less than half the size, showing better citation discipline and output-format adherence, **not** better legal reasoning. Full method, caveats and known limitations are in [`CLAUDE.md`](CLAUDE.md).
 
-The objective is to make every important piece of information traceable to its underlying legal source.
+## Known limitations
 
----
+- Three-document, English-only corpus; the fine-tuned adapter is shaped by it.
+- The adapter's training data contains some claims split mid-sentence at inline cross-references. The splitter is fixed (`lexeuropa/finetune/build_dataset.py`), but the dataset has not been rebuilt and the adapter not retrained.
+- The judge rarely uses the `analysis` label; treat that label as unreliable.
+- Judgment paragraphs get no ranking beyond exact paragraph references.
 
-## 3. Retrieval-Augmented Generation
+## Roadmap
 
-Retrieval-Augmented Generation will be a core component of LexEuropa.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan (multilingual corpus, knowledge graph, continued pretraining). Next concrete steps: rebuild the dataset and retrain, grow the corpus, add paragraph-aware retrieval for judgments.
 
-Instead of relying exclusively on the model's internal knowledge, a user's question will be analyzed and used to retrieve the most relevant legal authorities.
+## License
 
-A typical request will follow this process:
-
-**User Question → Legal Query Analysis → Legal Retrieval → Reranking → Model Reasoning → Citation Verification → Grounded Answer**
-
-The retrieval system will combine semantic vector search with traditional keyword/BM25 search.
-
-This allows LexEuropa to find both conceptually similar material and exact legal provisions, articles, case numbers, and terminology.
-
----
-
-## 4. Legal Reasoning
-
-The model will be trained to perform legal tasks such as:
-
-- Identifying relevant legal issues
-- Finding applicable provisions
-- Interpreting definitions
-- Identifying exceptions and limitations
-- Connecting legislation with case law
-- Comparing competing legal arguments
-- Distinguishing rules from interpretations
-- Identifying uncertainty
-- Determining when available evidence is insufficient
-- Producing structured legal analysis
-
-LexEuropa should not simply produce answers that sound legally convincing. It should be designed to reason from identifiable legal authorities.
-
----
-
-## 5. Citation and Evidence Verification
-
-A dedicated verification layer will be used to reduce unsupported legal claims.
-
-When the language model produces an answer, the verification system will evaluate whether the cited legal authority actually supports the associated claim.
-
-For example:
-
-**Model claim**
-
-> A Member State may restrict X under a particular provision.
-
-**Verification**
-
-- Is the cited provision relevant?
-- Does the provision actually support the claim?
-- Has subsequent CJEU case law affected its interpretation?
-- Is the source current?
-- Is the claim fully supported, partially supported, or unsupported?
-
-The system should be able to identify:
-
-**Supported claims**  
-Claims directly supported by authoritative sources.
-
-**Interpretative claims**  
-Claims based on judicial interpretation or legal analysis.
-
-**Model analysis**  
-Reasoned conclusions derived from the available authorities.
-
-**Uncertain claims**  
-Claims where the available evidence is insufficient.
-
-This evidence-first approach is a fundamental part of LexEuropa.
-
----
-
-## 6. Multilingual European Legal AI
-
-European law is inherently multilingual.
-
-LexEuropa will therefore be designed as a multilingual legal system from the beginning rather than translating everything into a single language.
-
-The system will support legal research across multiple official EU languages while preserving the original authoritative legal texts.
-
-For example, a user could ask a question in Dutch while the retrieval system identifies relevant material in Dutch, English, French, German, or another relevant EU language.
-
-The system will maintain relationships between multilingual versions of the same legal instrument wherever possible.
-
-This is intended to allow LexEuropa to understand that different language versions represent the same underlying European legal instrument while still respecting the importance of the original authoritative wording.
-
----
-
-## 7. Legal Knowledge Graph
-
-A future component of LexEuropa will be a legal knowledge graph connecting:
-
-**Treaties → Articles → Regulations → Directives → National Implementation → CJEU Cases → Interpretations**
-
-This will allow the system to understand relationships between legal authorities rather than treating every document as an isolated piece of text.
-
-For example, the system could identify that a particular CJEU judgment interprets a specific article of a directive and that the directive has subsequently been amended.
-
-This temporal and relational understanding is particularly important for legal research.
-
----
-
-## 8. Training Strategy
-
-LexEuropa will follow an incremental model-development strategy.
-
-### Stage 1: Legal RAG
-
-Start with an open-weight foundation model and a high-quality European legal retrieval system.
-
-### Stage 2: Legal Fine-Tuning
-
-Fine-tune the model using carefully constructed examples covering:
-
-- Legal question answering
-- Legal reasoning
-- Case-law analysis
-- Statutory interpretation
-- Legal summarization
-- Citation generation
-- Evidence identification
-- Legal document analysis
-- Appropriate refusal and uncertainty behavior
-
-### Stage 3: Continued Legal Pretraining
-
-Once a sufficiently large and high-quality legal corpus has been established, investigate continued pretraining on European legal text.
-
-### Stage 4: Custom Foundation Model
-
-Long term, develop a dedicated European legal foundation model trained specifically for multilingual European legal reasoning.
-
-The goal is not simply to create a chatbot that knows legal terminology, but a model that has been optimized around the structure and requirements of European legal research.
-
----
-
-## 9. Evaluation
-
-LexEuropa will use a dedicated European legal evaluation benchmark rather than relying solely on generic AI benchmarks.
-
-The benchmark will contain carefully constructed legal questions across areas such as:
-
-- GDPR and data protection
-- Competition law
-- Consumer protection
-- Free movement
-- Employment law
-- Environmental law
-- Digital regulation
-- AI regulation
-- Fundamental rights
-- Internal market law
-- Tax and VAT
-- Corporate law
-- CJEU case law
-
-The system will be evaluated on:
-
-- Answer accuracy
-- Legal reasoning quality
-- Citation accuracy
-- Citation completeness
-- Source relevance
-- Hallucination rate
-- Ability to identify uncertainty
-- Multilingual consistency
-- Temporal accuracy
-- Case-law interpretation
-- Ability to distinguish law from analysis
-
-Citation and evidence accuracy will be treated as first-class metrics.
-
----
-
-## 10. Core User Capabilities
-
-LexEuropa will ultimately provide capabilities including:
-
-- EU legal research
-- Legal question answering
-- CJEU case-law research
-- Legislation and regulation analysis
-- Contract analysis
-- Legal document summarization
-- Issue spotting
-- Legal argument analysis
-- Citation retrieval
-- Source verification
-- Comparison of legal provisions
-- Multilingual legal research
-- EU and national law comparison
-- Legal drafting assistance
-
-Users should be able to ask a legal question and receive a structured response containing the relevant legal authorities, explanations, citations, and clearly identified areas of uncertainty.
-
----
-
-## Long-Term Vision
-
-LexEuropa aims to become a specialized European legal intelligence platform built around authoritative sources, transparent reasoning, multilingual legal understanding, and verifiable citations.
-
-The project will begin as a retrieval-augmented legal AI built on an existing open-weight foundation model, progressively adding legal fine-tuning, evidence verification, multilingual capabilities, and a legal knowledge graph.
-
-Over time, the project will evolve toward a custom European legal foundation model specifically optimized for understanding and reasoning over EU law.
-
-**LexEuropa is intended to assist with legal research, analysis, and drafting. It is not intended to replace qualified legal professionals or constitute legal advice.**
-
----
-
-## Current Status: Stage 1 (Legal RAG)
-
-A working vertical slice of Stage 1 is implemented in `lexeuropa/`, **English-only** (the multilingual vision in §6 above is not yet built), with generation and embeddings served via Hugging Face Inference Providers rather than run locally. See `CLAUDE.md` for setup, commands, exactly what runs where, and known limitations.
+[MIT](LICENSE). Legal texts are © European Union, reused under the EU's [reuse policy](https://eur-lex.europa.eu/content/legal-notice/legal-notice.html).
