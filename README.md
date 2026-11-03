@@ -44,7 +44,7 @@ python -m lexeuropa.cli ingest
 python -m lexeuropa.cli ask "What are the conditions for erasure under Article 17 GDPR?" --instrument gdpr
 ```
 
-The default generator points at a private dedicated Endpoint. To run without it, point generation at any OpenAI-compatible server:
+The default generator points at the author's scale-to-zero Inference Endpoint, which needs that account's token. The model itself is public, so you can serve [`iPwnds/lexeuropa-qwen3b-merged`](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged) yourself (vLLM, Ollama, ...) or use a stock model:
 
 ```bash
 export LEXEUROPA_LLM_BASE_URL=https://router.huggingface.co/v1
@@ -65,6 +65,8 @@ A LoRA adapter (r=16) was trained on 506 examples built deterministically from r
 |---|---|---|
 | Stock Qwen2.5-7B | 0.24 | 0.26 |
 | Qwen2.5-3B + LoRA | 0.29 | 0.29 |
+
+Artifacts: [merged model](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [LoRA adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft).
 
 A modest gain from a model less than half the size, showing better citation discipline and output-format adherence, **not** better legal reasoning. Full method, caveats and known limitations are in [`CLAUDE.md`](CLAUDE.md).
 

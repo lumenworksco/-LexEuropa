@@ -402,7 +402,7 @@ small model would likely cost single-digit dollars (an hour or so on an
 L4/A10G), but that's an estimate, not a bill.
 
 **What actually happened, in order:**
-1. Dataset uploaded: `iPwnds/lexeuropa-sft` (private HF dataset repo, 506 examples).
+1. Dataset uploaded: `iPwnds/lexeuropa-sft` (public HF dataset repo, 506 examples).
 2. Smoke-tested `train.py` with `--max-steps 5` on `t4-small`, then again on
    `l4x1` after fixing dtype/max_length/label-masking (see below) — each
    run included the `_check_label_masking` assertion, which failed loudly
@@ -410,7 +410,7 @@ L4/A10G), but that's an estimate, not a bill.
 3. Full fine-tune: `Qwen/Qwen2.5-3B-Instruct` + LoRA (r=16, alpha=32) on
    `l4x1`, 2 epochs, 64 steps, **28 minutes, train_loss 0.0113, 99.98%
    token accuracy**. Adapter pushed to `iPwnds/lexeuropa-qwen3b-lora`
-   (private) — confirmed real (119.8MB `adapter_model.safetensors`, not a
+   (public) — confirmed real (119.8MB `adapter_model.safetensors`, not a
    placeholder).
 4. Merged into a standalone model (`lexeuropa/finetune/merge_adapter.py`,
    a cheap `cpu-upgrade` job) and pushed to
