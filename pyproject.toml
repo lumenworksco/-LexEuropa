@@ -1,0 +1,18 @@
+[project]
+name = "lexeuropa"
+version = "0.1.0"
+description = "Stage-1 (Legal RAG) vertical slice for LexEuropa: EU legal research grounded in CELLAR-fetched sources with citation verification."
+requires-python = ">=3.11"
+dependencies = [
+    "lxml>=5.0",
+    "rank-bm25>=0.2.2",
+    "numpy>=1.26",
+    "sentence-transformers>=3.0",
+    "certifi>=2024.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["lexeuropa*"]

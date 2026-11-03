@@ -1,0 +1,498 @@
+# AGENTS.md — LexEuropa
+
+Guidance for working in this repo. See `README.md` for the full long-term project vision; this file covers what's actually built (Stage 1: Legal RAG) plus setup and commands.
+
+## What's implemented
+
+A working vertical slice of Stage 1 ("Legal RAG"): fetch real EU legal texts, chunk them at article/paragraph granularity, index them for hybrid retrieval, generate a cited answer with an open-weight LLM, and verify every citation against what was actually retrieved. **English-only** — see "Design decisions".
+
+```
+User question → reference resolver + BM25 + dense (bge-large-en-v1.5) → RRF fusion
+              → cross-encoder rerank → LLM generation (structured claims+citations)
+              → citation verification (existence gate + LLM-judge label)
+              → answer with per-claim labels
+```
+
+Stages 3–4 from the README (continued pretraining, a custom foundation
+model, the knowledge graph) are **not** built. Stage 2 (fine-tuning) has
+been run once end-to-end — a real LoRA adapter trained, merged, deployed
+for eval, and compared against the baseline — see "Stage 2: Fine-tuning"
+below for the actual numbers and what they do and don't show.
+
+## What runs where
+
+| Component | Where | Model |
+|---|---|---|
+| Generation (default) | Dedicated HF Inference Endpoint, scale-to-zero (`LLM_BASE_URL`) | `iPwnds/lexeuropa-qwen3b-merged` (Qwen2.5-3B + LoRA, merged — see "Stage 2: Fine-tuning") |
+| Judge (always, regardless of `LLM_MODEL`) | HF Inference Providers (`router.huggingface.co/v1`, featherless-ai) | `Qwen/Qwen2.5-7B-Instruct` |
+| Embeddings | HF Inference Providers (`router.huggingface.co/hf-inference`) | `BAAI/bge-large-en-v1.5` |
+| Reranker | **Local** (CPU, sentence-transformers) | `BAAI/bge-reranker-v2-m3` — confirmed not viable via `hf-inference`, see "What's implemented" below |
+| BM25, reference resolver, verification logic | Local (pure Python, no model) | — |
+
+**The fine-tuned model is the live default**, not just an eval artifact —
+`config.py`'s `LLM_BASE_URL`/`LLM_MODEL` point at the dedicated Endpoint
+(`lexeuropa-eval`, `iPwnds/lexeuropa-qwen3b-merged`) by default. The
+Endpoint is **scale-to-zero** (`minReplica: 0`, 15-minute idle timeout) —
+it costs nothing while idle, but a cold request after 15 idle minutes
+pays a restart cost (observed: well under a minute, model is already on
+attached storage). `generation/client.py`'s default timeout was raised
+from 120s to 240s to cover this. The judge is a deliberately separate
+model/endpoint (`JUDGE_MODEL`/`JUDGE_BASE_URL`, pinned to the stock
+hosted 7B via Inference Providers) regardless of what `LLM_MODEL` points
+at — see "Design decisions" and
+`tests/test_verification.py::test_judge_always_calls_its_own_configured_model_and_endpoint`.
+Override `LEXEUROPA_LLM_BASE_URL`/`LEXEUROPA_LLM_MODEL` to point generation
+at something else (e.g. back at the stock router, or a local server).
+
+**The reranker stays local — confirmed broken via `hf-inference`
+serverless, not just unavailable.** Four request shapes were tried
+against `BAAI/bge-reranker-v2-m3`:
+1. `text-classification` with `{"text": ..., "text_pair": ...}` — `400`.
+2. `text-classification` with a list of `[text, text_pair]` pairs — `400`.
+3. A dedicated `/pipeline/rerank` path — `400` ("needs an `inputs` key").
+4. `sentence-similarity` with `{"source_sentence": ..., "sentences": [...]}`
+   — returns `200`, but the scores are **backwards**: tested with one
+   clearly-relevant GDPR passage, one generic GDPR preamble, and one
+   totally unrelated sentence about a fox — the unrelated sentence scored
+   *highest* (0.874 vs 0.658/0.713). HF's generic pipeline wrapper doesn't
+   correctly invoke this model's actual cross-encoder joint-scoring
+   mechanism; it silently returns semantically meaningless scores instead
+   of erroring. **Using this shape would make retrieval worse, not just
+   fail to move it off-machine — don't resurrect it.**
+
+Remaining options, neither attempted:
+1. Keep it local (current state — the correct default, not a compromise).
+2. Deploy it on a dedicated HF Inference Endpoint with a custom-image
+   engine that actually supports cross-encoder reranking (e.g. TEI) —
+   needs billing, untested whether TEI's `/rerank` route is correctly
+   wired for an Endpoint deployment of this specific model.
+
+## Setup
+
+Requires Python 3.11+ and an [HF account + token](https://huggingface.co/settings/tokens) with Inference Providers access.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+echo "HF_TOKEN=hf_..." > .env    # gitignored; loaded automatically by config.py
+```
+
+Then:
+
+```bash
+python -m lexeuropa.cli ingest
+python -m lexeuropa.cli ask "What are the conditions for erasure under Article 17 GDPR?" --instrument gdpr
+```
+
+Use a fine-grained, Inference-only token, not a `write`-scoped one.
+
+**Billing:** this was built against a free/prepaid HF account. Mid-session,
+chat-completion calls started failing with a real `402 Payment Required`
+("You have depleted your monthly included credits") — confirmed via direct
+`curl`, not a bug here. Embeddings (`hf-inference`, first-party) kept
+working; only third-party-provider chat completions (featherless-ai) were
+credit-limited. Purchasing pre-paid credits or subscribing to HF PRO is
+required for sustained use — that's the user's call, not something to
+work around in code.
+
+**Cloudflare / bot-fingerprint block, already fixed in code, documented so
+it isn't rediscovered:** HF's router proxies some providers (featherless-ai)
+to third-party infrastructure sitting behind Cloudflare, which returned a
+`403` ("Access denied ... based on your browser's signature", error 1010)
+for Python's default `urllib` request fingerprint specifically — the exact
+same request succeeded via `curl`. Fixed by sending a browser `User-Agent`
+header (`config.HTTP_USER_AGENT`, used by both `generation/client.py` and
+`retrieval/dense_index.py`). If you see an unexplained 403 from an HF
+Inference Providers call, check this first.
+
+## Commands
+
+```bash
+# Fetch, parse, chunk and index the seed corpus (GDPR, two CJEU judgments, English only).
+# Caches raw fetches to data/raw/, so re-running only re-fetches missing docs.
+python -m lexeuropa.cli ingest
+
+# Ask a question. --instrument gives the reference resolver a default
+# instrument to resolve bare "Article N" mentions against (see below).
+python -m lexeuropa.cli ask "What are the conditions for erasure under Article 17 GDPR?" --instrument gdpr
+python -m lexeuropa.cli ask "..." --json     # machine-readable output
+
+# Run the test suite. One test exercises the full live pipeline (HF chat +
+# HF embeddings + the local reranker) and skips cleanly if HF_TOKEN/network
+# aren't available. Everything else (chunking, the reference resolver,
+# BM25, the verifier's existence gate, prompt parsing) runs fully offline
+# against tests/fixtures/, no network needed:
+python -m pytest tests/ -v
+python -m pytest tests/ -v -k "not full_hybrid"   # offline subset only
+
+# Run the small retrieval + citation eval harness against eval/questions.jsonl.
+python eval/run_eval.py
+```
+
+If generation is requested without a working `HF_TOKEN`/credits, `ask`
+fails with a clear error rather than a stack trace or a silent fallback to
+a different backend.
+
+## Architecture
+
+```
+lexeuropa/
+  schema.py                 Instrument, Chunk dataclasses — the whole data model
+  config.py                 paths, HF model/endpoint settings, instrument/case-number alias tables, .env loading
+  ingest/
+    cellar.py                fetches XHTML from the Publications Office CELLAR service
+    parser.py                structure-aware parsing (ELI legislation divs / judgment count-tables)
+    chunker.py                parsed units -> Chunk objects with stable ids + citations
+    seed_corpus.py            the small, real corpus definition (verified CELEX numbers)
+    pipeline.py                orchestrates fetch->parse->chunk->persist->index
+  retrieval/
+    bm25_index.py              language-neutral keyword search (rank_bm25)
+    dense_index.py             bge-large-en-v1.5 embeddings via HF Inference Providers, brute-force cosine search
+    reference_resolver.py      regex+alias exact-citation resolution ("Art. 17(1) GDPR", "C-131/12")
+    fusion.py                  reciprocal rank fusion of resolver+BM25+dense rankings
+    reranker.py                 BAAI/bge-reranker-v2-m3 cross-encoder (local, CPU), graceful fallback
+    pipeline.py                 ties the above into one retrieve() call
+  generation/
+    client.py                   OpenAI-compatible chat client (points at HF Inference Providers)
+    prompts.py                   system prompt + structured-claims JSON parsing + bracket-repair
+  verification/
+    verifier.py                  existence gate + LLM-judge -> supported/interpretative/analysis/unsupported/uncertain
+  answer.py                      wires retrieval+generation+verification into answer_question()
+  cli.py                          `ingest` and `ask` subcommands
+
+data/raw/          cached CELLAR fetches (gitignored, rebuild with `ingest`)
+data/processed/    chunks.jsonl, instruments.jsonl (gitignored)
+data/index/         BM25 pickle + dense .npz (gitignored)
+eval/                small hand-built gold set + hit@k / citation precision-recall harness
+tests/               offline unit tests + tests/fixtures/ (real cached CELLAR XHTML, not synthetic)
+.env                 HF_TOKEN (gitignored, not committed)
+```
+
+## Design decisions (and why)
+
+- **English-only, by explicit request.** The seed corpus, `LANG_TO_CELLAR`,
+  `INSTRUMENT_ALIASES` and the system prompt are all single-language. The
+  README's long-term vision still describes a multilingual system (§6) —
+  that's the target architecture, not what's built.
+- **EUR-Lex's own site is not fetched.** A live check showed
+  `eur-lex.europa.eu` sits behind a CloudFront WAF that returns HTTP 202
+  with `x-amzn-waf-action: challenge` for scripted requests — no document
+  body. The Publications Office's CELLAR service
+  (`publications.europa.eu/resource/celex/{CELEX}` with content
+  negotiation via `Accept` / `Accept-Language`) resolves the same
+  documents cleanly and is what `ingest/cellar.py` uses.
+- **No stemming in BM25.** Plain lowercase Unicode word/number splitting,
+  no English stemmer — keeps the index language-neutral rather than baking
+  in an English-only assumption a future non-English corpus would degrade under.
+- **No FAISS.** The seed corpus is under 1,000 chunks; a brute-force NumPy
+  cosine search is simpler to read and fast enough.
+- **The reference resolver only resolves an "Article N" mention when an
+  instrument alias (e.g. "GDPR") is textually nearby, or a default
+  instrument is passed explicitly.** Silently assuming an instrument for a
+  bare article number would be exactly the kind of unsupported guess the
+  verification layer exists to catch elsewhere.
+- **The verifier's existence gate is a hard, non-LLM check.** If a claim
+  cites a chunk id that wasn't in the retrieved set, it's labeled
+  `unsupported` immediately — no judge call.
+- **The generator is an open-weight model (Qwen2.5), served hosted rather
+  than run on this machine.** `generation/client.py` speaks the
+  OpenAI-compatible protocol, so it also works unmodified against a local
+  Ollama/vLLM/llama.cpp server via `LEXEUROPA_LLM_BASE_URL` if needed.
+- **Citations use short handles ("S1") in the prompt, mapped back to real
+  chunk ids in `answer.py` before verification.** Tested as a fix for a
+  JSON-reliability problem on a smaller local model (see "History" below);
+  kept because it also just makes prompts shorter.
+- **`parse_response` repairs one specific JSON failure shape**: every
+  inner list/object closed correctly, but the model stopped one token
+  before the final outer `}`. It reconstructs the missing closers by
+  tracking bracket depth outside of string literals, and deliberately does
+  *not* attempt this when `finish_reason == "length"` (a real cutoff, which
+  can truncate mid-string) or when the text ends inside an open string.
+  Live-validated: it recovered 2 real answers that would otherwise have
+  been `ParseError`s. See `tests/test_prompts.py`.
+- **Test fixtures are real, cached CELLAR responses**, not synthetic text.
+
+## History: why some of the above exists
+
+This was first built against a local Ollama + `qwen2.5:3b-instruct` stack
+on an 8GB Mac, then switched to HF Inference Providers mid-session at the
+user's request ("run it from HF, not locally") plus a request to drop
+Dutch support. Findings from the local-3B stack that motivated code still
+in this repo:
+- The `S1`-style citation handles and the bracket-repair in
+  `parse_response` were both built to fix a specific, repeatable JSON
+  failure on `qwen2.5:3b-instruct` (never a full generic "3B can't do
+  JSON" problem — one exact missing-brace pattern, confirmed via the raw
+  output of 4 live failures). Neither has been *needed* on the hosted 7B
+  yet, but both are cheap and harmless to keep, and the repair already
+  proved itself once on a local eval re-run (fired twice, recovered two
+  real answers).
+- The reranker runs on CPU, explicitly, because letting
+  `sentence-transformers` auto-select the Metal/MPS GPU crashed with
+  `kIOGPUCommandBufferCallbackErrorOutOfMemory` when Ollama's own
+  GPU-resident models were also loaded on that 8GB machine. Since
+  generation and embedding no longer run locally at all, this specific
+  contention no longer applies — but CPU is still fine for a model this size.
+- Findings that were specific to the 3B/Ollama/Dutch stack and don't carry
+  over (superseded, not currently true): the 4096-token Ollama context
+  ceiling, the `lexeuropa-qwen` custom Modelfile (deleted), and the
+  "verwerping"/"verwerking" Dutch fidelity slip. The **general point**
+  those illustrated — the LLM-judge checks whether cited text supports a
+  claim, not whether it's word-for-word faithful or complete — is still
+  architecturally true and worth remembering; the specific numbers aren't.
+
+## Known limitations (current stack)
+
+- **~~The reference resolver doesn't handle plural article references~~
+  — fixed.** "Articles 9 and 10", "Article 6, 7 and 9" and
+  "Articles 17(1) and 6(2)" now all resolve each article independently
+  (`_PLURAL_ARTICLES_RE`/`_ARTICLE_ITEM_RE` in `reference_resolver.py`;
+  requires a mandatory "and" to avoid overlapping with the existing
+  single-`Article N` pattern, which still handles the non-plural case).
+  See `tests/test_reference_resolver.py`'s plural-article tests.
+- **Judgment paragraphs get no general ranking treatment** beyond the
+  single-paragraph pin already in place (`resolve_precise`, for an
+  unambiguous case+paragraph mention). A bare case number with no
+  paragraph named still resolves to every paragraph of that judgment,
+  not just the operative holding.
+- **~~The LLM-judge doesn't check source-identity~~ — fixed.** A
+  deterministic check (`_source_identity_mismatch` in `verifier.py`) now
+  catches a claim that names one case but cites only a different
+  judgment's paragraphs before the judge is even called — see "Design
+  decisions" and `tests/test_verification.py`'s
+  `test_claim_naming_one_case_but_citing_a_different_one_is_unsupported`,
+  which directly reproduces the original live bug.
+- **~~The judge evaluated all of a claim's cited chunks together~~ —
+  fixed.** Each cited chunk is now judged independently
+  (`verify_claim` calls `judge_fn` once per chunk) and the claim-level
+  label is the best of the per-citation results — but each citation's
+  own outcome is preserved in `ClaimVerification.citation_labels` /
+  the CLI's "per-citation breakdown", so a co-citation that didn't
+  actually hold up is visible instead of hidden behind the one that
+  did. See `_aggregate_citation_labels` and
+  `tests/test_verification.py::test_irrelevant_co_citation_does_not_hide_behind_a_relevant_one`.
+  Trade-off: a claim with N citations now costs N judge calls instead
+  of 1 — observed live, a two-source question's judge calls alone added
+  roughly a minute to `ask`'s wall time. Mitigated: the per-citation
+  judge calls for a claim now run concurrently (`ThreadPoolExecutor` in
+  `verify_claim`), so a claim's latency is about one judge call, not N.
+- **Resolver pinning was gated on the wrong count — fixed, found while
+  live-testing the above.** `retrieval/pipeline.py`'s pinning previously
+  gated on `len(resolver.resolve(...))`, which includes a bare
+  case-number's full-paragraph dump (can be 100+ chunks). A query naming
+  both an exact article *and* a bare case number (e.g. "Article 17 GDPR
+  ... C-131/12") pushed that combined count past
+  `MAX_PINNED_RESOLVER_HITS`, silently disabling pinning for the article
+  hit too — live-observed: Article 17 GDPR chunks were completely absent
+  from "Authorities retrieved" for exactly this kind of question. Fixed
+  by gating on a new `resolver.resolve_precise()` (the narrow hits only,
+  excluding the bare-case dump) instead of `resolve()`'s combined total.
+  See `tests/test_retrieval_pinning.py::test_article_pin_survives_a_bare_case_number_in_the_same_query`,
+  which reproduces the live bug directly; confirmed fixed against the
+  real corpus afterward (Article 17(1)/(2)/(3) now appear in
+  "Authorities retrieved" for that exact question).
+- **The judge's `analysis` label was never observed, in 3 genuine live
+  attempts on the hosted 7B.** Built from real corpus text: (1) a claim
+  combining Article 6(1)(a) and Article 17(1)(b) → `supported`, not
+  `analysis` — Article 17(1)(b) already cross-references Article 6(1)(a)
+  explicitly, so this one was arguably too easy; (2) a claim combining
+  Article 5(1)(c) data minimisation with Article 9(1)'s special-category
+  prohibition to conclude a controller should avoid unnecessary health
+  questions on a survey → `supported` again, even though neither excerpt
+  states that conclusion; (3) a claim chaining Article 21 (objection) into
+  Article 17 (erasure) → `interpretative`, still not `analysis`. By
+  contrast, `interpretative` triggers correctly and reliably: a claim
+  that C-131/12 ¶88 establishes a de-referencing obligation despite
+  Directive 95/46 never using that term got `interpretative` with a
+  sensible reason, on the first attempt. Working theory, not confirmed:
+  this model's judge tends to call anything "supported" once the
+  necessary premises are directly quoted, even when the claim's
+  *conclusion* is a synthesis — it may rarely or never reach for
+  `analysis` at all. Don't trust an `analysis` label if one ever appears;
+  it hasn't been observed to fire even when it should.
+- **The per-article/per-case gold standard in `eval/questions.jsonl` can
+  under-score a citation that's substantively correct but from a secondary
+  source** (e.g. a judgment paragraph that quotes an Article verbatim) or
+  a genuinely correct but differently-numbered provision (e.g. Article
+  4(11)'s definition of consent, cited for a question whose gold is
+  Article 7). Read eval numbers with that in mind, not as pure retrieval error.
+- **`eval/questions.jsonl` questions 3-5 are resolved via the reference
+  resolver** (they name "Article 6", "C-131/12", "C-136/17" explicitly),
+  so their hit@k is close to guaranteed by design — only questions 1-2
+  exercise genuine semantic retrieval.
+
+## Stage 2: Fine-tuning (trained, deployed once for eval, results below)
+
+Requested explicitly: a real fine-tuned model, not just calling a stock
+one via API. What exists so far, and what's still blocked:
+
+**What this can realistically teach**: schema adherence (always valid
+JSON), correct-handle citation among distractor sources, and refusing
+when the given sources don't cover the question — the exact failure
+modes hit during Stage-1 testing on a smaller local model (see
+"History"). **What it can't teach**: legal reasoning generally — the
+corpus is 3 documents (GDPR + 2 CJEU judgments), so an adapter trained
+only on it will be GDPR/search-engine-de-referencing-shaped, not a
+general EU legal reasoner. Treat it as a reliability fix for the RAG
+pipeline's output format, not a step toward general legal expertise —
+that needs a much larger, more varied training corpus first.
+
+**No training data was model-written.** Generation and the LLM-judge are
+blocked by depleted HF credits, and writing targets from memory would
+violate this project's own no-fabrication rule. Instead:
+
+- `lexeuropa/finetune/split.py` — a **deterministic split by provision**,
+  not by example: every 5th GDPR article plus articles already used in
+  `eval/questions.jsonl` or manual testing (6, 7, 9, 17, 21), and every
+  5th judgment paragraph, held out from training entirely (25.8% — 147 of
+  569 chunks). Run `python -m lexeuropa.finetune.split` to regenerate
+  `data/finetune/held_out_provisions.json`.
+- `lexeuropa/finetune/build_eval_questions.py` — expands the eval set to
+  42 templated questions (`eval/questions.jsonl` only had 5) covering
+  *only* held-out provisions, with gold `celex`/`article` taken directly
+  from chunk metadata. Written to `eval/questions_heldout.jsonl`, kept
+  separate from the original hand-built file.
+- `lexeuropa/finetune/build_dataset.py` — builds SFT training examples
+  using only train-split chunks: real hybrid retrieval (BM25 + HF
+  embeddings + the local reranker — none of that is credit-blocked) picks
+  realistic distractor sources, and the target answer is built by
+  splitting the real chunk text into short claims (one per lettered
+  point, e.g. GDPR's "(a)...(f)" lists; the whole paragraph otherwise),
+  each citing exactly the chunk it came from. The gold chunk's position
+  among sources is shuffled per example, so the adapter can't learn
+  "always cite S1". ~20% refusal examples are mixed in: a question about
+  one chunk, paired with sources retrieved for an unrelated one, target
+  labeled with an empty-citation refusal claim. Every example is
+  validated through the real `parse_response` before being kept.
+  No-leakage is structural, not just checked after the fact: `bm25`,
+  `dense` and the resolver used while building examples are constructed
+  only from train-split chunks, so a held-out chunk has no code path to
+  appear even as a distractor — see
+  `tests/test_finetune_dataset.py::test_bm25_and_resolver_built_from_train_split_cannot_surface_held_out_chunks`.
+  **Known flaw, fixed in code but not yet in the data:** the original
+  `split_into_claims` also split on inline cross-references ("point (a) of
+  Article 6(1)"), so ~39 GDPR chunks yielded mid-sentence claims, which the
+  adapter learned (live answers showed "...according to point" as its own
+  claim). `_list_markers` now only accepts real, alphabetical list markers
+  (test: `test_split_into_claims_ignores_inline_point_cross_references`).
+  The dataset below was built *before* the fix; a full rebuild takes hours
+  (one embedding + rerank round-trip per example) and the adapter must then
+  be retrained (billed) to benefit. Both still to do.
+  Built: **506 examples** (422 positive + 84 refusal, 16.6% refusal rate),
+  gold citation spread across all 8 source slots (42–64 examples each —
+  not concentrated on S1). Output: `data/finetune/sft_dataset.jsonl`
+  (TRL-style `{"messages": [...]}`), stats in
+  `data/finetune/sft_dataset_stats.json`.
+- `lexeuropa/finetune/train.py` — a LoRA SFT script (TRL + PEFT) for
+  `hf jobs uv run`, targeting `Qwen/Qwen2.5-3B-Instruct` — smaller than the
+  7B used for production generation, chosen because a small model is both
+  where this kind of fine-tuning helps most and the cheaper one to
+  train/serve. **Never run — see the blocker below.**
+
+**Blocked on billing, not code.** This account has **$0 pre-paid balance
+for HF Jobs** — verified live: even the cheapest possible job
+(`hf jobs run --flavor cpu-basic python:3.12 ...`, nominally $0.01/hr)
+returned `402 Payment Required: Pre-paid credit balance is insufficient`.
+This is a separate balance from the Inference Providers credits also
+depleted earlier. Nothing computational can run on HF — training or
+otherwise — until pre-paid credits are added. A first LoRA attempt on a
+small model would likely cost single-digit dollars (an hour or so on an
+L4/A10G), but that's an estimate, not a bill.
+
+**What actually happened, in order:**
+1. Dataset uploaded: `iPwnds/lexeuropa-sft` (private HF dataset repo, 506 examples).
+2. Smoke-tested `train.py` with `--max-steps 5` on `t4-small`, then again on
+   `l4x1` after fixing dtype/max_length/label-masking (see below) — each
+   run included the `_check_label_masking` assertion, which failed loudly
+   rather than silently training on the wrong tokens.
+3. Full fine-tune: `Qwen/Qwen2.5-3B-Instruct` + LoRA (r=16, alpha=32) on
+   `l4x1`, 2 epochs, 64 steps, **28 minutes, train_loss 0.0113, 99.98%
+   token accuracy**. Adapter pushed to `iPwnds/lexeuropa-qwen3b-lora`
+   (private) — confirmed real (119.8MB `adapter_model.safetensors`, not a
+   placeholder).
+4. Merged into a standalone model (`lexeuropa/finetune/merge_adapter.py`,
+   a cheap `cpu-upgrade` job) and pushed to
+   `iPwnds/lexeuropa-qwen3b-merged` — deploying a bare PEFT adapter to an
+   Endpoint and hoping the serving engine auto-loads it was judged too
+   risky to get right blind on billed infrastructure; a merged standalone
+   model deploys like any other.
+5. Deployed to a temporary HF Inference Endpoint (`l4x1`, vLLM engine,
+   `aws/us-east-1`) to run the eval, then **paused immediately after** —
+   114 minutes total, **$1.52**.
+6. Ran `eval/questions_heldout.jsonl` through both the stock hosted 7B
+   (baseline) and the fine-tuned 3B+LoRA (merged), with the judge pinned
+   to the stock 7B in both cases via `JUDGE_MODEL`/`JUDGE_BASE_URL` (see
+   "Design decisions" — this is exactly the scenario that separation was
+   built for, and here it mattered for real).
+
+**Results** (n=42, held-out provisions only):
+
+| | hit@k | citation precision | citation recall | errors |
+|---|---|---|---|---|
+| Baseline (stock Qwen2.5-7B) | 0.62 | 0.24 | 0.26 | 0 |
+| Fine-tuned (Qwen2.5-3B + LoRA) | 0.62 | **0.29** | **0.29** | 1 (network blip, not the adapter — see below) |
+
+hit@k is identical by construction — retrieval doesn't depend on the
+generator, so this just confirms both runs saw the same sources. The real
+comparison is precision/recall: a **modest improvement from a model
+less than half the size**. Per-question: 4 questions improved, 1
+regressed (Article 9(1), 1.00→0.00), 37 unchanged — not a dramatic win,
+and don't oversell it as one. The one fine-tuned-run error was a DNS
+resolution failure on the local machine mid-run (`nodename nor servname
+provided`), unrelated to the adapter.
+
+**Concrete behavioral evidence the fine-tune took**: the adapter's
+refusal phrasing is now verbatim "The provided sources do not contain
+information addressing this question" — exactly the refusal template
+from `build_dataset.py`'s synthetic examples, not the baseline's more
+varied phrasing ("The Court did not provide a statement...", "...is not
+explicitly stated..."). The adapter learned the house style, which is
+what it was trained to do.
+
+**What this does and doesn't show:** a 3B model matching or slightly
+beating a 7B model on citation precision, after 28 minutes of LoRA
+training on 506 synthetic examples, is a real result for schema
+adherence and citation discipline — the problems this adapter actually
+targets. It is not evidence of improved legal reasoning on either
+model's part; both still miss the majority of paragraph-specific
+judgment citations for the same structural reason (see "Known
+limitations" — judgment paragraphs have no resolver support, and a
+templated question like "what did the Court say in paragraph 75?" gives
+BM25/dense nothing to match on).
+
+**One more live data point, found afterward while testing the retrieval
+fixes above (not part of the n=42 eval run):** asked "According to the
+GDPR, how does Article 17 relate to C-131/12?" — a two-source synthesis
+question — the fine-tuned model refused ("The provided sources do not
+contain information addressing this question") even once retrieval was
+fixed to correctly surface both Article 17 GDPR and the relevant C-131/12
+paragraph. Consistent with the adapter's training data, which only
+modeled refusal for "sources don't cover this question at all," not
+"sources are present but need synthesizing across two different document
+types" — the ~16.6% refusal examples in `build_dataset.py` don't cover
+this shape. One live anecdote, not a measured regression — it's the kind
+of question that would need its own eval cases to quantify properly.
+
+**Billed-infrastructure notes for next time:**
+- `hf endpoints deploy` requires `--custom-image` with `--engine vllm`
+  (e.g. `vllm/vllm-openai:latest`); it is not inferred from `--engine` alone.
+- A DNS failure on the local machine (here: a Wi-Fi toggle left `scutil
+  --dns` reporting "No DNS configuration available") blocks the `hf` CLI
+  exactly like it blocks everything else — there is no automatic retry
+  path, and attempting to route around it via a hardcoded IP (`curl
+  --resolve`) is correctly treated as a containment-escape pattern and
+  blocked. If this happens again with a billed resource running, pause it
+  from a *different device* via the HF dashboard — don't wait on the
+  affected machine's network to recover.
+
+## Extending the corpus
+
+Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there
+was verified against a live CELLAR fetch before being added — do the same
+for new entries (`curl -IL -H "Accept: application/xhtml+xml" -H
+"Accept-Language: eng" http://publications.europa.eu/resource/celex/<CELEX>`
+should return a 303 redirect, not a 404). Add any new instrument's short
+name to `INSTRUMENT_ALIASES` in `config.py` if bare "Article N" references
+to it should resolve.

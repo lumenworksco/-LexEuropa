@@ -1,0 +1,115 @@
+"""Paths, model settings and known instrument aliases."""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path) -> None:
+    """Minimal .env loader (no new dependency) — populates os.environ without
+    overriding anything already set in the real shell environment."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_dotenv(PROJECT_ROOT / ".env")
+
+# Works around python.org's macOS build shipping without a CA bundle.
+import certifi  # noqa: E402
+
+os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+
+# Reranker weights cache into the project dir, not ~/.cache/huggingface — see CLAUDE.md.
+os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
+DATA_DIR = PROJECT_ROOT / "data"
+RAW_DIR = DATA_DIR / "raw"
+PROCESSED_DIR = DATA_DIR / "processed"
+INDEX_DIR = DATA_DIR / "index"
+
+CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
+INSTRUMENTS_PATH = PROCESSED_DIR / "instruments.jsonl"
+BM25_INDEX_PATH = INDEX_DIR / "bm25.pkl"
+DENSE_INDEX_PATH = INDEX_DIR / "dense.npz"
+
+CELLAR_BASE = "http://publications.europa.eu/resource/celex/"
+# CELLAR / EUR-Lex use ISO 639-2/B three-letter codes; we work with two-letter
+# codes (matching EU official-language conventions) in the rest of the app.
+# English-only by design for now — see CLAUDE.md.
+LANG_TO_CELLAR = {"en": "eng"}
+
+# Generation runs on HF, not locally — see CLAUDE.md. Default is the
+# fine-tuned adapter (Qwen2.5-3B + LoRA, merged), served from a dedicated,
+# scale-to-zero Inference Endpoint rather than the Inference Providers
+# router — a LoRA-trained model isn't in that catalog. Scale-to-zero means
+# a cold request after 15 idle minutes pays a restart cost (observed:
+# under a minute, since the model is already on the endpoint's attached
+# storage) — this is expected, not a bug, if `ask` seems to hang briefly
+# on the first call in a while.
+HF_TOKEN = os.environ.get("HF_TOKEN")
+LLM_BASE_URL = os.environ.get(
+    "LEXEUROPA_LLM_BASE_URL", "https://6ac3628565c8b62f296a02a0.endpoints.huggingface.cloud/v1"
+)
+LLM_MODEL = os.environ.get("LEXEUROPA_LLM_MODEL", "iPwnds/lexeuropa-qwen3b-merged")
+
+# The judge is a deliberately separate model/endpoint from the generator
+# (not just LLM_BASE_URL/LLM_MODEL again): if LLM_MODEL ever points at a
+# fine-tuned adapter trained to always emit {"claims": [...]} JSON, sending
+# judge prompts (plain-text label+reason) to that same model would get
+# JSON back instead of a judgeable answer, breaking verification silently.
+JUDGE_BASE_URL = os.environ.get("LEXEUROPA_JUDGE_BASE_URL", "https://router.huggingface.co/v1")
+JUDGE_MODEL = os.environ.get("LEXEUROPA_JUDGE_MODEL", "Qwen/Qwen2.5-7B-Instruct:featherless-ai")
+
+# Embeddings run on HF Inference Providers too, via hf-inference (not the OpenAI-compatible router).
+HF_INFERENCE_BASE_URL = os.environ.get(
+    "LEXEUROPA_HF_INFERENCE_URL", "https://router.huggingface.co/hf-inference"
+)
+EMBED_MODEL = os.environ.get("LEXEUROPA_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
+
+# The reranker runs locally (CPU, sentence-transformers) for now — see CLAUDE.md.
+RERANKER_MODEL = os.environ.get("LEXEUROPA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+
+# Some HF Inference Providers proxy to third parties (e.g. featherless-ai)
+# fronted by Cloudflare, which blocks Python's default urllib fingerprint
+# with a 403 (verified: same request succeeds with this header, fails
+# without it) — a browser User-Agent clears it.
+# TODO: untested whether an honest UA (e.g. "LexEuropa/0.1") would also
+# clear it, since the block likely just matches "Python-urllib" — worth
+# trying once HF credits are available again, instead of impersonating Chrome.
+HTTP_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)
+
+# Known short-name -> CELEX aliases for the reference resolver. Extend as the
+# corpus grows; this is intentionally a small seed set, not a full registry.
+INSTRUMENT_ALIASES: dict[str, str] = {
+    "gdpr": "32016R0679",
+    "general data protection regulation": "32016R0679",
+}
+
+def _case_number_aliases() -> dict[str, str]:
+    # Derived from seed_corpus.py rather than hand-duplicated, so a new
+    # judgment added there is automatically resolvable by its case number
+    # without the two tables drifting apart.
+    from lexeuropa.ingest.seed_corpus import SEED_INSTRUMENTS
+
+    aliases: dict[str, str] = {}
+    for inst in SEED_INSTRUMENTS:
+        if inst.case_number:
+            key = inst.case_number.strip().lower().replace("‑", "-")
+            aliases[key] = inst.celex
+    return aliases
+
+
+CASE_NUMBER_ALIASES: dict[str, str] = _case_number_aliases()
+
+for _d in (RAW_DIR, PROCESSED_DIR, INDEX_DIR):
+    _d.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,18 @@
+{
+  "total": 506,
+  "positive": 422,
+  "refusal": 84,
+  "refusal_fraction": 0.16600790513833993,
+  "failed_positive": 0,
+  "failed_refusal": 0,
+  "gold_handle_position_histogram": {
+    "S1": 48,
+    "S2": 50,
+    "S3": 53,
+    "S4": 58,
+    "S5": 56,
+    "S6": 61,
+    "S7": 63,
+    "S8": 33
+  }
+}
