@@ -487,6 +487,33 @@ of question that would need its own eval cases to quantify properly.
   from a *different device* via the HF dashboard — don't wait on the
   affected machine's network to recover.
 
+## Stage 2 follow-up: re-evaluation on current retrieval (2026-11)
+
+The n=42 table above (0.24 vs 0.29) was measured **before** the resolver
+fixes (pinning, plural articles, `resolve_precise`); retrieval then
+surfaced the gold source for only 26/42 questions. Re-running everything
+on today's retrieval (42/42) with the same stock-7B judge, via
+`eval/run_eval.py --file eval/questions_heldout.jsonl`:
+
+| | precision | recall | notes |
+|---|---|---|---|
+| Stock Qwen2.5-7B | 0.82 | 0.88 | `baseline_v2pipeline_eval_results.json` |
+| 3B + LoRA v1 | 0.95 | 0.95 | n=40; 2 cold-start 503s from the endpoint, not model errors. `finetuned_v1_currentpipeline_eval_results.json` |
+| 3B + LoRA v2 | 0.93 | 0.93 | trained on the rebuilt dataset (claim-splitter fix, `--no-rerank` distractors). `finetuned_v2_eval_results.json` |
+
+Takeaways: most of the old gap was retrieval, not generation; the fine-tune
+still adds ~0.1 precision over the stock 7B (better on 9, worse on 2-3
+questions); v2 (fixed training data) is not measurably better than v1, so
+**v1 remains the default** and the endpoint points at it. Questions share
+templates with training, so absolute numbers are optimistic. v2 artifacts
+exist on the Hub (`...-lora-v2`, `...-merged-v2`) if wanted.
+
+Operational notes: `hf endpoints`/`HfApi.update_inference_endpoint` with a
+new `repository` must also pass the new repo's `revision` (a stale commit
+sha from the old repo fails the deploy). `run_eval.py` needs `PYTHONPATH=.`
+when run as a script. Total cost of this round: roughly a few dollars of
+Jobs plus about two hours of endpoint time, now scaled to zero.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

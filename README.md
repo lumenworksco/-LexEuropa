@@ -59,27 +59,30 @@ python -m pytest tests/ -v -k "not full_hybrid"
 
 ## Fine-tuning result
 
-A LoRA adapter (r=16) was trained on 506 examples built deterministically from real chunk text, with a provision-level held-out split. On 42 held-out questions:
+A LoRA adapter (r=16) was trained on 506 examples built deterministically from real chunk text, with a provision-level held-out split. On 42 held-out questions, all three generators run on the **same, current retrieval** (gold source retrieved for 42/42), with the stock 7B as judge:
 
 | | citation precision | citation recall |
 |---|---|---|
-| Stock Qwen2.5-7B | 0.24 | 0.26 |
-| Qwen2.5-3B + LoRA | 0.29 | 0.29 |
+| Stock Qwen2.5-7B | 0.82 | 0.88 |
+| Qwen2.5-3B + LoRA (v1) | 0.95* | 0.95* |
+| Qwen2.5-3B + LoRA (v2, rebuilt dataset) | 0.93 | 0.93 |
 
-Artifacts: [merged model](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [LoRA adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft).
+\*40 of 42 questions; the other two hit a cold-start `503` from the scale-to-zero endpoint, not a model failure.
 
-A modest gain from a model less than half the size, showing better citation discipline and output-format adherence, **not** better legal reasoning. Full method, caveats and known limitations are in [`CLAUDE.md`](CLAUDE.md).
+The fine-tuned 3B beats the stock 7B by roughly 0.1 on citation precision, better on 9 questions and worse on 2-3, from a model less than half the size. v1 and v2 are indistinguishable at this sample size, so the live default stays v1. **Read this as better output-format and citation discipline, not better legal reasoning.** The questions are templated (the same templates appear in training, on different provisions), so the absolute numbers are optimistic. An earlier run reported 0.24 vs 0.29; that predates retrieval fixes and is not comparable.
+
+Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft). Full method and caveats are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Known limitations
 
 - Three-document, English-only corpus; the fine-tuned adapter is shaped by it.
-- The adapter's training data contains some claims split mid-sentence at inline cross-references. The splitter is fixed and the dataset rebuilt (`lexeuropa/finetune/build_dataset.py`), but the adapter has not yet been retrained on it.
+- The live adapter (v1) was trained on data with some claims split mid-sentence at inline cross-references. The splitter is fixed and v2 was trained on the rebuilt data, but v2 did not score measurably better, so v1 stays the default.
 - The judge rarely uses the `analysis` label; treat that label as unreliable.
 - Judgment paragraphs get no ranking beyond exact paragraph references.
 
 ## Roadmap
 
-See [`docs/VISION.md`](docs/VISION.md) for the long-term plan (multilingual corpus, knowledge graph, continued pretraining). Next concrete steps: retrain on the rebuilt dataset, grow the corpus, add paragraph-aware retrieval for judgments.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan (multilingual corpus, knowledge graph, continued pretraining). Next concrete steps: grow the corpus, add paragraph-aware retrieval for judgments.
 
 ## License
 
