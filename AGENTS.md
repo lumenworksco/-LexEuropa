@@ -371,15 +371,15 @@ violate this project's own no-fabrication rule. Instead:
   only from train-split chunks, so a held-out chunk has no code path to
   appear even as a distractor — see
   `tests/test_finetune_dataset.py::test_bm25_and_resolver_built_from_train_split_cannot_surface_held_out_chunks`.
-  **Known flaw, fixed in code but not yet in the data:** the original
-  `split_into_claims` also split on inline cross-references ("point (a) of
-  Article 6(1)"), so ~39 GDPR chunks yielded mid-sentence claims, which the
-  adapter learned (live answers showed "...according to point" as its own
-  claim). `_list_markers` now only accepts real, alphabetical list markers
-  (test: `test_split_into_claims_ignores_inline_point_cross_references`).
-  The dataset below was built *before* the fix; a full rebuild takes hours
-  (one embedding + rerank round-trip per example) and the adapter must then
-  be retrained (billed) to benefit. Both still to do.
+  **Fixed flaw:** the original `split_into_claims` also split on inline
+  cross-references ("point (a) of Article 6(1)"), producing mid-sentence
+  claims that the first adapter learned. `_list_markers` now only accepts
+  real, alphabetical list markers (test:
+  `test_split_into_claims_ignores_inline_point_cross_references`). The
+  dataset was rebuilt with `--no-rerank` (distractors from the fused
+  BM25+dense+resolver ranking; the CPU reranker costs ~50s/example), and
+  has 0 dangling claims. **The deployed adapter predates the fix** and must
+  be retrained (billed) to benefit.
   Built: **506 examples** (422 positive + 84 refusal, 16.6% refusal rate),
   gold citation spread across all 8 source slots (42–64 examples each —
   not concentrated on S1). Output: `data/finetune/sft_dataset.jsonl`

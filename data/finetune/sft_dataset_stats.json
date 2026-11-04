@@ -6,13 +6,12 @@
   "failed_positive": 0,
   "failed_refusal": 0,
   "gold_handle_position_histogram": {
-    "S1": 48,
-    "S2": 50,
-    "S3": 53,
-    "S4": 58,
-    "S5": 56,
-    "S6": 61,
-    "S7": 63,
-    "S8": 33
+    "S1": 68,
+    "S2": 58,
+    "S3": 57,
+    "S4": 51,
+    "S5": 55,
+    "S6": 69,
+    "S7": 64
   }
 }

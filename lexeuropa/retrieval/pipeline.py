@@ -69,6 +69,7 @@ def retrieve(
     k_candidates: int = 20,
     k_final: int = 8,
     default_celex: str | None = None,
+    use_reranker: bool = True,
 ) -> RetrievalResult:
     resolved = resolver.resolve(query, default_celex=default_celex)
     precise = resolver.resolve_precise(query, default_celex=default_celex)
@@ -98,6 +99,8 @@ def retrieve(
         return RetrievalResult([], {}, False)
 
     try:
+        if not use_reranker:
+            raise RerankerUnavailable("disabled by caller")
         reranked = rerank(query, fused_chunks, k_final)
         chunks = [c for c, _ in reranked]
         scores = {c.id: s for c, s in reranked}
@@ -105,7 +108,8 @@ def retrieve(
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
         return RetrievalResult(chunks=chunks, scores=scores, reranked=True)
     except RerankerUnavailable as e:
-        warnings.warn(f"reranker unavailable, using fused ranking instead: {e}")
+        if use_reranker:
+            warnings.warn(f"reranker unavailable, using fused ranking instead: {e}")
         top = fused[:k_final]
         chunks = [c for c, _ in top]
         scores = {c.id: s for c, s in top}

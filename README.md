@@ -73,13 +73,13 @@ A modest gain from a model less than half the size, showing better citation disc
 ## Known limitations
 
 - Three-document, English-only corpus; the fine-tuned adapter is shaped by it.
-- The adapter's training data contains some claims split mid-sentence at inline cross-references. The splitter is fixed (`lexeuropa/finetune/build_dataset.py`), but the dataset has not been rebuilt and the adapter not retrained.
+- The adapter's training data contains some claims split mid-sentence at inline cross-references. The splitter is fixed and the dataset rebuilt (`lexeuropa/finetune/build_dataset.py`), but the adapter has not yet been retrained on it.
 - The judge rarely uses the `analysis` label; treat that label as unreliable.
 - Judgment paragraphs get no ranking beyond exact paragraph references.
 
 ## Roadmap
 
-See [`docs/VISION.md`](docs/VISION.md) for the long-term plan (multilingual corpus, knowledge graph, continued pretraining). Next concrete steps: rebuild the dataset and retrain, grow the corpus, add paragraph-aware retrieval for judgments.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan (multilingual corpus, knowledge graph, continued pretraining). Next concrete steps: retrain on the rebuilt dataset, grow the corpus, add paragraph-aware retrieval for judgments.
 
 ## License
 

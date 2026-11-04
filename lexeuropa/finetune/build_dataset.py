@@ -34,6 +34,11 @@ from lexeuropa.schema import Chunk
 OUTPUT_PATH = PROJECT_ROOT / "data" / "finetune" / "sft_dataset.jsonl"
 STATS_PATH = PROJECT_ROOT / "data" / "finetune" / "sft_dataset_stats.json"
 
+# Set from --no-rerank. The CPU cross-encoder costs ~50s per example, so a
+# full build takes hours; fused (BM25+dense+resolver) ranking picks the
+# distractor sources in minutes instead.
+USE_RERANKER = True
+
 POINT_RE = re.compile(r"\(([a-z])\)\s+")
 
 POSITIVE_GDPR_TEMPLATES = [
@@ -108,7 +113,8 @@ def build_positive_example(
 ) -> dict | None:
     question = build_question(gold_chunk)
     result = retrieve(
-        question, bm25_index=bm25, dense_index=dense, resolver=resolver, k_candidates=20, k_final=7
+        question, bm25_index=bm25, dense_index=dense, resolver=resolver, k_candidates=20, k_final=7,
+        use_reranker=USE_RERANKER,
     )
     sources = [c for c in result.chunks if c.id != gold_chunk.id]
     sources.append(gold_chunk)
@@ -158,6 +164,7 @@ def build_refusal_example(
         resolver=resolver,
         k_candidates=20,
         k_final=7,
+        use_reranker=USE_RERANKER,
     )
     # Guard against topical overlap pulling the real answer in anyway.
     sources = [c for c in result.chunks if c.article != off_topic_chunk.article or c.celex != off_topic_chunk.celex]
@@ -192,7 +199,10 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="cap positive examples, for a smoke test")
     parser.add_argument("--refusal-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--no-rerank", action="store_true", help="pick distractors from the fused ranking, skipping the slow CPU reranker")
     args = parser.parse_args()
+    global USE_RERANKER
+    USE_RERANKER = not args.no_rerank
 
     random.seed(args.seed)
 
