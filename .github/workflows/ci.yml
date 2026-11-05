@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install (light: no torch, no local models)
+      - name: "Install (light, no torch or local models)"
         run: pip install -e ".[dev]"
       - name: Offline tests
         run: python -m pytest tests/ -v -k "not full_hybrid"
