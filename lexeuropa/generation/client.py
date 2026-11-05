@@ -25,7 +25,7 @@ def chat(
     temperature: float = 0.1,
     model: str | None = None,
     base_url: str | None = None,
-    max_tokens: int = 1500,
+    max_tokens: int = 3000,
     # 240s, not 120s: the default LLM_BASE_URL is a scale-to-zero
     # Endpoint, and a cold request after it's scaled down needs time to
     # restart the container before it can answer at all.

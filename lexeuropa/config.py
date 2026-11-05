@@ -75,6 +75,8 @@ EMBED_MODEL = os.environ.get("LEXEUROPA_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
 
 # The reranker runs locally (CPU, sentence-transformers) for now — see CLAUDE.md.
 RERANKER_MODEL = os.environ.get("LEXEUROPA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+# Set LEXEUROPA_USE_RERANKER=0 to skip the local cross-encoder (no torch/weights needed).
+USE_RERANKER = os.environ.get("LEXEUROPA_USE_RERANKER", "1") != "0"
 
 # Some HF Inference Providers proxy to third parties (e.g. featherless-ai)
 # fronted by Cloudflare, which blocks Python's default urllib fingerprint
@@ -93,6 +95,45 @@ HTTP_USER_AGENT = (
 INSTRUMENT_ALIASES: dict[str, str] = {
     "gdpr": "32016R0679",
     "general data protection regulation": "32016R0679",
+    "regulation 2016/679": "32016R0679",
+    "regulation (eu) 2016/679": "32016R0679",
+    "law enforcement directive": "32016L0680",
+    "directive 2016/680": "32016L0680",
+    "directive (eu) 2016/680": "32016L0680",
+    "eudpr": "32018R1725",
+    "regulation 2018/1725": "32018R1725",
+    "regulation (eu) 2018/1725": "32018R1725",
+    "digital services act": "32022R2065",
+    "dsa": "32022R2065",
+    "regulation 2022/2065": "32022R2065",
+    "regulation (eu) 2022/2065": "32022R2065",
+    "digital markets act": "32022R1925",
+    "dma": "32022R1925",
+    "regulation 2022/1925": "32022R1925",
+    "regulation (eu) 2022/1925": "32022R1925",
+    "data governance act": "32022R0868",
+    "regulation 2022/868": "32022R0868",
+    "regulation (eu) 2022/868": "32022R0868",
+    "data act": "32023R2854",
+    "regulation 2023/2854": "32023R2854",
+    "regulation (eu) 2023/2854": "32023R2854",
+    "nis 2 directive": "32022L2555",
+    "nis2": "32022L2555",
+    "directive 2022/2555": "32022L2555",
+    "directive (eu) 2022/2555": "32022L2555",
+    "artificial intelligence act": "32024R1689",
+    "ai act": "32024R1689",
+    "regulation 2024/1689": "32024R1689",
+    "regulation (eu) 2024/1689": "32024R1689",
+}
+
+# Joined cases are one judgment under several case numbers; the Instrument
+# carries only the first, so the rest are listed here.
+EXTRA_CASE_NUMBER_ALIASES: dict[str, str] = {
+    "c-594/12": "62012CJ0293",
+    "c-698/15": "62015CJ0203",
+    "c-512/18": "62018CJ0511",
+    "c-520/18": "62018CJ0511",
 }
 
 def _case_number_aliases() -> dict[str, str]:
@@ -109,7 +150,7 @@ def _case_number_aliases() -> dict[str, str]:
     return aliases
 
 
-CASE_NUMBER_ALIASES: dict[str, str] = _case_number_aliases()
+CASE_NUMBER_ALIASES: dict[str, str] = {**_case_number_aliases(), **EXTRA_CASE_NUMBER_ALIASES}
 
 for _d in (RAW_DIR, PROCESSED_DIR, INDEX_DIR):
     _d.mkdir(parents=True, exist_ok=True)

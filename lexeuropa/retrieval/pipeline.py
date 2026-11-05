@@ -17,6 +17,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 
+from lexeuropa.config import USE_RERANKER
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.fusion import reciprocal_rank_fusion
@@ -69,8 +70,10 @@ def retrieve(
     k_candidates: int = 20,
     k_final: int = 8,
     default_celex: str | None = None,
-    use_reranker: bool = True,
+    use_reranker: bool | None = None,
 ) -> RetrievalResult:
+    if use_reranker is None:
+        use_reranker = USE_RERANKER
     resolved = resolver.resolve(query, default_celex=default_celex)
     precise = resolver.resolve_precise(query, default_celex=default_celex)
     bm25_hits = [c for c, _ in bm25_index.search(query, k_candidates)]

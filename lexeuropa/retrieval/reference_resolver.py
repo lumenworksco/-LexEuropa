@@ -71,8 +71,13 @@ class ReferenceResolver:
         positives would need an unrelated alias mention elsewhere in a
         much larger question than these."""
         lowered = text.lower()
-        for alias, celex in INSTRUMENT_ALIASES.items():
-            if alias in lowered and celex in self._celex_present:
+        # Whole-word match: short aliases like "dsa" must not fire inside
+        # unrelated words. Longest alias first so "regulation (eu) 2016/679"
+        # is not shadowed by a shorter one.
+        for alias, celex in sorted(INSTRUMENT_ALIASES.items(), key=lambda kv: -len(kv[0])):
+            if celex in self._celex_present and re.search(
+                r"(?<!\w)" + re.escape(alias) + r"(?!\w)", lowered
+            ):
                 return celex
         return None
 

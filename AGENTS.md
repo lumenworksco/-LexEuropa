@@ -26,7 +26,7 @@ below for the actual numbers and what they do and don't show.
 | Generation (default) | Dedicated HF Inference Endpoint, scale-to-zero (`LLM_BASE_URL`) | `iPwnds/lexeuropa-qwen3b-merged` (Qwen2.5-3B + LoRA, merged — see "Stage 2: Fine-tuning") |
 | Judge (always, regardless of `LLM_MODEL`) | HF Inference Providers (`router.huggingface.co/v1`, featherless-ai) | `Qwen/Qwen2.5-7B-Instruct` |
 | Embeddings | HF Inference Providers (`router.huggingface.co/hf-inference`) | `BAAI/bge-large-en-v1.5` |
-| Reranker | **Local** (CPU, sentence-transformers) | `BAAI/bge-reranker-v2-m3` — confirmed not viable via `hf-inference`, see "What's implemented" below |
+| Reranker | **Optional, local** (CPU; `pip install -e ".[rerank]"`, off if not installed or `LEXEUROPA_USE_RERANKER=0`) | `BAAI/bge-reranker-v2-m3` — confirmed not viable via `hf-inference`, see "What's implemented" below |
 | BM25, reference resolver, verification logic | Local (pure Python, no model) | — |
 
 **The fine-tuned model is the live default**, not just an eval artifact —
@@ -110,7 +110,7 @@ Inference Providers call, check this first.
 ## Commands
 
 ```bash
-# Fetch, parse, chunk and index the seed corpus (GDPR, two CJEU judgments, English only).
+# Fetch, parse, chunk and index the corpus (24 instruments, ~4,200 chunks, English only; see seed_corpus.py).
 # Caches raw fetches to data/raw/, so re-running only re-fetches missing docs.
 python -m lexeuropa.cli ingest
 
@@ -186,7 +186,7 @@ tests/               offline unit tests + tests/fixtures/ (real cached CELLAR XH
 - **No stemming in BM25.** Plain lowercase Unicode word/number splitting,
   no English stemmer — keeps the index language-neutral rather than baking
   in an English-only assumption a future non-English corpus would degrade under.
-- **No FAISS.** The seed corpus is under 1,000 chunks; a brute-force NumPy
+- **No FAISS.** The corpus is ~4,200 chunks (a 17 MB dense matrix); a brute-force NumPy
   cosine search is simpler to read and fast enough.
 - **The reference resolver only resolves an "Article N" mention when an
   instrument alias (e.g. "GDPR") is textually nearby, or a default
@@ -513,6 +513,50 @@ new `repository` must also pass the new repo's `revision` (a stale commit
 sha from the old repo fails the deploy). `run_eval.py` needs `PYTHONPATH=.`
 when run as a script. Total cost of this round: roughly a few dollars of
 Jobs plus about two hours of endpoint time, now scaled to zero.
+
+## Corpus growth (2026-11): 3 documents -> 24 instruments, ~4,200 chunks
+
+Added 8 regulations/directives (LED 2016/680, EUDPR 2018/1725, DSA, DMA,
+Data Governance Act, Data Act, NIS 2, AI Act) and 13 CJEU judgments
+(Schrems I/II, Digital Rights Ireland, Tele2, La Quadrature du Net, Breyer,
+Wirtschaftsakademie, Fashion ID, Planet49, Nowak, Osterreichische Post,
+Meta v Bundeskartellamt, SCHUFA). Every CELEX number was verified against
+CELLAR and every parse checked for gap-free article/paragraph numbering
+before indexing. Things that changed or bit:
+
+- **Newer judgments use different markup.** From ~2020 on, paragraph
+  numbers are `<p class="coj-count">N</p>` cells (no `id="pointN"`; bullets
+  are a bare dash). `parse_judgment` now falls back to this form; real
+  excerpt fixture `tests/fixtures/cjeu_311_18_excerpt.xhtml`. Six of the 13
+  judgments parsed to zero units before this.
+- **Alias matching is whole-word now** (longest alias first) because short
+  aliases like "DSA" would otherwise substring-match inside other words.
+  Joined cases carry extra case numbers in `config.EXTRA_CASE_NUMBER_ALIASES`.
+- **Old directives are not in the corpus:** 95/46 and 2002/58 (ePrivacy)
+  return 404 for `application/xhtml+xml` (only plain `text/html`, which the
+  ELI parser cannot read). Recitals and annexes are not parsed either
+  (articles only) - a real gap for an "AI lawyer".
+- **The frozen train/held-out split still covers only the original three
+  documents.** `split.compute_split` assumes GDPR-or-judgment and would
+  mis-handle new legislation; do NOT regenerate `held_out_provisions.json`
+  (it would silently move provisions v1/v2 were trained on into the eval
+  set). New instruments are simply "never seen by the adapters" and are
+  evaluated with `eval/questions_unseen.jsonl` (25 natural-language
+  questions, gold checked against chunk text). A retrain on the full
+  corpus needs a new split computed per document type first.
+- **Reranker is optional.** On the unseen set it adds ~0.04-0.05 precision
+  and one retrieval hit (n=25, noisy), so `sentence-transformers` moved
+  to the `rerank` extra; base install has no torch and CI is light.
+- **Generation `max_tokens` raised 1500 -> 3000:** the adapter copies long
+  judgment paragraphs verbatim and one answer was cut off mid-JSON.
+
+Unseen-instrument results (n=25): stock 7B 0.71/0.80 (precision/recall,
+reranked), v1 adapter 0.88/0.88 reranked, 0.83/0.84 without reranker
+(one of those 25 was the max_tokens cut-off above). Result files:
+`data/finetune/unseen_*.json`. Operational gotcha: a scale-to-zero
+Endpoint answers `503` until warm even after `resume()` reports running;
+send a throwaway request and wait for success before an eval, or every
+question errors.
 
 ## Extending the corpus
 

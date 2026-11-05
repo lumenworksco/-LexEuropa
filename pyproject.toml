@@ -16,7 +16,6 @@ dependencies = [
     "lxml>=5.0",
     "rank-bm25>=0.2.2",
     "numpy>=1.26",
-    "sentence-transformers>=3.0",
     "certifi>=2024.0",
 ]
 
@@ -25,6 +24,9 @@ Homepage = "https://github.com/lumenworksco/-LexEuropa"
 Issues = "https://github.com/lumenworksco/-LexEuropa/issues"
 
 [project.optional-dependencies]
+# Local cross-encoder reranker (pulls in torch, ~3 GB with weights). Optional:
+# without it retrieval falls back to the fused BM25+dense+resolver ranking.
+rerank = ["sentence-transformers>=3.0"]
 dev = ["pytest>=8.0"]
 
 [tool.setuptools.packages.find]

@@ -145,3 +145,25 @@ def test_resolve_precise_includes_pinned_judgment_paragraph():
     precise = resolver.resolve_precise("What did the Court state in paragraph 1 of C-131/12?")
     assert len(precise) == 1
     assert precise[0].para_index == "1"
+
+
+def test_short_alias_matches_whole_words_only():
+    """"dsa" must not fire inside an unrelated word, and a real "DSA" mention
+    resolves to the Digital Services Act when that instrument is present."""
+    from lexeuropa.schema import Chunk
+
+    dsa = Chunk(
+        id="32022R2065:en:art_6:001", celex="32022R2065", lang="en",
+        instrument_title="DSA", citation="Article 6(1) DSA", unit_type="article_paragraph",
+        article="6", para_index="1", text="Hosting services ...", source_url="",
+    )
+    resolver = ReferenceResolver([dsa])
+    assert [c.id for c in resolver.resolve("What does Article 6 DSA say?")] == [dsa.id]
+    assert resolver.resolve("What does Article 6 of the Pseudodsatron say?") == []
+
+
+def test_joined_case_secondary_number_resolves_to_same_judgment():
+    from lexeuropa.config import CASE_NUMBER_ALIASES
+
+    assert CASE_NUMBER_ALIASES["c-698/15"] == CASE_NUMBER_ALIASES["c-203/15"] == "62015CJ0203"
+    assert CASE_NUMBER_ALIASES["c-594/12"] == CASE_NUMBER_ALIASES["c-293/12"]

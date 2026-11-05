@@ -48,3 +48,16 @@ def test_judgment_paragraphs_get_case_citations():
     assert first.citation == "C-131/12, para. 1"
     assert first.unit_type == "judgment_paragraph"
     assert first.article is None
+
+
+def test_parse_judgment_handles_newer_coj_count_markup():
+    """Judgments from ~2020 on number paragraphs as <p class="coj-count">N</p>
+    (no id) and use bare-dash cells for bullets. Real excerpt of C-311/18."""
+    from pathlib import Path
+
+    from lexeuropa.ingest.parser import parse_judgment
+
+    xhtml = (Path(__file__).parent / "fixtures" / "cjeu_311_18_excerpt.xhtml").read_text()
+    units = parse_judgment(xhtml)
+    assert [u.para_index for u in units] == ["1", "2", "3"]
+    assert all(u.unit_type == "judgment_paragraph" and len(u.text) > 20 for u in units)

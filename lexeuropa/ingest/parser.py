@@ -105,12 +105,20 @@ def parse_judgment(xhtml: str) -> list[ParsedUnit]:
     doc = lxml_html.fromstring(xhtml.encode("utf-8"))
     units: list[ParsedUnit] = []
 
-    for count_p in doc.xpath('//p[@class="count"]'):
-        pid = count_p.get("id", "")
-        m = POINT_ID_RE.match(pid)
-        if not m:
-            continue
-        para_num = m.group(1)
+    # Older judgments: <p class="count" id="pointN">. Newer ones (roughly
+    # 2020 onward) use <p class="coj-count">N</p> with no id — the number is
+    # the cell text, and bullet cells hold a bare dash and are skipped.
+    count_ps = [
+        (p, m.group(1))
+        for p in doc.xpath('//p[@class="count"]')
+        if (m := POINT_ID_RE.match(p.get("id", "")))
+    ] or [
+        (p, p.text_content().strip())
+        for p in doc.xpath('//p[@class="coj-count"]')
+        if p.text_content().strip().isdigit()
+    ]
+
+    for count_p, para_num in count_ps:
 
         row = count_p.getparent()
         while row is not None and row.tag != "tr":
