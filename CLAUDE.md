@@ -591,15 +591,42 @@ Qwen token lengths measured (max 3,712, none over the 5,120 limit), 0 dangling
 claims. Only 3 of the 15 judgments contribute training paragraphs; the rest are
 the unseen-eval cases.
 
-**Decision rule for promoting v3 (written before seeing results).** Re-run
-stock 7B, v1 and v3 on the *current* index (same reranker setting) on both the
-42-question and 25-question sets. Report the 25-set in two parts - the 13
-legislation questions (v3 trained on *other* provisions of those instruments)
-and the 12 judgment questions (truly unseen cases) - and note the 42-set is
-phrased "paragraph N of C-xxx", the template v1 was trained on, not v3's
-"C-xxx, para. N". v3 becomes the default if its precision and recall are each
-no more than 0.03 below v1's on every set/part (it covers recitals, annexes
-and treaty layouts v1 never saw); otherwise v1 stays.
+**Decision rule for promoting v3 (written before seeing results):** v3
+becomes the default only if its precision and recall are each within 0.03 of
+v1's on every set/part, re-run on the current index with the same reranker
+setting.
+
+**Outcome: v3 FAILED the rule; v1 remains the default.** Final run
+(`data/finetune/final_{base,v1,v3}_{heldout,unseen}.json`, 6,872-chunk index,
+no reranker, stock-7B judge; P = citation precision, R = recall):
+
+| | 42 templated (P/R) | 25 NL all | 25 NL legislation (13) | 25 NL judgments (12) |
+|---|---|---|---|---|
+| stock 7B | .92/.98 | .63/.84 | .43/.77 | .85/.92 |
+| v1 | 1.00/1.00 | .76/.76 | .69/.69 | .82/.83 |
+| v3 | .95/.95 | .56/.56 | .46/.46 | .67/.67 |
+
+Honest reading: v1 is more *precise* than the stock 7B on legislation but its
+*recall* is below the stock model's (cites fewer, sometimes none, of the right
+sources) and on judgments it is no better - the adapter bought citation
+discipline, not coverage. v3, trained on 1,680 examples over 19 instruments,
+regressed on everything and is below the stock model on the NL set. Untested
+hypothesis: every training question names its target provision ("What does
+Recital 47 GDPR state?"), so the model learned to match a named reference
+instead of choosing among sources for a natural question; v1 had the same
+weakness but less data to overfit. Caveats: the 42-set uses "paragraph N of
+C-xxx" phrasing v1 was trained on; n=25 is noisy; retrieval surfaced the gold
+source for only 10/13 legislation questions (0.77), so retrieval caps those
+results. v3 repos (`iPwnds/lexeuropa-qwen3b-{lora,merged}-v3`) exist and are
+deliberately private. Training cost of the round: ~71 min on l4x1 plus
+endpoint time for the evals.
+
+**Next steps, in order of expected payoff:** (1) retrieval for natural
+legislation questions - the ELI parser drops article titles (`eli-title`),
+indexing them would give BM25/dense something to match; (2) natural-language
+training questions that do not name the provision (no model-written text:
+e.g. derive from article titles/recital openings); (3) retrain only after (1)
+and (2), judged by the same pre-declared rule.
 
 ## Extending the corpus
 

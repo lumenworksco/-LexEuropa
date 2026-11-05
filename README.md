@@ -24,7 +24,7 @@ question
 
 | Component | Implementation |
 |---|---|
-| Corpus | 24 instruments, 4,208 chunks, English only: [see below](#corpus) |
+| Corpus | 31 instruments, 6,872 chunks, English only: [see below](#corpus) |
 | Retrieval | `rank_bm25`, `BAAI/bge-large-en-v1.5` via HF Inference, regex/alias reference resolver, reciprocal rank fusion |
 | Reranker | Optional. `BAAI/bge-reranker-v2-m3` locally on CPU if you install the `rerank` extra; otherwise the fused ranking is used |
 | Generation | `Qwen2.5-3B-Instruct` + LoRA fine-tune (merged), on a scale-to-zero HF Inference Endpoint |
@@ -60,7 +60,13 @@ python -m pytest tests/ -v -k "not full_hybrid"
 
 ## Corpus
 
-Everything is fetched from the Publications Office CELLAR service; every CELEX number was verified against a live fetch, and every parse was checked for gap-free article / paragraph numbering.
+31 instruments, 6,872 chunks, English only. Everything is fetched from the Publications Office CELLAR service. Every CELEX number was verified against a live fetch, and every parse was checked against the real article count (e.g. TFEU 358, Charter 54, GDPR 99). Chunks are article paragraphs, **recitals**, **annex parts** and judgment paragraphs.
+
+| Primary law | CELEX |
+|---|---|
+| Treaty on European Union (consolidated) | 12016M/TXT |
+| Treaty on the Functioning of the EU (consolidated) | 12016E/TXT |
+| Charter of Fundamental Rights | 12016P/TXT |
 
 | Legislation | CELEX |
 |---|---|
@@ -73,49 +79,54 @@ Everything is fetched from the Publications Office CELLAR service; every CELEX n
 | Data Act, (EU) 2023/2854 | 32023R2854 |
 | NIS 2 Directive, (EU) 2022/2555 | 32022L2555 |
 | AI Act, (EU) 2024/1689 | 32024R1689 |
+| Data Protection Directive 95/46/EC | 31995L0046 |
+| ePrivacy Directive 2002/58/EC | 32002L0058 |
+| e-Commerce Directive 2000/31/EC | 32000L0031 |
+| InfoSoc Directive 2001/29/EC | 32001L0029 |
 
 CJEU judgments: Google Spain (C-131/12), Schrems I (C-362/14), Schrems II (C-311/18), Digital Rights Ireland (C-293/12), Tele2 Sverige (C-203/15), La Quadrature du Net (C-511/18), Breyer (C-582/14), Wirtschaftsakademie (C-210/16), Fashion ID (C-40/17), Planet49 (C-673/17), Nowak (C-434/16), GC and Others v CNIL (C-136/17), Österreichische Post (C-300/21), Meta v Bundeskartellamt (C-252/21), SCHUFA (C-634/21).
 
-Not yet covered: recitals and annexes (articles only), the Treaties and the Charter, older directives (95/46, ePrivacy) that CELLAR serves only as plain HTML, and any language other than English.
+Not covered: other languages, national law, Advocate General opinions, Treaty protocols and declarations, and consolidated (amended-as-of-today) versions of the secondary legislation.
 
-## Fine-tuning result
+## Evaluation
 
-A LoRA adapter (r=16) was trained on 506 examples built deterministically from real chunk text of the original three documents (GDPR and two judgments), with a provision-level held-out split.
+The generator is a LoRA-tuned Qwen2.5-3B (v1, trained on 506 examples from the GDPR and two judgments). Final run on the current 6,872-chunk index, no reranker, stock Qwen2.5-7B as the judge for every row. Precision is the share of cited sources that point at the gold article or case, and recall is whether at least one does.
 
-**Held-out provisions of those documents** (42 templated questions, same retrieval and judge for all):
-
-| | citation precision | citation recall |
+| | 42 templated questions (P / R) | 25 natural-language questions (P / R) |
 |---|---|---|
-| Stock Qwen2.5-7B | 0.82 | 0.88 |
-| Qwen2.5-3B + LoRA (v1, live) | 0.95* | 0.95* |
-| Qwen2.5-3B + LoRA (v2, rebuilt dataset) | 0.93 | 0.93 |
+| Stock Qwen2.5-7B | 0.92 / 0.98 | 0.63 / 0.84 |
+| **Qwen2.5-3B + LoRA v1 (default)** | **1.00 / 1.00** | **0.76 / 0.76** |
+| Qwen2.5-3B + LoRA v3 (retrained on full corpus) | 0.95 / 0.95 | 0.56 / 0.56 |
 
-\*40 of 42; two requests hit a cold-start `503`.
+The 25-question set, split (retrieval surfaced the gold source for 77% of the legislation questions and 100% of the judgment questions):
 
-**Instruments the adapter never saw** (25 natural-language questions across the 21 added instruments, gold answers checked against chunk text, so this is the honest generalization test):
+| | legislation (13) P / R | judgments (12) P / R |
+|---|---|---|
+| Stock Qwen2.5-7B | 0.43 / 0.77 | 0.85 / 0.92 |
+| v1 | 0.69 / 0.69 | 0.82 / 0.83 |
+| v3 | 0.46 / 0.46 | 0.67 / 0.67 |
 
-| | hit@k | citation precision | citation recall |
-|---|---|---|---|
-| Stock Qwen2.5-7B, with reranker | 0.96 | 0.71 | 0.80 |
-| Qwen2.5-3B + LoRA v1, with reranker | 0.96 | 0.88 | 0.88 |
-| Qwen2.5-3B + LoRA v1, no reranker | 0.92 | 0.83 | 0.84 |
-| Stock Qwen2.5-7B, no reranker | 0.92 | 0.74 | 0.84 |
+What this does and does not show:
 
-The adapter generalizes to law it was never trained on and still beats the stock 7B on citation precision (+0.17 with the reranker). The reranker adds about 0.04-0.05 and one extra retrieval hit, so it is optional. n=25, so treat differences of a few points as noise. v1 and v2 are indistinguishable, so v1 stays the default. **This shows better citation discipline, not better legal reasoning.** An earlier 0.24 vs 0.29 figure predates retrieval fixes and is not comparable.
+- v1 is **more precise** than the stock 7B on legislation (it cites fewer wrong sources) but **not more complete**: its recall on unseen law is below the stock model's, and on judgments it is no better. The fine-tune bought citation discipline, not coverage.
+- **Retraining on the full corpus (v3) made it worse**, and a pre-declared promotion rule (v3 must be within 0.03 of v1 everywhere) failed, so v1 stays the default. A plausible cause is that the training questions all name their target provision ("What does Recital 47 GDPR state?"), unlike the natural questions in the 25-set, but that is untested. v3 is not published.
+- The 42-question set is templated with phrasing v1 was trained on, so its near-perfect scores are optimistic. The 25-question set is small (n=25), so differences of a few points are noise.
+- Held-out wording can still reach training through verbatim quotation (judgments quote recitals).
+- Retrieval, not generation, caps the legislation questions. Improving it (e.g. indexing article titles) is the clearest next step.
 
-Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft). Full method and caveats are in [`CLAUDE.md`](CLAUDE.md).
+Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft) (`v2` tag = the 506 examples v1 and v2 were trained on). Method and caveats: [`CLAUDE.md`](CLAUDE.md).
 
 ## Known limitations
 
-- English-only; the adapter was trained on only the GDPR and two judgments, then evaluated (not retrained) on the rest of the corpus.
-- Recitals and annexes are not indexed, so questions about a regulation's stated purpose or an annex list can miss.
-- The live adapter (v1) was trained on data with some claims split mid-sentence at inline cross-references. The splitter is fixed and v2 was trained on the rebuilt data, but v2 did not score measurably better, so v1 stays the default.
+- English only; no national law.
+- Retrieval is the weak link on natural-language questions about legislation (the right article surfaced for about 3 in 4). Article titles and headings are not indexed for most instruments.
+- The live adapter (v1) was trained on only the GDPR and two judgments, and its output has some claims split mid-sentence at inline cross-references (fixed in the data builder; the retrain that used the fix did not score better).
 - The judge rarely uses the `analysis` label; treat that label as unreliable.
-- Judgment paragraphs get no ranking beyond exact paragraph references.
+- Output is research assistance, not legal advice.
 
 ## Roadmap
 
-See [`docs/VISION.md`](docs/VISION.md) for the long-term plan (multilingual corpus, knowledge graph, continued pretraining). Next concrete steps: index recitals and annexes, retrain the adapter on the full corpus, grow the corpus, add paragraph-aware retrieval for judgments.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: improve retrieval for legislation (index article titles, query rewriting), build natural-language training questions without model-written text, and add Advocate General opinions and treaty protocols.
 
 ## License
 
