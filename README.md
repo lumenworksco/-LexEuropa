@@ -71,7 +71,7 @@ A LoRA adapter (r=16) was trained on 506 examples built deterministically from r
 
 The fine-tuned 3B beats the stock 7B by roughly 0.1 on citation precision, better on 9 questions and worse on 2-3, from a model less than half the size. v1 and v2 are indistinguishable at this sample size, so the live default stays v1. **Read this as better output-format and citation discipline, not better legal reasoning.** The questions are templated (the same templates appear in training, on different provisions), so the absolute numbers are optimistic. An earlier run reported 0.24 vs 0.29; that predates retrieval fixes and is not comparable.
 
-Artifacts: [merged model](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [LoRA adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft). Full method and caveats are in [`CLAUDE.md`](CLAUDE.md).
+Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft). Full method and caveats are in [`CLAUDE.md`](CLAUDE.md).
 
 ## Known limitations
 
