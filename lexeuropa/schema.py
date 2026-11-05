@@ -25,7 +25,7 @@ class Chunk:
     lang: str
     instrument_title: str
     citation: str  # human-readable, e.g. "Article 17(1) GDPR" or "C-131/12, para. 93"
-    unit_type: str  # "article_paragraph" | "judgment_paragraph"
+    unit_type: str  # "article_paragraph" | "recital" | "annex" | "judgment_paragraph"
     article: str | None  # "17" for legislation, None for judgments
     para_index: str | None  # "1" (legislation) or judgment paragraph number
     text: str

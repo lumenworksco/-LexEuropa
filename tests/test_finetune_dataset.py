@@ -94,3 +94,75 @@ def test_split_into_claims_ignores_inline_point_cross_references():
     assert len(claims) == 4
     assert claims[2].startswith("(b)") and "point (a) of Article 9(2)" in claims[2]
     assert claims[3].startswith("(c)")
+
+
+def _chunk(celex, unit_type, article, para, cid=None):
+    from lexeuropa.schema import Chunk
+
+    return Chunk(
+        id=cid or f"{celex}:en:{unit_type}_{article}_{para}", celex=celex, lang="en",
+        instrument_title="t", citation="c", unit_type=unit_type, article=article,
+        para_index=para, text="x", source_url="",
+    )
+
+
+def test_split_rules_cover_every_unit_type_without_crashing():
+    chunks = [
+        _chunk("32024R1689", "recital", None, "5"),     # every 5th recital held out
+        _chunk("32024R1689", "recital", None, "6"),
+        _chunk("32024R1689", "annex", "Annex III", "5"),
+        _chunk("32024R1689", "annex", "Annex III", "1"),
+        _chunk("32024R1689", "article_paragraph", "10", "1"),  # article % 5 == 0
+        _chunk("32024R1689", "article_paragraph", "11", "1"),
+        _chunk("12016P/TXT", "article_paragraph", "8", "1"),
+    ]
+    split = compute_split(chunks)
+    held = set(split["held_out_ids"])
+    assert chunks[0].id in held and chunks[1].id not in held
+    assert chunks[2].id in held and chunks[3].id not in held
+    assert chunks[4].id in held and chunks[5].id not in held
+    assert chunks[6].id not in held
+
+
+def test_original_gdpr_and_judgment_split_is_frozen():
+    """The 42-question held-out eval relies on these exact provisions staying
+    out of training: GDPR articles 6, 7, 9, 17, 21 and every 5th article, and
+    every 5th paragraph of the two original judgments."""
+    chunks = [
+        _chunk("32016R0679", "article_paragraph", "17", "1"),
+        _chunk("32016R0679", "article_paragraph", "6", "1"),
+        _chunk("32016R0679", "article_paragraph", "12", "1"),
+        _chunk("62012CJ0131", "judgment_paragraph", None, "75"),
+        _chunk("62012CJ0131", "judgment_paragraph", None, "76"),
+    ]
+    held = set(compute_split(chunks)["held_out_ids"])
+    assert {chunks[0].id, chunks[1].id, chunks[3].id} <= held
+    assert chunks[2].id not in held and chunks[4].id not in held
+
+
+def test_unseen_eval_provisions_and_judgments_are_never_trained_on(monkeypatch):
+    import lexeuropa.finetune.split as split_mod
+
+    monkeypatch.setattr(
+        split_mod, "_unseen_eval_targets", lambda: ({("32024R1689", "5")}, {"62017CJ0673"})
+    )
+    chunks = [
+        _chunk("32024R1689", "article_paragraph", "7", "1"),   # 7 % 5 != 0, but not in eval
+        _chunk("32024R1689", "article_paragraph", "5", "2"),   # eval gold article
+        _chunk("62017CJ0673", "judgment_paragraph", None, "3"),  # whole judgment held out
+        _chunk("62014CJ0582", "judgment_paragraph", None, "3"),  # other judgment: stride only
+    ]
+    held = set(split_mod.compute_split(chunks)["held_out_ids"])
+    assert chunks[1].id in held and chunks[2].id in held
+    assert chunks[0].id not in held and chunks[3].id not in held
+
+
+def test_stratified_pool_covers_every_instrument_before_repeating():
+    from lexeuropa.finetune.build_dataset import stratified_pool
+
+    chunks = [_chunk("A", "recital", None, str(i)) for i in range(50)] + [
+        _chunk("B", "recital", None, str(i)) for i in range(3)
+    ]
+    pool = stratified_pool(chunks, limit=4)
+    assert {c.celex for c in pool[:2]} == {"A", "B"}
+    assert {c.celex for c in pool[:6]} == {"A", "B"}

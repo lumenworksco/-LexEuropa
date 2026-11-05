@@ -41,13 +41,39 @@ USE_RERANKER = True
 
 POINT_RE = re.compile(r"\(([a-z])\)\s+")
 
-POSITIVE_GDPR_TEMPLATES = [
-    "What does Article {article}({para}) of the GDPR provide?",
-    "According to the GDPR, what is set out in Article {article}, paragraph {para}?",
+# {ref} is the chunk's own citation, e.g. "Article 5(1) AI Act", "Recital 47
+# GDPR", "Annex III (part 2) AI Act" or "C-131/12, para. 75".
+POSITIVE_TEMPLATES = [
+    "What does {ref} provide?",
+    "According to the text, what is set out in {ref}?",
+    "What does {ref} say?",
 ]
-POSITIVE_JUDGMENT_TEMPLATES = [
-    "What did the Court state in paragraph {para} of {case}?",
-]
+
+# An example whose prompt + target exceed this many characters is dropped:
+# at ~4 characters per token it keeps well inside --max-length (5120) so a
+# long answer is never truncated mid-JSON during training.
+MAX_EXAMPLE_CHARS = 16000
+
+
+def stratified_pool(chunks: list[Chunk], limit: int | None) -> list[Chunk]:
+    """Shuffled chunks, interleaved round-robin across instruments so a limited
+    sample covers every document instead of being dominated by the longest."""
+    by_celex: dict[str, list[Chunk]] = {}
+    for c in chunks:
+        by_celex.setdefault(c.celex, []).append(c)
+    for group in by_celex.values():
+        random.shuffle(group)
+    order = sorted(by_celex)
+    pool: list[Chunk] = []
+    depth = 0
+    while any(depth < len(g) for g in by_celex.values()):
+        for celex in order:
+            if depth < len(by_celex[celex]):
+                pool.append(by_celex[celex][depth])
+        depth += 1
+        if limit and len(pool) >= limit * 3:  # headroom: some get dropped as too long
+            break
+    return pool
 
 
 def filter_dense_index(dense_index: DenseIndex, keep_ids: set[str]) -> DenseIndex:
@@ -95,12 +121,7 @@ def split_into_claims(text: str) -> list[str]:
 
 
 def build_question(chunk: Chunk) -> str:
-    if chunk.unit_type == "article_paragraph":
-        template = random.choice(POSITIVE_GDPR_TEMPLATES)
-        return template.format(article=chunk.article, para=chunk.para_index)
-    case = chunk.citation.split(",")[0]
-    template = random.choice(POSITIVE_JUDGMENT_TEMPLATES)
-    return template.format(para=chunk.para_index, case=case)
+    return random.choice(POSITIVE_TEMPLATES).format(ref=chunk.citation)
 
 
 def build_target(gold_chunk: Chunk, gold_handle: str) -> dict:
@@ -126,6 +147,8 @@ def build_positive_example(
 
     target = build_target(gold_chunk, gold_handle)
     target_json = json.dumps(target, ensure_ascii=False)
+    if sum(len(m["content"]) for m in messages) + len(target_json) > MAX_EXAMPLE_CHARS:
+        return None  # too long to train on without truncation
 
     # Self-check: the example must parse and its citation must exist among
     # the sources it was built from — drop it rather than trust it blindly.
@@ -218,10 +241,7 @@ def main() -> None:
     dense = filter_dense_index(full_dense, train_ids)
     resolver = ReferenceResolver(train_chunks)
 
-    pool = list(train_chunks)
-    random.shuffle(pool)
-    if args.limit:
-        pool = pool[: args.limit]
+    pool = stratified_pool(train_chunks, args.limit)
 
     # Written incrementally (flushed after every kept example), and each
     # example is wrapped in its own try/except: a multi-hour run making
@@ -238,6 +258,8 @@ def main() -> None:
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         for i, chunk in enumerate(pool):
+            if args.limit and kept_positive >= args.limit:
+                break
             try:
                 ex = build_positive_example(chunk, bm25=bm25, dense=dense, resolver=resolver)
             except Exception as e:

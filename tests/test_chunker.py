@@ -61,3 +61,74 @@ def test_parse_judgment_handles_newer_coj_count_markup():
     units = parse_judgment(xhtml)
     assert [u.para_index for u in units] == ["1", "2", "3"]
     assert all(u.unit_type == "judgment_paragraph" and len(u.text) > 20 for u in units)
+
+
+def test_recitals_and_annex_are_parsed_from_real_ai_act_excerpt():
+    """Real excerpt of Regulation 2024/1689: recitals 1-2 and Annex II."""
+    from pathlib import Path
+
+    from lexeuropa.ingest.chunker import chunk_instrument
+    from lexeuropa.ingest.seed_corpus import SEED_INSTRUMENTS
+
+    ai_act = next(i for i in SEED_INSTRUMENTS if i.celex == "32024R1689")
+    xhtml = (Path(__file__).parent / "fixtures" / "ai_act_recital_annex_excerpt.xhtml").read_text()
+    chunks = chunk_instrument(ai_act, "en", xhtml)
+
+    recitals = [c for c in chunks if c.unit_type == "recital"]
+    assert [c.id for c in recitals] == ["32024R1689:en:rct_1", "32024R1689:en:rct_2"]
+    assert recitals[0].citation == "Recital 1 AI Act"
+    assert "purpose of this Regulation" in recitals[0].text
+    assert not recitals[0].text.startswith("(1)")
+
+    annex = [c for c in chunks if c.unit_type == "annex"]
+    assert annex and all(c.article == "Annex II" for c in annex)
+    assert annex[0].id == "32024R1689:en:anx_II:001"
+    assert annex[0].citation.startswith("Annex II")
+    assert "ANNEX II" in annex[0].text
+
+
+def test_legacy_oj_layout_charter_articles():
+    """Treaties and the Charter use the older OJ layout (class="ti-art" ...).
+    Real excerpt of the Charter, Articles 7 and 8."""
+    from pathlib import Path
+
+    from lexeuropa.ingest.chunker import chunk_instrument
+    from lexeuropa.ingest.seed_corpus import SEED_INSTRUMENTS
+
+    charter = next(i for i in SEED_INSTRUMENTS if i.celex == "12016P/TXT")
+    xhtml = (Path(__file__).parent / "fixtures" / "charter_articles_7_8_excerpt.xhtml").read_text(
+        encoding="utf-8"
+    )
+    chunks = chunk_instrument(charter, "en", xhtml)
+    by_id = {c.id: c for c in chunks}
+    assert "12016P/TXT:en:art_7:001" in by_id
+    art7 = by_id["12016P/TXT:en:art_7:001"]
+    assert art7.citation == "Article 7 Charter"
+    assert art7.text.startswith("Respect for private and family life.")
+    assert [c.id for c in chunks if c.article == "8"] == [
+        "12016P/TXT:en:art_8:001",
+        "12016P/TXT:en:art_8:002",
+        "12016P/TXT:en:art_8:003",
+    ]
+    assert by_id["12016P/TXT:en:art_8:001"].citation == "Article 8(1) Charter"
+
+
+def test_plain_html_layout_directive_95_46_recitals_and_articles():
+    """Pre-2010 acts come as unclassed text/html. Real excerpt of Directive 95/46/EC."""
+    from pathlib import Path
+
+    from lexeuropa.ingest.chunker import chunk_instrument
+    from lexeuropa.ingest.seed_corpus import SEED_INSTRUMENTS
+
+    inst = next(i for i in SEED_INSTRUMENTS if i.celex == "31995L0046")
+    html_text = (Path(__file__).parent / "fixtures" / "directive_95_46_excerpt.html").read_text(
+        encoding="utf-8"
+    )
+    chunks = chunk_instrument(inst, "en", html_text)
+    ids = [c.id for c in chunks]
+    assert ids[0] == "31995L0046:en:rct_1" and "31995L0046:en:rct_2" in ids
+    assert chunks[0].citation == "Recital 1 Directive 95/46"
+    art2 = next(c for c in chunks if c.article == "2")
+    assert art2.text.startswith("Definitions.") and "personal data" in art2.text
+    art1 = [c for c in chunks if c.article == "1"]
+    assert [c.para_index for c in art1] == ["1", "2"]

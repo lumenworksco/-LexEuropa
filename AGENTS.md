@@ -558,6 +558,49 @@ Endpoint answers `503` until warm even after `resume()` reports running;
 send a throwaway request and wait for success before an eval, or every
 question errors.
 
+## Corpus v3 and the v3 retrain (2026-11): 31 instruments, 6,872 chunks
+
+Added recitals (1,387) and annexes (57) as chunk types; the Treaties (TEU,
+TFEU) and the Charter (`12016M/TXT`, `12016E/TXT`, `12016P/TXT` - the slash in
+the CELEX is percent-encoded for the URL and flattened to `_` on disk), plus
+Directives 95/46, 2002/58 (ePrivacy), 2000/31 (e-Commerce) and 2001/29
+(InfoSoc). CELLAR serves these in two older layouts, each with its own parser
+and a real-excerpt test: the legacy OJ layout (`class="ti-art"`, treaties and
+Charter; `parse_legacy_oj`) and unclassed plain HTML (pre-2010 directives,
+fetched via the `text/html` fallback in `cellar.fetch`; `parse_plain_html`).
+`parse()` picks the parser from the markup. Article counts were checked
+against the real instruments (TEU 55, TFEU 358, Charter 54, 95/46 34, ...).
+Treaty parsing stops at the Protocols (their "Article 1..." numbering repeats).
+`DenseIndex.build(reuse=...)` re-embeds only new/changed chunks.
+
+**New split (`finetune/split.py`).** The original three documents' split is
+frozen (verified: all 147 held-out and 422 train ids unchanged; the previous
+file is kept as `held_out_provisions_v1.json`). New legislation holds out
+every 5th article/recital/annex part; every provision named by
+`eval/questions_unseen.jsonl` is held out, and the 11 judgments it names are
+held out *entirely*. Known limit: held-out wording can still reach training
+through quotation (judgments quote GDPR/ePrivacy recitals verbatim; EUDPR/LED
+repeat GDPR wording) - a held-out chunk is never a source or target, but its
+text is not guaranteed unseen. Verified by matching held-out text against
+the training prompts.
+
+**v3 training set:** 1,680 examples (1,400 positive stratified ~75 per
+instrument with training chunks + 280 refusals), questions use each chunk's own
+citation ("What does Recital 47 GDPR state?"), `--no-rerank` distractors, real
+Qwen token lengths measured (max 3,712, none over the 5,120 limit), 0 dangling
+claims. Only 3 of the 15 judgments contribute training paragraphs; the rest are
+the unseen-eval cases.
+
+**Decision rule for promoting v3 (written before seeing results).** Re-run
+stock 7B, v1 and v3 on the *current* index (same reranker setting) on both the
+42-question and 25-question sets. Report the 25-set in two parts - the 13
+legislation questions (v3 trained on *other* provisions of those instruments)
+and the 12 judgment questions (truly unseen cases) - and note the 42-set is
+phrased "paragraph N of C-xxx", the template v1 was trained on, not v3's
+"C-xxx, para. N". v3 becomes the default if its precision and recall are each
+no more than 0.03 below v1's on every set/part (it covers recitals, annexes
+and treaty layouts v1 never saw); otherwise v1 stays.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

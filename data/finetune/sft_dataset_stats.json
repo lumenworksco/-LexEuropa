@@ -1,17 +1,18 @@
 {
-  "total": 506,
-  "positive": 422,
-  "refusal": 84,
-  "refusal_fraction": 0.16600790513833993,
-  "failed_positive": 0,
+  "total": 1680,
+  "positive": 1400,
+  "refusal": 280,
+  "refusal_fraction": 0.16666666666666666,
+  "failed_positive": 1,
   "failed_refusal": 0,
   "gold_handle_position_histogram": {
-    "S1": 68,
-    "S2": 58,
-    "S3": 57,
-    "S4": 51,
-    "S5": 55,
-    "S6": 69,
-    "S7": 64
+    "S1": 199,
+    "S2": 187,
+    "S3": 210,
+    "S4": 181,
+    "S5": 197,
+    "S6": 191,
+    "S7": 195,
+    "S8": 40
   }
 }

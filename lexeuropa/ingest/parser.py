@@ -27,11 +27,17 @@ from lxml import html as lxml_html
 ARTICLE_ID_RE = re.compile(r"^art_(\d+[a-z]?)$")
 PARA_ID_RE = re.compile(r"^0*(\d+)\.0*(\d+)$")
 POINT_ID_RE = re.compile(r"^point(\d+)$")
+RECITAL_ID_RE = re.compile(r"^rct_(\d+)$")
+ANNEX_ID_RE = re.compile(r"^anx_\w+$")
+
+# Annexes are long lists and tables; split them on row/paragraph boundaries
+# into chunks of about this many characters (a single oversized row stays whole).
+ANNEX_CHUNK_CHARS = 1800
 
 
 @dataclass
 class ParsedUnit:
-    unit_type: str  # "article_paragraph" | "judgment_paragraph"
+    unit_type: str  # "article_paragraph" | "recital" | "annex" | "judgment_paragraph"
     article: str | None
     para_index: str
     citation: str
@@ -46,7 +52,7 @@ def _clean_text(el) -> str:
 
 def parse_legislation(xhtml: str) -> list[ParsedUnit]:
     doc = lxml_html.fromstring(xhtml.encode("utf-8"))
-    units: list[ParsedUnit] = []
+    units: list[ParsedUnit] = parse_recitals(doc)
 
     for art_div in doc.xpath('//div[@class="eli-subdivision"]'):
         art_id = art_div.get("id", "")
@@ -98,6 +104,284 @@ def parse_legislation(xhtml: str) -> list[ParsedUnit]:
                         text=text,
                     )
                 )
+    units.extend(parse_annexes(doc))
+    return units
+
+
+LEGACY_ARTICLE_RE = re.compile(r"^Article\s+(\d+[a-z]?)$", re.IGNORECASE)
+LEGACY_PARA_RE = re.compile(r"^(\d+)\.\s+")
+LEGACY_BODY_CLASSES = {"normal", "sp-normal", "final"}
+
+
+def _legacy_blocks(doc):
+    """Document-order blocks of the legacy OJ layout: (kind, text) with kind
+    in ti-art | sti-art | doc-ti | body. Tables (list points "(a) ...") are
+    flattened row by row; paragraphs inside tables are not repeated."""
+    body = doc.find(".//body")
+    for el in (body if body is not None else doc).iter("p", "table"):
+        if el.tag == "table":
+            if el.xpath("ancestor::table"):
+                continue
+            for tr in el.xpath(".//tr"):
+                if not tr.xpath(".//tr"):  # innermost rows only
+                    t = _clean_text(tr)
+                    if t:
+                        yield "body", t
+            continue
+        if el.xpath("ancestor::table"):
+            continue
+        kind = el.get("class") or ""
+        text = _clean_text(el)
+        if not text:
+            continue
+        if kind in ("ti-art", "sti-art", "doc-ti"):
+            yield kind, text
+        elif kind in LEGACY_BODY_CLASSES:
+            yield "body", text
+
+
+def parse_legacy_oj(xhtml: str) -> list[ParsedUnit]:
+    """Treaties, the Charter and pre-2010 directives, which CELLAR serves in
+    the older OJ markup (class="ti-art", "normal", ...) without ELI divs.
+
+    Parsing stops at the Protocols (they repeat "Article 1..." numbering).
+    The article's sub-title (e.g. "Human dignity") is prepended to each of its
+    paragraphs; "(ex Article ...)" former-numbering notes are dropped."""
+    doc = lxml_html.fromstring(xhtml.encode("utf-8"))
+    units: list[ParsedUnit] = []
+    seen: set[str] = set()
+
+    article: str | None = None
+    title = ""
+    paras: list[list[str]] = []  # [[index, text], ...]
+    pending_title = False
+
+    def flush():
+        nonlocal article, title, paras
+        if article is not None:
+            for index, text in paras:
+                full = f"{title}. {text}" if title else text
+                citation = f"Article {article}({index})" if len(paras) > 1 else f"Article {article}"
+                units.append(
+                    ParsedUnit("article_paragraph", article, index, citation, full)
+                )
+        article, title, paras = None, "", []
+
+    started = False
+    for kind, text in _legacy_blocks(doc):
+        if kind == "doc-ti" and started and text.upper().startswith(("PROTOCOL", "DECLARATION")):
+            break
+        m = LEGACY_ARTICLE_RE.match(text) if kind == "ti-art" else None
+        if m:
+            flush()
+            if m.group(1) in seen:
+                article = None  # a repeated number: ignore until the next new article
+                continue
+            seen.add(m.group(1))
+            article, started, pending_title = m.group(1), True, True
+            continue
+        if article is None:
+            continue
+        if kind == "sti-art":
+            if pending_title and not text.startswith("(ex "):
+                title = text
+            pending_title = False
+            continue
+        if kind != "body":
+            continue
+        pending_title = False
+        pm = LEGACY_PARA_RE.match(text)
+        if pm:
+            index = pm.group(1)
+            if paras and paras[-1][0] == index:
+                paras[-1][1] += " " + text
+            else:
+                paras.append([index, text])
+        elif paras:
+            paras[-1][1] += " " + text
+        else:
+            paras.append(["1", text])
+    flush()
+    return units
+
+
+PLAIN_ADOPTED_RE = re.compile(r"^HAV(?:E|ING) ADOPTED|^HAS ADOPTED", re.IGNORECASE)
+PLAIN_RECITAL_RE = re.compile(r"^\((\d+)\)\s+(.*)$")
+PLAIN_NUMBERED_RE = re.compile(r"^(\d+)\.\s+(.*)$")
+
+
+def parse_plain_html(xhtml: str) -> list[ParsedUnit]:
+    """Pre-2010 acts that CELLAR serves only as unclassed text/html (e.g.
+    Directive 95/46/EC, ePrivacy 2002/58/EC): no CSS classes, so structure is
+    recovered from the text — a standalone "Article N" line, an optional short
+    title line, then numbered paragraphs ("1. ...") with unnumbered
+    continuation lines (points, definitions) folded into the paragraph before
+    them. Recitals are the "(N) Whereas ..." paragraphs before "HAVE
+    ADOPTED"; parsing stops at "Done at ..."."""
+    doc = lxml_html.fromstring(xhtml.encode("utf-8"))
+    lines = [_clean_text(p) for p in doc.xpath("//p")]
+    lines = [t for t in lines if t]
+
+    units: list[ParsedUnit] = []
+    adopted = next((i for i, t in enumerate(lines) if PLAIN_ADOPTED_RE.match(t)), None)
+    if adopted is None:
+        return units
+
+    recitals: list[list[str]] = []  # [[number, text], ...]
+    for t in lines[:adopted]:
+        m = PLAIN_RECITAL_RE.match(t)
+        if m and (not recitals and m.group(1) == "1" or recitals and int(m.group(1)) == int(recitals[-1][0]) + 1):
+            recitals.append([m.group(1), m.group(2)])
+        elif recitals:
+            recitals[-1][1] += " " + t
+    for number, text in recitals:
+        units.append(ParsedUnit("recital", None, number, f"Recital {number}", text))
+
+    article: str | None = None
+    title = ""
+    paras: list[list[str]] = []
+    seen: set[str] = set()
+    expecting_title = False
+
+    def flush():
+        nonlocal article, title, paras
+        if article is not None:
+            for index, text in paras:
+                full = f"{title}. {text}" if title else text
+                citation = f"Article {article}({index})" if len(paras) > 1 else f"Article {article}"
+                units.append(ParsedUnit("article_paragraph", article, index, citation, full))
+        article, title, paras = None, "", []
+
+    for t in lines[adopted + 1 :]:
+        if t.startswith("Done at"):
+            break
+        m = LEGACY_ARTICLE_RE.match(t)
+        if m:
+            flush()
+            if m.group(1) in seen:
+                article, expecting_title = (None, False) if False else (m.group(1), True)
+                # same heading repeated (page artefact): keep collecting into it
+                continue
+            seen.add(m.group(1))
+            article, expecting_title = m.group(1), True
+            continue
+        if article is None:
+            continue
+        if expecting_title:
+            expecting_title = False
+            looks_like_title = (
+                len(t) < 100
+                and not t.endswith((".", ":", ";"))
+                and not PLAIN_NUMBERED_RE.match(t)
+                and not t.startswith("(")
+            )
+            if looks_like_title:
+                title = t
+                continue
+        nm = PLAIN_NUMBERED_RE.match(t)
+        if nm:
+            index = nm.group(1)
+            if paras and paras[-1][0] == index:
+                paras[-1][1] += " " + t
+            else:
+                paras.append([index, t])
+        elif paras:
+            paras[-1][1] += " " + t
+        else:
+            paras.append(["1", t])
+    flush()
+    return units
+
+
+def parse_recitals(doc) -> list[ParsedUnit]:
+    """<div class="eli-subdivision" id="rct_N"><table><tr><td>(N)</td><td>text</td>..."""
+    units: list[ParsedUnit] = []
+    for div in doc.xpath('//div[@class="eli-subdivision"]'):
+        m = RECITAL_ID_RE.match(div.get("id", ""))
+        if not m:
+            continue
+        number = m.group(1)
+        tds = div.xpath(".//td")
+        if len(tds) >= 2:
+            text = " ".join(t for t in (_clean_text(td) for td in tds[1:]) if t)
+        else:
+            text = re.sub(r"^\(\d+\)\s*", "", _clean_text(div))
+        if not text:
+            continue
+        units.append(
+            ParsedUnit(
+                unit_type="recital",
+                article=None,
+                para_index=number,
+                citation=f"Recital {number}",
+                text=text,
+            )
+        )
+    return units
+
+
+def _annex_label(title_paragraphs: list[str], fallback_id: str) -> str:
+    first = title_paragraphs[0] if title_paragraphs else ""
+    if first.upper().startswith("ANNEX"):
+        return ("Annex" + first[len("ANNEX"):]).strip()  # keep roman numerals upper-case
+    return f"Annex {fallback_id}"
+
+
+def parse_annexes(doc) -> list[ParsedUnit]:
+    """Top-level <div id="anx_X"> blocks: title paragraphs, then paragraphs and
+    tables. Packed greedily into ~ANNEX_CHUNK_CHARS chunks, never splitting a
+    paragraph or table row, with the annex title repeated on every chunk so a
+    chunk is self-describing."""
+    units: list[ParsedUnit] = []
+    for div in doc.xpath('//div[starts-with(@id, "anx_")]'):
+        if not ANNEX_ID_RE.match(div.get("id", "")):
+            continue
+        if div.xpath('ancestor::div[starts-with(@id, "anx_")]'):
+            continue  # nested sub-block, already covered by its parent
+
+        titles = [
+            _clean_text(p) for p in div.xpath('.//p[@class="oj-doc-ti"]') if _clean_text(p)
+        ]
+        label = _annex_label(titles, div.get("id", "")[4:])
+        title_text = " ".join(titles[:2])
+
+        pieces: list[str] = []
+        for el in div.iterchildren():
+            if el.tag == "p" and el.get("class") == "oj-doc-ti":
+                continue
+            if el.tag == "table":
+                pieces.extend(
+                    t for t in (_clean_text(tr) for tr in el.xpath("./tbody/tr | ./tr")) if t
+                )
+            else:
+                t = _clean_text(el)
+                if t:
+                    pieces.append(t)
+        if not pieces:
+            continue
+
+        groups: list[str] = []
+        current = ""
+        for piece in pieces:
+            if current and len(current) + len(piece) + 1 > ANNEX_CHUNK_CHARS:
+                groups.append(current)
+                current = piece
+            else:
+                current = f"{current} {piece}".strip()
+        if current:
+            groups.append(current)
+
+        for k, body in enumerate(groups, start=1):
+            citation = label if len(groups) == 1 else f"{label} (part {k})"
+            units.append(
+                ParsedUnit(
+                    unit_type="annex",
+                    article=label,
+                    para_index=str(k),
+                    citation=citation,
+                    text=f"{title_text} — {body}" if title_text else body,
+                )
+            )
     return units
 
 
@@ -146,7 +430,11 @@ def parse_judgment(xhtml: str) -> list[ParsedUnit]:
 
 def parse(xhtml: str, doc_type: str) -> list[ParsedUnit]:
     if doc_type in ("regulation", "directive", "decision", "treaty"):
-        return parse_legislation(xhtml)
+        if 'class="eli-subdivision"' in xhtml:
+            return parse_legislation(xhtml)
+        if 'class="ti-art"' in xhtml:
+            return parse_legacy_oj(xhtml)
+        return parse_plain_html(xhtml)
     if doc_type in ("judgment", "ag_opinion"):
         return parse_judgment(xhtml)
     raise ValueError(f"unknown doc_type: {doc_type!r}")

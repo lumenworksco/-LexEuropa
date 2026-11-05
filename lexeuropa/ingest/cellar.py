@@ -9,6 +9,7 @@ that instead of scraping EUR-Lex.
 """
 from __future__ import annotations
 
+import urllib.parse
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -22,8 +23,14 @@ class FetchError(RuntimeError):
     pass
 
 
+def safe_celex(celex: str) -> str:
+    """CELEX numbers of consolidated treaties contain a slash ("12016E/TXT");
+    it must be percent-encoded in the URL and flattened in file names."""
+    return celex.replace("/", "_")
+
+
 def raw_path(celex: str, lang: str) -> Path:
-    return Path(RAW_DIR) / celex / f"{lang}.xhtml"
+    return Path(RAW_DIR) / safe_celex(celex) / f"{lang}.xhtml"
 
 
 def fetch(celex: str, lang: str, *, force: bool = False) -> str:
@@ -38,25 +45,37 @@ def fetch(celex: str, lang: str, *, force: bool = False) -> str:
     if path.exists() and not force:
         return path.read_text(encoding="utf-8")
 
-    url = f"{CELLAR_BASE}{celex}"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/xhtml+xml",
-            "Accept-Language": LANG_TO_CELLAR[lang],
-            "User-Agent": USER_AGENT,
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read()
-            content_type = resp.headers.get("Content-Type", "")
-    except urllib.error.HTTPError as e:
-        raise FetchError(
-            f"CELLAR fetch failed for CELEX {celex} ({lang}): HTTP {e.code}"
-        ) from e
-    except urllib.error.URLError as e:
-        raise FetchError(f"CELLAR fetch failed for CELEX {celex} ({lang}): {e}") from e
+    url = f"{CELLAR_BASE}{urllib.parse.quote(celex, safe='')}"
+    # Most documents come as XHTML; older acts (pre-2010 directives) only as
+    # plain text/html, which returns 404 for an XHTML Accept header.
+    body = b""
+    content_type = ""
+    last_error: Exception | None = None
+    for accept in ("application/xhtml+xml", "text/html"):
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": accept,
+                "Accept-Language": LANG_TO_CELLAR[lang],
+                "User-Agent": USER_AGENT,
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                body = resp.read()
+                content_type = resp.headers.get("Content-Type", "")
+            last_error = None
+            break
+        except urllib.error.HTTPError as e:
+            last_error = FetchError(
+                f"CELLAR fetch failed for CELEX {celex} ({lang}): HTTP {e.code}"
+            )
+            if e.code != 404:
+                raise last_error from e
+        except urllib.error.URLError as e:
+            raise FetchError(f"CELLAR fetch failed for CELEX {celex} ({lang}): {e}") from e
+    if last_error is not None:
+        raise last_error
 
     if "xml" not in content_type and "html" not in content_type:
         raise FetchError(

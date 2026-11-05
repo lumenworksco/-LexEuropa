@@ -31,6 +31,13 @@ _PLURAL_ARTICLES_RE = re.compile(
     re.IGNORECASE,
 )
 _ARTICLE_ITEM_RE = re.compile(r"(\d+[a-z]?)(?:\s*\(\s*(\d+)\s*\))?")
+# "Recital 47", "Recitals 47 and 48", "recitals 26, 30-31" (ranges are not expanded).
+_RECITAL_RE = re.compile(
+    r"\bRecitals?\s+(\d+(?:\s*(?:,|and|&)\s*\d+)*)", re.IGNORECASE
+)
+# "Annex III": the word is case-insensitive, the roman numeral must be upper-case
+# so ordinary prose like "an annex is ..." never matches.
+_ANNEX_RE = re.compile(r"\b(?i:annex)\s+([IVXL]+)\b")
 _CASE_RE = re.compile(r"\bC[-‑\s]?(\d{1,4})\s*/\s*(\d{2,4})\b")
 # Matches a standalone "paragraph N" mention near a case number — e.g.
 # "paragraph 75 of C-131/12" or "C-131/12 ... paragraph 75" — distinct from
@@ -46,6 +53,8 @@ class ReferenceResolver:
         self._by_article: dict[tuple[str, str], list[Chunk]] = {}
         self._by_article_para: dict[tuple[str, str, str], list[Chunk]] = {}
         self._by_judgment_para: dict[tuple[str, str], list[Chunk]] = {}
+        self._by_recital: dict[tuple[str, str], list[Chunk]] = {}
+        self._by_annex: dict[tuple[str, str], list[Chunk]] = {}
         self._by_celex: dict[str, list[Chunk]] = {}
         self._celex_present: set[str] = set()
         for c in chunks:
@@ -57,6 +66,10 @@ class ReferenceResolver:
                     self._by_article_para.setdefault(
                         (c.celex, c.article, c.para_index), []
                     ).append(c)
+            elif c.unit_type == "recital" and c.para_index is not None:
+                self._by_recital.setdefault((c.celex, c.para_index), []).append(c)
+            elif c.unit_type == "annex" and c.article is not None:
+                self._by_annex.setdefault((c.celex, c.article), []).append(c)
             elif c.unit_type == "judgment_paragraph" and c.para_index is not None:
                 self._by_judgment_para.setdefault((c.celex, c.para_index), []).append(c)
 
@@ -123,6 +136,19 @@ class ReferenceResolver:
                 hits.extend(self._by_article_para.get((celex, article, para), []))
             else:
                 hits.extend(self._by_article.get((celex, article), []))
+
+        for m in _RECITAL_RE.finditer(text):
+            celex = self._alias_celex_in(text) or default_celex
+            if celex is None:
+                continue
+            for num in re.findall(r"\d+", m.group(1)):
+                hits.extend(self._by_recital.get((celex, num), []))
+
+        for m in _ANNEX_RE.finditer(text):
+            celex = self._alias_celex_in(text) or default_celex
+            if celex is None:
+                continue
+            hits.extend(self._by_annex.get((celex, f"Annex {m.group(1)}"), []))
 
         case_matches = list(_CASE_RE.finditer(text))
         paragraph_matches = list(_STANDALONE_PARAGRAPH_RE.finditer(text))

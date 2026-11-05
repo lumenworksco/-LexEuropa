@@ -13,7 +13,20 @@ from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.schema import Chunk, Instrument
 
 
+def _load_previous_dense() -> DenseIndex | None:
+    """The previous dense index, if any, so unchanged chunks keep their vectors."""
+    if not (CHUNKS_PATH.exists() and DENSE_INDEX_PATH.exists()):
+        return None
+    try:
+        old_by_id = {c.id: c for c in load_chunks()}
+        return DenseIndex.load(DENSE_INDEX_PATH, old_by_id)
+    except Exception as e:  # stale / mismatched files: just re-embed everything
+        print(f"  (not reusing previous dense index: {e})")
+        return None
+
+
 def run_ingest(instruments: list[Instrument] = SEED_INSTRUMENTS, *, build_dense: bool = True) -> list[Chunk]:
+    previous_dense = _load_previous_dense() if build_dense else None
     all_chunks: list[Chunk] = []
 
     for instrument in instruments:
@@ -40,7 +53,7 @@ def run_ingest(instruments: list[Instrument] = SEED_INSTRUMENTS, *, build_dense:
 
     if build_dense:
         print("building dense (bge-large-en-v1.5) index ... this calls HF Inference for every chunk")
-        DenseIndex.build(all_chunks).save(DENSE_INDEX_PATH)
+        DenseIndex.build(all_chunks, reuse=previous_dense).save(DENSE_INDEX_PATH)
 
     print(f"done: {len(all_chunks)} chunks from {len(instruments)} instruments")
     return all_chunks

@@ -167,3 +167,27 @@ def test_joined_case_secondary_number_resolves_to_same_judgment():
 
     assert CASE_NUMBER_ALIASES["c-698/15"] == CASE_NUMBER_ALIASES["c-203/15"] == "62015CJ0203"
     assert CASE_NUMBER_ALIASES["c-594/12"] == CASE_NUMBER_ALIASES["c-293/12"]
+
+
+def _recital_annex_chunks():
+    from pathlib import Path
+
+    ai_act = next(i for i in SEED_INSTRUMENTS if i.celex == "32024R1689")
+    xhtml = (FIXTURES / "ai_act_recital_annex_excerpt.xhtml").read_text(encoding="utf-8")
+    return chunk_instrument(ai_act, "en", xhtml)
+
+
+def test_resolves_recital_and_annex_references():
+    resolver = ReferenceResolver(_recital_annex_chunks())
+    assert [c.id for c in resolver.resolve("What does recital 2 of the AI Act say?")] == [
+        "32024R1689:en:rct_2"
+    ]
+    both = resolver.resolve("Compare Recitals 1 and 2 of the AI Act")
+    assert {c.id for c in both} == {"32024R1689:en:rct_1", "32024R1689:en:rct_2"}
+    annex = resolver.resolve("List the offences in Annex II of the AI Act")
+    assert annex and all(c.unit_type == "annex" and c.article == "Annex II" for c in annex)
+
+
+def test_prose_annex_without_roman_numeral_does_not_match():
+    resolver = ReferenceResolver(_recital_annex_chunks())
+    assert resolver.resolve("According to the AI Act, an annex is attached to the text") == []

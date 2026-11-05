@@ -75,15 +75,31 @@ class DenseIndex:
         self.vectors = vectors / norms
 
     @classmethod
-    def build(cls, chunks: list[Chunk], batch_size: int = 16) -> "DenseIndex":
+    def build(
+        cls, chunks: list[Chunk], batch_size: int = 16, reuse: "DenseIndex | None" = None
+    ) -> "DenseIndex":
+        """Embeds every chunk, except those whose id and text already have a
+        vector in `reuse` (so adding documents only embeds the new chunks)."""
         if not chunks:
             return cls(chunks, np.zeros((0, 0), dtype=np.float32))
-        batches = []
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i : i + batch_size]
-            batches.append(embed_texts([c.text for c in batch]))
-        vectors = np.vstack(batches)
-        return cls(chunks, vectors)
+        cached = {}
+        if reuse is not None:
+            cached = {c.id: (c.text, v) for c, v in zip(reuse.chunks, reuse.vectors)}
+        vectors: list = [None] * len(chunks)
+        todo = []
+        for i, c in enumerate(chunks):
+            hit = cached.get(c.id)
+            if hit is not None and hit[0] == c.text:
+                vectors[i] = hit[1]
+            else:
+                todo.append(i)
+        for start in range(0, len(todo), batch_size):
+            idx = todo[start : start + batch_size]
+            embedded = embed_texts([chunks[i].text for i in idx])
+            for i, v in zip(idx, embedded):
+                vectors[i] = v
+        print(f"  embedded {len(todo)} chunks, reused {len(chunks) - len(todo)}")
+        return cls(chunks, np.vstack(vectors))
 
     def search(self, query: str, k: int) -> list[tuple[Chunk, float]]:
         if not self.chunks:

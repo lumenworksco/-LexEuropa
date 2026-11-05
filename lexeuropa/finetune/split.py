@@ -21,9 +21,15 @@ HELD_OUT_SPLIT_PATH = DATA_DIR / "finetune" / "held_out_provisions.json"
 # must never leak into training, since they're the ones with hand-checked
 # answers already on record.
 GDPR_HELD_OUT_ARTICLES = sorted(set(range(5, 100, 5)) | {6, 7, 9, 17, 21})
+GDPR_CELEX = "32016R0679"
 
-# Every 5th judgment paragraph held out, same reasoning, applied to both CJEU cases.
+# Every 5th judgment paragraph held out, same reasoning, applied to every case.
 JUDGMENT_HELD_OUT_STRIDE = 5
+
+# Every 5th recital / annex part / article of the legislation added later.
+STRIDE = 5
+
+UNSEEN_QUESTIONS_PATH = DATA_DIR.parent / "eval" / "questions_unseen.jsonl"
 
 
 def _article_number(article: str) -> int:
@@ -31,15 +37,46 @@ def _article_number(article: str) -> int:
     return int(digits)
 
 
+def _unseen_eval_targets() -> tuple[set[tuple[str, str]], set[str]]:
+    """(celex, article) pairs and whole-judgment celexes named by the
+    natural-language unseen-instrument eval. Those provisions must never be
+    trained on, or the eval stops measuring generalization."""
+    articles: set[tuple[str, str]] = set()
+    judgments: set[str] = set()
+    if UNSEEN_QUESTIONS_PATH.exists():
+        for line in UNSEEN_QUESTIONS_PATH.read_text().splitlines():
+            q = json.loads(line)
+            if q.get("gold_article"):
+                articles.add((q["gold_celex"], q["gold_article"]))
+            else:
+                judgments.add(q["gold_celex"])
+    return articles, judgments
+
+
+def _is_held_out(c: Chunk, unseen_articles: set, unseen_judgments: set) -> bool:
+    if c.unit_type == "judgment_paragraph":
+        if c.celex in unseen_judgments:
+            return True  # whole judgment held out for the unseen eval
+        return int(c.para_index) % JUDGMENT_HELD_OUT_STRIDE == 0
+    if c.unit_type == "recital":
+        return int(c.para_index) % STRIDE == 0
+    if c.unit_type == "annex":
+        return int(c.para_index) % STRIDE == 0
+    # article_paragraph
+    if (c.celex, c.article) in unseen_articles:
+        return True
+    n = _article_number(c.article)
+    if c.celex == GDPR_CELEX:
+        return n in set(GDPR_HELD_OUT_ARTICLES)
+    return n % STRIDE == 0
+
+
 def compute_split(chunks: list[Chunk]) -> dict:
-    gdpr_held = set(GDPR_HELD_OUT_ARTICLES)
+    unseen_articles, unseen_judgments = _unseen_eval_targets()
     held_ids: list[str] = []
     train_ids: list[str] = []
     for c in chunks:
-        if c.celex == "32016R0679":
-            held = _article_number(c.article) in gdpr_held
-        else:
-            held = int(c.para_index) % JUDGMENT_HELD_OUT_STRIDE == 0
+        held = _is_held_out(c, unseen_articles, unseen_judgments)
         (held_ids if held else train_ids).append(c.id)
     return {"held_out_ids": held_ids, "train_ids": train_ids}
 
@@ -79,5 +116,4 @@ if __name__ == "__main__":
         t = sum(1 for c in train if c.celex == celex)
         h = sum(1 for c in held if c.celex == celex)
         print(f"  {celex}: train={t} held={h}")
-    print(f"held-out GDPR articles: {GDPR_HELD_OUT_ARTICLES}")
     print(f"written to {HELD_OUT_SPLIT_PATH}")
