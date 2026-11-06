@@ -628,6 +628,62 @@ training questions that do not name the provision (no model-written text:
 e.g. derive from article titles/recital openings); (3) retrain only after (1)
 and (2), judged by the same pre-declared rule.
 
+## Round 2 (2026-11): retrieval fixes, v4 retrain, and the credit wall
+
+**Retrieval (kept, measured with `eval/retrieval_eval.py`, no generation/billing).**
+Diagnosis of the 25-set misses: the top 8 were all *recitals* of the right
+instrument (they discuss topics in prose); the operative article ranked 8th-89th.
+Fixes: (1) article headings are now captured (`Chunk.title`, ELI `eli-title`
+and the two legacy layouts) and indexed with the text via `Chunk.index_text`
+(display text stays verbatim); (2) `retrieve()` searches deeper (40) and caps
+recitals in the final list (`LEXEUROPA_MAX_RECITALS`, default 3, `_cap_recitals`).
+hit@8 on the 25-set: 0.88 -> 0.96 (titles alone: 0.88, MRR .755; cap: .96,
+MRR .771); gold is always inside the top-200 pool, so the remaining miss
+(LED Art. 4) is ranking. Caveat: the cap value was chosen while looking at
+this same small set. Stock 7B on the same set improved 0.63/0.84 -> 0.69/0.88.
+
+**v4 training data (`build_dataset.py`).** Hypothesis for v3's failure: every
+question named its target provision and the target cited one source. v4 adds
+*topic* examples: question templated from the article's own heading ("What
+does the AI Act say about human oversight?", no provision named), sources = all
+paragraphs of that article + real retrieved distractors, target = one claim
+group per paragraph citing that paragraph's own handle (avg 2.9 paragraphs).
+1,402 examples: 539 topic + 630 reference + 233 refusals; max 3,484 Qwen
+tokens; 0 gold provisions from the held-out set. Trained 176 steps / 60 min on
+l4x1, loss 0.0055 (`iPwnds/lexeuropa-qwen3b-{lora,merged}-v4`, private).
+Dataset revisions on the Hub: `v2` (506), `v3` (1,680), `main` (v4).
+
+**Results (current retrieval, no reranker, stock-7B judge; P/R; 1 JSON-parse
+error each in the 25-set, excluded):**
+
+| | 42 templated | 25 NL (24 valid) | legislation (12) | judgments (12) |
+|---|---|---|---|---|
+| stock 7B | .90/.98 | .69/.88 | .55/.83 | .83/.92 |
+| v4 | .98/.98 | .68/.75 | .60/.75 | .75/.75 |
+
+v4 is far better than v3 (.56/.56, older retrieval) but still has lower recall
+than the stock model on natural questions. **v1 was NOT re-run on the new
+retrieval, so the pre-declared v4-vs-v1 rule could not be applied; v1 stays
+the default by default.** Round-1 v1 numbers (older retrieval, same sets) were
+1.00/1.00 and .76/.76 and are not comparable to the table above.
+
+**Why v1 was not re-run: the Hugging Face account ran out of credits.**
+Endpoint resume now returns `Forbidden: Payment method required for namespace:
+iPwnds` and Inference Providers (query embeddings, judge, router generation)
+return `HTTP 402 ... Purchase pre-paid credits`. The endpoint was left scaled
+to zero (serving v1, no cost). **Until credits are added the live system cannot
+run** (retrieval needs embedding calls; generation needs the endpoint). Adding
+credits is the user's call; to finish the comparison afterwards: warm the
+endpoint on v1 (send a real request and wait for success - `resume()` reporting
+"running" is not enough), then `eval/run_eval.py` on both sets with
+`LEXEUROPA_USE_RERANKER=0`, into `data/finetune/final2_v1_*.json`.
+
+**Honest bottom line:** across three adapters the fine-tune consistently
+improves citation *precision* and format discipline, but never clearly beats the
+stock Qwen2.5-7B on natural questions about unseen law, and its recall is
+lower. The most valuable remaining work is not more training but retrieval
+quality and, if the goal is "own models", a stronger base model than 3B.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

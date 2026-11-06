@@ -33,7 +33,7 @@ question
 
 ## Quickstart
 
-Requires Python 3.11+ and a [Hugging Face token](https://huggingface.co/settings/tokens) with Inference Providers access.
+Requires Python 3.11+ and a [Hugging Face token](https://huggingface.co/settings/tokens) with Inference Providers access. Embeddings, the judge and (by default) generation are HF-hosted calls that need account credits.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -109,24 +109,25 @@ The 25-question set, split (retrieval surfaced the gold source for 77% of the le
 What this does and does not show:
 
 - v1 is **more precise** than the stock 7B on legislation (it cites fewer wrong sources) but **not more complete**: its recall on unseen law is below the stock model's, and on judgments it is no better. The fine-tune bought citation discipline, not coverage.
-- **Retraining on the full corpus (v3) made it worse**, and a pre-declared promotion rule (v3 must be within 0.03 of v1 everywhere) failed, so v1 stays the default. A plausible cause is that the training questions all name their target provision ("What does Recital 47 GDPR state?"), unlike the natural questions in the 25-set, but that is untested. v3 is not published.
+- **Retraining on the full corpus (v3) made it worse**, and a pre-declared promotion rule (the new adapter must be within 0.03 of v1 everywhere) failed, so v1 stays the default.
+- **Round 2.** Retrieval was improved (article headings are now indexed and recitals are capped in the result list: hit@8 on the 25 questions went 0.88 → 0.96, and the stock model improved to 0.69 / 0.88). A v4 adapter trained on natural-language topic questions with whole-article targets scored 0.98 / 0.98 on the 42-question set but 0.68 / 0.75 on the 25 (stock 7B: 0.69 / 0.88): much better than v3, still lower recall than the stock model. v1 could not be re-measured on the new retrieval because the Hugging Face account ran out of credits, so v4-vs-v1 is unresolved. v3 and v4 are not published.
 - The 42-question set is templated with phrasing v1 was trained on, so its near-perfect scores are optimistic. The 25-question set is small (n=25), so differences of a few points are noise.
 - Held-out wording can still reach training through verbatim quotation (judgments quote recitals).
-- Retrieval, not generation, caps the legislation questions. Improving it (e.g. indexing article titles) is the clearest next step.
+- Honest summary: across three adapters the fine-tune improves citation precision and output discipline but has never clearly beaten the stock 7B on natural questions about unseen law. Retrieval quality, and possibly a stronger base model, matter more than more training.
 
 Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft) (`v2` tag = the 506 examples v1 and v2 were trained on). Method and caveats: [`CLAUDE.md`](CLAUDE.md).
 
 ## Known limitations
 
 - English only; no national law.
-- Retrieval is the weak link on natural-language questions about legislation (the right article surfaced for about 3 in 4). Article titles and headings are not indexed for most instruments.
+- Retrieval is the main lever on natural-language questions about legislation; after the round-2 fixes the right provision surfaced for 24 of 25 test questions, but the cap that achieved this was tuned on the same small set.
 - The live adapter (v1) was trained on only the GDPR and two judgments, and its output has some claims split mid-sentence at inline cross-references (fixed in the data builder; the retrain that used the fix did not score better).
 - The judge rarely uses the `analysis` label; treat that label as unreliable.
 - Output is research assistance, not legal advice.
 
 ## Roadmap
 
-See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: improve retrieval for legislation (index article titles, query rewriting), build natural-language training questions without model-written text, and add Advocate General opinions and treaty protocols.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: add credits and finish the v1-vs-v4 comparison, evaluate a larger base model, and add Advocate General opinions and treaty protocols.
 
 ## License
 
