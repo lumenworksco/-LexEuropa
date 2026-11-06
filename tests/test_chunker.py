@@ -104,7 +104,9 @@ def test_legacy_oj_layout_charter_articles():
     assert "12016P/TXT:en:art_7:001" in by_id
     art7 = by_id["12016P/TXT:en:art_7:001"]
     assert art7.citation == "Article 7 Charter"
-    assert art7.text.startswith("Respect for private and family life.")
+    assert art7.title == "Respect for private and family life"
+    assert art7.text.startswith("Everyone has the right to respect")
+    assert art7.index_text.startswith("Respect for private and family life. Everyone")
     assert [c.id for c in chunks if c.article == "8"] == [
         "12016P/TXT:en:art_8:001",
         "12016P/TXT:en:art_8:002",
@@ -129,6 +131,21 @@ def test_plain_html_layout_directive_95_46_recitals_and_articles():
     assert ids[0] == "31995L0046:en:rct_1" and "31995L0046:en:rct_2" in ids
     assert chunks[0].citation == "Recital 1 Directive 95/46"
     art2 = next(c for c in chunks if c.article == "2")
-    assert art2.text.startswith("Definitions.") and "personal data" in art2.text
+    assert art2.title == "Definitions" and art2.text.startswith("For the purposes of this Directive")
     art1 = [c for c in chunks if c.article == "1"]
     assert [c.para_index for c in art1] == ["1", "2"]
+
+
+def test_eli_article_title_is_captured_and_indexed_but_not_in_text():
+    """Real GDPR excerpt: Article 17 is titled "Right to erasure ..."."""
+    from pathlib import Path
+
+    from lexeuropa.ingest.chunker import chunk_instrument
+    from lexeuropa.ingest.seed_corpus import SEED_INSTRUMENTS
+
+    gdpr = next(i for i in SEED_INSTRUMENTS if i.celex == "32016R0679")
+    xhtml = (Path(__file__).parent / "fixtures" / "gdpr_en_excerpt.xhtml").read_text(encoding="utf-8")
+    art17 = [c for c in chunk_instrument(gdpr, "en", xhtml) if c.article == "17"]
+    assert art17 and all(c.title and c.title.startswith("Right to erasure") for c in art17)
+    assert not art17[0].text.startswith("Right to erasure")        # display text stays verbatim
+    assert art17[0].index_text.startswith("Right to erasure")      # indexed text carries the heading

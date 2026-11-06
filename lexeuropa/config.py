@@ -77,6 +77,8 @@ EMBED_MODEL = os.environ.get("LEXEUROPA_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
 RERANKER_MODEL = os.environ.get("LEXEUROPA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
 # Set LEXEUROPA_USE_RERANKER=0 to skip the local cross-encoder (no torch/weights needed).
 USE_RERANKER = os.environ.get("LEXEUROPA_USE_RERANKER", "1") != "0"
+# At most this many recitals in the final retrieved set (see retrieval/pipeline.py).
+MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "3"))
 
 # Some HF Inference Providers proxy to third parties (e.g. featherless-ai)
 # fronted by Cloudflare, which blocks Python's default urllib fingerprint

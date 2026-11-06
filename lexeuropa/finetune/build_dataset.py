@@ -23,6 +23,7 @@ import re
 
 from lexeuropa.config import DENSE_INDEX_PATH, PROJECT_ROOT
 from lexeuropa.finetune.split import load_split, partition_chunks
+from lexeuropa.ingest.chunker import SHORT_NAMES
 from lexeuropa.generation.prompts import build_messages, parse_response
 from lexeuropa.ingest.pipeline import load_chunks
 from lexeuropa.retrieval.bm25_index import BM25Index
@@ -48,6 +49,17 @@ POSITIVE_TEMPLATES = [
     "According to the text, what is set out in {ref}?",
     "What does {ref} say?",
 ]
+
+# Natural-language questions derived from an article's own heading, so they do
+# not name the provision (unlike POSITIVE_TEMPLATES) - closer to real use.
+# Deterministic string templating, no model-written text.
+TOPIC_TEMPLATES = [
+    "What does the {short} say about {topic}?",
+    "What are the rules on {topic} under the {short}?",
+    "How does the {short} deal with {topic}?",
+]
+MAX_TOPIC_PARAGRAPHS = 6
+MAX_TOPIC_GOLD_CHARS = 9000
 
 # An example whose prompt + target exceed this many characters is dropped:
 # at ~4 characters per token it keeps well inside --max-length (5120) so a
@@ -120,8 +132,42 @@ def split_into_claims(text: str) -> list[str]:
     return claims
 
 
-def build_question(chunk: Chunk) -> str:
+def topic_phrase(title: str) -> str:
+    """"Right to erasure ('right to be forgotten')" -> same, lower-cased at the
+    start unless it begins with an acronym or proper-looking token."""
+    t = title.strip().rstrip(".:;")
+    if len(t) > 1 and t[0].isupper() and not t[1].isupper():
+        t = t[0].lower() + t[1:]
+    return t
+
+
+def build_topic_question(chunk: Chunk) -> str:
+    short = SHORT_NAMES.get(chunk.celex, chunk.instrument_title)
+    return random.choice(TOPIC_TEMPLATES).format(short=short, topic=topic_phrase(chunk.title))
+
+
+def build_reference_question(chunk: Chunk) -> str:
     return random.choice(POSITIVE_TEMPLATES).format(ref=chunk.citation)
+
+
+def build_question(chunk: Chunk) -> str:
+    """Used for refusal questions: natural topic phrasing when the chunk has a
+    heading, otherwise a reference-style question."""
+    if chunk.title and chunk.unit_type == "article_paragraph" and random.random() < 0.6:
+        return build_topic_question(chunk)
+    return build_reference_question(chunk)
+
+
+def article_groups(chunks: list[Chunk]) -> dict[tuple[str, str], list[Chunk]]:
+    """Titled articles -> their paragraphs in order (only articles whose every
+    paragraph is in `chunks`, i.e. is a training article)."""
+    groups: dict[tuple[str, str], list[Chunk]] = {}
+    for c in chunks:
+        if c.unit_type == "article_paragraph" and c.title and c.article:
+            groups.setdefault((c.celex, c.article), []).append(c)
+    for g in groups.values():
+        g.sort(key=lambda c: int(c.para_index))
+    return groups
 
 
 def build_target(gold_chunk: Chunk, gold_handle: str) -> dict:
@@ -132,7 +178,7 @@ def build_target(gold_chunk: Chunk, gold_handle: str) -> dict:
 def build_positive_example(
     gold_chunk: Chunk, *, bm25: BM25Index, dense: DenseIndex, resolver: ReferenceResolver
 ) -> dict | None:
-    question = build_question(gold_chunk)
+    question = build_reference_question(gold_chunk)
     result = retrieve(
         question, bm25_index=bm25, dense_index=dense, resolver=resolver, k_candidates=20, k_final=7,
         use_reranker=USE_RERANKER,
@@ -167,6 +213,54 @@ def build_positive_example(
             "task": "positive",
             "gold_chunk_id": gold_chunk.id,
             "gold_handle": gold_handle,
+            "num_sources": len(sources),
+        },
+    }
+
+
+def build_topic_example(
+    group: list[Chunk], *, bm25: BM25Index, dense: DenseIndex, resolver: ReferenceResolver
+) -> dict | None:
+    """A natural question about an article's subject. Sources = every paragraph
+    of that article + real retrieved distractors; the target has a claim for
+    each paragraph, citing that paragraph's own handle - so the model learns to
+    cite *all* the relevant sources, not just one."""
+    if len(group) > MAX_TOPIC_PARAGRAPHS or sum(len(c.text) for c in group) > MAX_TOPIC_GOLD_CHARS:
+        return None
+    question = build_topic_question(group[0])
+    key = (group[0].celex, group[0].article)
+    result = retrieve(
+        question, bm25_index=bm25, dense_index=dense, resolver=resolver, k_candidates=20,
+        k_final=8, use_reranker=USE_RERANKER,
+    )
+    distractors = [c for c in result.chunks if (c.celex, c.article) != key][: max(1, 8 - len(group))]
+    sources = list(group) + distractors
+    random.shuffle(sources)
+
+    messages, handle_to_id = build_messages(question, sources)
+    id_to_handle = {v: k for k, v in handle_to_id.items()}
+    claims = []
+    for chunk in group:  # statutory order, each citing its own handle
+        handle = id_to_handle[chunk.id]
+        claims.extend({"text": t, "citations": [handle]} for t in split_into_claims(chunk.text))
+    target_json = json.dumps({"language": "en", "claims": claims}, ensure_ascii=False)
+    if sum(len(m["content"]) for m in messages) + len(target_json) > MAX_EXAMPLE_CHARS:
+        return None
+    try:
+        parsed = parse_response(target_json)
+        cited = {handle_to_id[c["citations"][0]] for c in parsed["claims"]}
+        if cited != {c.id for c in group}:
+            return None
+    except Exception:
+        return None
+    return {
+        "prompt": messages,
+        "completion": [{"role": "assistant", "content": target_json}],
+        "meta": {
+            "task": "topic",
+            "gold_chunk_id": group[0].id,
+            "gold_handle": id_to_handle[group[0].id],
+            "gold_chunk_ids": [c.id for c in group],
             "num_sources": len(sources),
         },
     }
@@ -221,6 +315,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=None, help="cap positive examples, for a smoke test")
     parser.add_argument("--refusal-fraction", type=float, default=0.2)
+    parser.add_argument(
+        "--topic-fraction", type=float, default=0.55,
+        help="share of positives that are natural-language topic questions over a whole article",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--no-rerank", action="store_true", help="pick distractors from the fused ranking, skipping the slow CPU reranker")
     args = parser.parse_args()
@@ -241,7 +339,14 @@ def main() -> None:
     dense = filter_dense_index(full_dense, train_ids)
     resolver = ReferenceResolver(train_chunks)
 
-    pool = stratified_pool(train_chunks, args.limit)
+    n_topic = round(args.limit * args.topic_fraction) if args.limit else 0
+    groups = article_groups(train_chunks)
+    rep_to_group = {g[0].id: g for g in groups.values()}
+    topic_pool = [rep_to_group[r.id] for r in stratified_pool([g[0] for g in groups.values()], n_topic or None)]
+    if not args.limit:
+        n_topic = len(topic_pool)
+    n_ref = (args.limit - n_topic) if args.limit else None
+    pool = stratified_pool(train_chunks, n_ref)
 
     # Written incrementally (flushed after every kept example), and each
     # example is wrapped in its own try/except: a multi-hour run making
@@ -256,9 +361,36 @@ def main() -> None:
     failed_refusal = 0
     gold_positions: dict[str, int] = {}
 
+    kept_by_task: dict[str, int] = {"topic": 0, "reference": 0}
+
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        def emit(ex: dict) -> None:
+            nonlocal kept_positive
+            f.write(json.dumps(ex, ensure_ascii=False) + "\n")
+            f.flush()
+            kept_positive += 1
+            gold_handle = ex["meta"]["gold_handle"]
+            gold_positions[gold_handle] = gold_positions.get(gold_handle, 0) + 1
+
+        # 1) natural-language topic questions over a whole article
+        for i, group in enumerate(topic_pool):
+            if kept_by_task["topic"] >= n_topic:
+                break
+            try:
+                ex = build_topic_example(group, bm25=bm25, dense=dense, resolver=resolver)
+            except Exception as e:
+                failed_positive += 1
+                print(f"  warning: topic example for {group[0].id} failed: {e}", flush=True)
+                ex = None
+            if ex:
+                emit(ex)
+                kept_by_task["topic"] += 1
+            if (i + 1) % 50 == 0:
+                print(f"  topic: {i + 1}/{len(topic_pool)} processed, {kept_by_task['topic']} kept", flush=True)
+
+        # 2) reference-style questions ("What does Recital 47 GDPR state?")
         for i, chunk in enumerate(pool):
-            if args.limit and kept_positive >= args.limit:
+            if n_ref is not None and kept_by_task["reference"] >= n_ref:
                 break
             try:
                 ex = build_positive_example(chunk, bm25=bm25, dense=dense, resolver=resolver)
@@ -267,14 +399,11 @@ def main() -> None:
                 print(f"  warning: positive example for {chunk.id} failed: {e}", flush=True)
                 ex = None
             if ex:
-                f.write(json.dumps(ex, ensure_ascii=False) + "\n")
-                f.flush()
-                kept_positive += 1
-                gold_handle = ex["meta"]["gold_handle"]
-                gold_positions[gold_handle] = gold_positions.get(gold_handle, 0) + 1
-            if (i + 1) % 25 == 0:
+                emit(ex)
+                kept_by_task["reference"] += 1
+            if (i + 1) % 50 == 0:
                 print(
-                    f"  positive: {i + 1}/{len(pool)} processed, {kept_positive} kept, "
+                    f"  reference: {i + 1}/{len(pool)} processed, {kept_by_task['reference']} kept, "
                     f"{failed_positive} failed",
                     flush=True,
                 )
@@ -305,6 +434,7 @@ def main() -> None:
     stats = {
         "total": total,
         "positive": kept_positive,
+        "positive_by_task": kept_by_task,
         "refusal": kept_refusal,
         "refusal_fraction": kept_refusal / total if total else 0,
         "failed_positive": failed_positive,

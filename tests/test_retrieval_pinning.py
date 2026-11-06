@@ -127,3 +127,19 @@ def test_bare_case_number_hits_are_not_pinned():
     resolver = ReferenceResolver(chunks)
     resolved = resolver.resolve("This was established in C-131/12.")
     assert len(resolved) > pipeline_mod.MAX_PINNED_RESOLVER_HITS
+
+
+def test_recital_cap_keeps_operative_articles_in_a_small_result_list():
+    from lexeuropa.retrieval.pipeline import _cap_recitals
+    from lexeuropa.schema import Chunk
+
+    def c(kind, n):
+        return Chunk(id=f"{kind}{n}", celex="X", lang="en", instrument_title="t", citation="c",
+                     unit_type=kind, article=str(n), para_index="1", text="x", source_url="")
+
+    ranked = [c("recital", i) for i in range(6)] + [c("article_paragraph", 9)]
+    capped = _cap_recitals(ranked, 5, 2)
+    assert [x.id for x in capped] == ["recital0", "recital1", "article_paragraph9", "recital2", "recital3"]
+    # not enough operative text to fill k: recitals backfill rather than shrink the list
+    only_recitals = [c("recital", i) for i in range(4)]
+    assert len(_cap_recitals(only_recitals, 3, 1)) == 3

@@ -38,7 +38,7 @@ def rerank(query: str, chunks: list[Chunk], top_k: int) -> list[tuple[Chunk, flo
     if not chunks:
         return []
     model = _get_model()
-    pairs = [(query, c.text) for c in chunks]
+    pairs = [(query, c.index_text) for c in chunks]
     scores = model.predict(pairs)
     ranked = sorted(zip(chunks, scores), key=lambda x: -x[1])
     return [(c, float(s)) for c, s in ranked[:top_k]]

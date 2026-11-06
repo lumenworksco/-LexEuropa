@@ -42,6 +42,7 @@ class ParsedUnit:
     para_index: str
     citation: str
     text: str
+    title: str | None = None
 
 
 def _clean_text(el) -> str:
@@ -60,6 +61,8 @@ def parse_legislation(xhtml: str) -> list[ParsedUnit]:
         if not m:
             continue
         article = m.group(1)
+        title_el = art_div.xpath('./div[@class="eli-title"]//p')
+        title = _clean_text(title_el[0]) if title_el else None
 
         para_divs = [
             d
@@ -81,6 +84,7 @@ def parse_legislation(xhtml: str) -> list[ParsedUnit]:
                         para_index=para_index,
                         citation=f"Article {article}({para_index})",
                         text=text,
+                        title=title,
                     )
                 )
         else:
@@ -102,6 +106,7 @@ def parse_legislation(xhtml: str) -> list[ParsedUnit]:
                         para_index="1",
                         citation=f"Article {article}",
                         text=text,
+                        title=title,
                     )
                 )
     units.extend(parse_annexes(doc))
@@ -145,8 +150,7 @@ def parse_legacy_oj(xhtml: str) -> list[ParsedUnit]:
     the older OJ markup (class="ti-art", "normal", ...) without ELI divs.
 
     Parsing stops at the Protocols (they repeat "Article 1..." numbering).
-    The article's sub-title (e.g. "Human dignity") is prepended to each of its
-    paragraphs; "(ex Article ...)" former-numbering notes are dropped."""
+    The article's sub-title (e.g. "Human dignity") is kept as `title`; "(ex Article ...)" former-numbering notes are dropped."""
     doc = lxml_html.fromstring(xhtml.encode("utf-8"))
     units: list[ParsedUnit] = []
     seen: set[str] = set()
@@ -160,10 +164,9 @@ def parse_legacy_oj(xhtml: str) -> list[ParsedUnit]:
         nonlocal article, title, paras
         if article is not None:
             for index, text in paras:
-                full = f"{title}. {text}" if title else text
                 citation = f"Article {article}({index})" if len(paras) > 1 else f"Article {article}"
                 units.append(
-                    ParsedUnit("article_paragraph", article, index, citation, full)
+                    ParsedUnit("article_paragraph", article, index, citation, text, title or None)
                 )
         article, title, paras = None, "", []
 
@@ -247,9 +250,10 @@ def parse_plain_html(xhtml: str) -> list[ParsedUnit]:
         nonlocal article, title, paras
         if article is not None:
             for index, text in paras:
-                full = f"{title}. {text}" if title else text
                 citation = f"Article {article}({index})" if len(paras) > 1 else f"Article {article}"
-                units.append(ParsedUnit("article_paragraph", article, index, citation, full))
+                units.append(
+                    ParsedUnit("article_paragraph", article, index, citation, text, title or None)
+                )
         article, title, paras = None, "", []
 
     for t in lines[adopted + 1 :]:

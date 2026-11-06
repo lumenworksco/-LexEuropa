@@ -59,6 +59,7 @@ def chunk_instrument(instrument: Instrument, lang: str, xhtml: str) -> list[Chun
                 para_index=unit.para_index,
                 text=unit.text,
                 source_url=source_url,
+                title=unit.title,
             )
         )
     return chunks

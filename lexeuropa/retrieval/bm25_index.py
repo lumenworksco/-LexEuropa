@@ -24,7 +24,7 @@ def tokenize(text: str) -> list[str]:
 class BM25Index:
     def __init__(self, chunks: list[Chunk]):
         self.chunks = chunks
-        self._tokenized = [tokenize(c.text) for c in chunks]
+        self._tokenized = [tokenize(c.index_text) for c in chunks]
         self._bm25 = BM25Okapi(self._tokenized) if chunks else None
 
     def search(self, query: str, k: int) -> list[tuple[Chunk, float]]:

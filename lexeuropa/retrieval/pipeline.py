@@ -17,7 +17,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 
-from lexeuropa.config import USE_RERANKER
+from lexeuropa.config import MAX_RECITALS_IN_RESULT, USE_RERANKER
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.fusion import reciprocal_rank_fusion
@@ -61,6 +61,30 @@ def _ensure_pinned(
     return chunks, scores
 
 
+def _cap_recitals(items: list, k: int, max_recitals: int, chunk_of=lambda x: x) -> list:
+    """First `k` items in order, but at most `max_recitals` of them recitals.
+
+    Recitals are prose about *why* a rule exists and match natural-language
+    questions better than the operative articles do, so left alone they crowd
+    the articles out of a small result list (observed: the top 8 for "What
+    risk-management measures must entities take under NIS 2?" were all
+    recitals, with Article 21 ranked 9th). If there are too few non-recitals
+    to fill `k`, the skipped recitals backfill at the end, in order."""
+    out: list = []
+    skipped: list = []
+    recitals = 0
+    for item in items:
+        if chunk_of(item).unit_type == "recital":
+            if recitals >= max_recitals:
+                skipped.append(item)
+                continue
+            recitals += 1
+        out.append(item)
+        if len(out) >= k:
+            return out
+    return (out + skipped)[:k]
+
+
 def retrieve(
     query: str,
     *,
@@ -76,10 +100,14 @@ def retrieve(
         use_reranker = USE_RERANKER
     resolved = resolver.resolve(query, default_celex=default_celex)
     precise = resolver.resolve_precise(query, default_celex=default_celex)
-    bm25_hits = [c for c, _ in bm25_index.search(query, k_candidates)]
-    dense_hits = [c for c, _ in dense_index.search(query, k_candidates)]
+    # Search deeper than the final pool so operative articles ranked below a
+    # screenful of recitals can still be selected (see _cap_recitals).
+    depth = max(k_candidates * 2, 40)
+    bm25_hits = [c for c, _ in bm25_index.search(query, depth)]
+    dense_hits = [c for c, _ in dense_index.search(query, depth)]
 
     fused = reciprocal_rank_fusion([resolved, bm25_hits, dense_hits])
+    fused = _cap_recitals(fused, len(fused), k_candidates // 2, chunk_of=lambda x: x[0])
     fused_chunks = [c for c, _ in fused][:k_candidates]
     # Pinning is gated on the *precise* hit count alone, not resolved's
     # total — resolved also carries a bare case-number's full-paragraph
@@ -104,7 +132,8 @@ def retrieve(
     try:
         if not use_reranker:
             raise RerankerUnavailable("disabled by caller")
-        reranked = rerank(query, fused_chunks, k_final)
+        reranked = rerank(query, fused_chunks, len(fused_chunks))
+        reranked = _cap_recitals(reranked, k_final, MAX_RECITALS_IN_RESULT, chunk_of=lambda x: x[0])
         chunks = [c for c, _ in reranked]
         scores = {c.id: s for c, s in reranked}
         if pinned_ids:
@@ -113,7 +142,7 @@ def retrieve(
     except RerankerUnavailable as e:
         if use_reranker:
             warnings.warn(f"reranker unavailable, using fused ranking instead: {e}")
-        top = fused[:k_final]
+        top = _cap_recitals(fused, k_final, MAX_RECITALS_IN_RESULT, chunk_of=lambda x: x[0])
         chunks = [c for c, _ in top]
         scores = {c.id: s for c, s in top}
         if pinned_ids:

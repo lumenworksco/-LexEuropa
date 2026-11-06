@@ -30,6 +30,14 @@ class Chunk:
     para_index: str | None  # "1" (legislation) or judgment paragraph number
     text: str
     source_url: str
+    # Heading of the article ("Right to erasure ..."), used for indexing only;
+    # `text` stays the verbatim provision so quotes and targets are exact.
+    title: str | None = None
+
+    @property
+    def index_text(self) -> str:
+        """What BM25 and the embeddings see: the heading plus the provision."""
+        return f"{self.title}. {self.text}" if self.title else self.text
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()

@@ -84,18 +84,18 @@ class DenseIndex:
             return cls(chunks, np.zeros((0, 0), dtype=np.float32))
         cached = {}
         if reuse is not None:
-            cached = {c.id: (c.text, v) for c, v in zip(reuse.chunks, reuse.vectors)}
+            cached = {c.id: (c.index_text, v) for c, v in zip(reuse.chunks, reuse.vectors)}
         vectors: list = [None] * len(chunks)
         todo = []
         for i, c in enumerate(chunks):
             hit = cached.get(c.id)
-            if hit is not None and hit[0] == c.text:
+            if hit is not None and hit[0] == c.index_text:
                 vectors[i] = hit[1]
             else:
                 todo.append(i)
         for start in range(0, len(todo), batch_size):
             idx = todo[start : start + batch_size]
-            embedded = embed_texts([chunks[i].text for i in idx])
+            embedded = embed_texts([chunks[i].index_text for i in idx])
             for i, v in zip(idx, embedded):
                 vectors[i] = v
         print(f"  embedded {len(todo)} chunks, reused {len(chunks) - len(todo)}")

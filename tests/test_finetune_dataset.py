@@ -166,3 +166,26 @@ def test_stratified_pool_covers_every_instrument_before_repeating():
     pool = stratified_pool(chunks, limit=4)
     assert {c.celex for c in pool[:2]} == {"A", "B"}
     assert {c.celex for c in pool[:6]} == {"A", "B"}
+
+
+def test_topic_question_is_derived_from_the_heading_and_names_no_provision():
+    from lexeuropa.finetune.build_dataset import build_topic_question, topic_phrase
+
+    c = _chunk("32016R0679", "article_paragraph", "17", "1")
+    c.title = "Right to erasure ('right to be forgotten')"
+    assert topic_phrase(c.title) == "right to erasure ('right to be forgotten')"
+    assert topic_phrase("AI literacy") == "AI literacy"          # acronyms keep their case
+    q = build_topic_question(c)
+    assert "right to erasure" in q and "GDPR" in q
+    assert "Article" not in q and "17" not in q
+
+
+def test_article_groups_collect_paragraphs_in_order_and_skip_untitled():
+    from lexeuropa.finetune.build_dataset import article_groups
+
+    a2 = _chunk("32016R0679", "article_paragraph", "17", "2"); a2.title = "T"
+    a1 = _chunk("32016R0679", "article_paragraph", "17", "1"); a1.title = "T"
+    untitled = _chunk("12016M/TXT", "article_paragraph", "16", "1")
+    groups = article_groups([a2, a1, untitled])
+    assert list(groups) == [("32016R0679", "17")]
+    assert [c.para_index for c in groups[("32016R0679", "17")]] == ["1", "2"]
