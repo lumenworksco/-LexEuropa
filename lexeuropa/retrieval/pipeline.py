@@ -69,7 +69,10 @@ def _cap_recitals(items: list, k: int, max_recitals: int, chunk_of=lambda x: x) 
     the articles out of a small result list (observed: the top 8 for "What
     risk-management measures must entities take under NIS 2?" were all
     recitals, with Article 21 ranked 9th). If there are too few non-recitals
-    to fill `k`, the skipped recitals backfill at the end, in order."""
+    to fill `k`, the skipped recitals backfill at the end, in order.
+
+    Tried and removed: also capping paragraphs per judgment (max 3 or 2). It
+    changed neither hit@8 nor MRR on either question set."""
     out: list = []
     skipped: list = []
     recitals = 0

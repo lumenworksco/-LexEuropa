@@ -11,7 +11,7 @@ import urllib.request
 
 import numpy as np
 
-from lexeuropa.config import EMBED_MODEL, HF_INFERENCE_BASE_URL, HF_TOKEN, HTTP_USER_AGENT
+from lexeuropa.config import EMBED_BACKEND, EMBED_MODEL, HF_INFERENCE_BASE_URL, HF_TOKEN, HTTP_USER_AGENT
 from lexeuropa.schema import Chunk
 
 # Per the model card: add to queries only, never to indexed passages.
@@ -22,11 +22,32 @@ class EmbeddingError(RuntimeError):
     pass
 
 
+_local_model = None
+
+
+def _embed_locally(texts: list[str]) -> np.ndarray:
+    global _local_model
+    if _local_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as e:
+            raise EmbeddingError(
+                'LEXEUROPA_EMBED_BACKEND=local needs sentence-transformers (pip install -e ".[rerank]")'
+            ) from e
+        _local_model = SentenceTransformer(EMBED_MODEL, device="cpu")
+    return np.asarray(
+        _local_model.encode(texts, normalize_embeddings=True, batch_size=8, show_progress_bar=False),
+        dtype=np.float32,
+    )
+
+
 def embed_texts(texts: list[str], *, retries: int = 3) -> np.ndarray:
     """Retries transient failures (timeouts, connection resets) — a single
     stalled request shouldn't be fatal on its own, especially for a batch
     job making hundreds of calls. HTTP errors (4xx/5xx with a real
     response) are not retried, since those are not transient."""
+    if EMBED_BACKEND == "local" and texts:
+        return _embed_locally(texts)
     if not texts:
         return np.zeros((0, 0), dtype=np.float32)
     headers = {"Content-Type": "application/json", "User-Agent": HTTP_USER_AGENT}

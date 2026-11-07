@@ -633,7 +633,7 @@ and (2), judged by the same pre-declared rule.
 **Retrieval (kept, measured with `eval/retrieval_eval.py`, no generation/billing).**
 Diagnosis of the 25-set misses: the top 8 were all *recitals* of the right
 instrument (they discuss topics in prose); the operative article ranked 8th-89th.
-Fixes: (1) article headings are now captured (`Chunk.title`, ELI `eli-title`
+Fixes (cap since lowered 3 -> 1, see the sweep below): (1) article headings are now captured (`Chunk.title`, ELI `eli-title`
 and the two legacy layouts) and indexed with the text via `Chunk.index_text`
 (display text stays verbatim); (2) `retrieve()` searches deeper (40) and caps
 recitals in the final list (`LEXEUROPA_MAX_RECITALS`, default 3, `_cap_recitals`).
@@ -641,6 +641,21 @@ hit@8 on the 25-set: 0.88 -> 0.96 (titles alone: 0.88, MRR .755; cap: .96,
 MRR .771); gold is always inside the top-200 pool, so the remaining miss
 (LED Art. 4) is ranking. Caveat: the cap value was chosen while looking at
 this same small set. Stock 7B on the same set improved 0.63/0.84 -> 0.69/0.88.
+
+**Cap validation (offline, `LEXEUROPA_EMBED_BACKEND=local`, free).** The cap
+of 3 was first chosen on the 25-set, so 34 fresh natural-language questions
+(`eval/questions_retrieval.jsonl`, gold checked against chunk text) were
+written to validate it. hit@8 / MRR on the fresh 34 by recital cap: none .85 /
+.565, 1 **.91 / .586**, 2 .88 / .572, 3 .88 / .570, 5 .85 / .565; on the
+original 25 every cap 1-5 gives .96 (MRR best at 1: .795). Default is now 1.
+A further per-judgment cap (max 3 or 2 paragraphs of one case) changed
+nothing and was removed. Remaining misses on the fresh set: EUDPR Art. 57
+(neighbouring EDPS articles retrieved) and two old-directive questions
+(95/46 Art. 7, ePrivacy Art. 5) where judgment paragraphs quoting the
+statute outrank it. `LEXEUROPA_EMBED_BACKEND=local` runs the same bge model
+on CPU (needs the `rerank` extra, ~1.3 GB of weights) and reproduced the
+HF-API numbers exactly (hit@8 .96, MRR .771), so retrieval can be evaluated
+with no HF credits.
 
 **v4 training data (`build_dataset.py`).** Hypothesis for v3's failure: every
 question named its target provision and the target cited one source. v4 adds

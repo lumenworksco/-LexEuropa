@@ -72,13 +72,18 @@ HF_INFERENCE_BASE_URL = os.environ.get(
     "LEXEUROPA_HF_INFERENCE_URL", "https://router.huggingface.co/hf-inference"
 )
 EMBED_MODEL = os.environ.get("LEXEUROPA_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
+# "hf" (default): query/passage embeddings via HF Inference Providers (needs account
+# credits). "local": run the same model with sentence-transformers on this machine
+# (pip install -e ".[rerank]"; ~1.3 GB of weights, free). Use "local" for offline
+# retrieval work; the indexed corpus vectors are the same model either way.
+EMBED_BACKEND = os.environ.get("LEXEUROPA_EMBED_BACKEND", "hf")
 
 # The reranker runs locally (CPU, sentence-transformers) for now — see CLAUDE.md.
 RERANKER_MODEL = os.environ.get("LEXEUROPA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
 # Set LEXEUROPA_USE_RERANKER=0 to skip the local cross-encoder (no torch/weights needed).
 USE_RERANKER = os.environ.get("LEXEUROPA_USE_RERANKER", "1") != "0"
 # At most this many recitals in the final retrieved set (see retrieval/pipeline.py).
-MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "3"))
+MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "1"))
 
 # Some HF Inference Providers proxy to third parties (e.g. featherless-ai)
 # fronted by Cloudflare, which blocks Python's default urllib fingerprint
