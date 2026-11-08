@@ -5,6 +5,8 @@ directly instead of shelling out.
 """
 from __future__ import annotations
 
+import functools
+
 from lexeuropa.config import (
     BM25_INDEX_PATH,
     DENSE_INDEX_PATH,
@@ -31,7 +33,9 @@ class NotIngestedError(RuntimeError):
     pass
 
 
+@functools.lru_cache(maxsize=1)
 def _load_indices():
+    """Loaded once per process (the web server asks many questions); a failed load is not cached."""
     try:
         chunks = load_chunks()
     except FileNotFoundError as e:

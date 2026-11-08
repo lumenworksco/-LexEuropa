@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LexEuropa</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --surface: #ffffff; --text: #1c1f24; --muted: #5b6470; --border: #dcd8cf;
+    --accent: #1f3a6b; --accent-ink: #ffffff; --accent-soft: #e8edf7; --focus: #2b6cff;
+    --ok-fg: #14683c; --ok-bg: #e4f3ea;
+    --interp-fg: #7a4e00; --interp-bg: #fdf0d2;
+    --analysis-fg: #52349f; --analysis-bg: #ece8fb;
+    --bad-fg: #a3281d; --bad-bg: #fde7e4;
+    --unc-fg: #44505f; --unc-bg: #eceef2;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151a; --surface: #1a1f27; --text: #e8eaee; --muted: #9aa4b2; --border: #2b323d;
+      --accent: #8fb3ff; --accent-ink: #0d1626; --accent-soft: #1d2a44; --focus: #7aa2ff;
+      --ok-fg: #7fd6a2; --ok-bg: #16301f;
+      --interp-fg: #f0c463; --interp-bg: #33290f;
+      --analysis-fg: #bba6ff; --analysis-bg: #281f4a;
+      --bad-fg: #ff9a8f; --bad-bg: #3b1814;
+      --unc-fg: #aab4c2; --unc-bg: #232a34;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151a; --surface: #1a1f27; --text: #e8eaee; --muted: #9aa4b2; --border: #2b323d;
+    --accent: #8fb3ff; --accent-ink: #0d1626; --accent-soft: #1d2a44; --focus: #7aa2ff;
+    --ok-fg: #7fd6a2; --ok-bg: #16301f;
+    --interp-fg: #f0c463; --interp-bg: #33290f;
+    --analysis-fg: #bba6ff; --analysis-bg: #281f4a;
+    --bad-fg: #ff9a8f; --bad-bg: #3b1814;
+    --unc-fg: #aab4c2; --unc-bg: #232a34;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 700; font-size: 1.25rem; letter-spacing: .2px; color: var(--accent); }
+  .tagline { color: var(--muted); font-size: .92rem; flex: 1 1 260px; }
+  .pill {
+    font-size: .8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--unc-bg); color: var(--unc-fg); white-space: nowrap;
+  }
+
+  .layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; padding: 16px; } }
+
+  aside .panel, main .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  aside .panel { padding: 14px 16px; margin-bottom: 16px; }
+  aside h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; }
+  .hist-empty { color: var(--muted); font-size: .9rem; margin: 0; }
+  .hist-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .hist-item {
+    width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    font-size: .92rem; line-height: 1.35;
+  }
+  .hist-item:hover { background: var(--accent-soft); }
+  .hist-item small { display: block; color: var(--muted); font-size: .76rem; }
+  .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: .85rem; }
+  details.coverage summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+  .cov-group { margin: 10px 0 0; font-size: .85rem; }
+  .cov-group strong { display: block; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+  .cov-group ul { list-style: none; margin: 0; padding: 0; }
+  .cov-group li { padding: 2px 0; }
+  .cov-group li span { color: var(--muted); }
+  .privacy { font-size: .8rem; color: var(--muted); }
+
+  main .card { padding: 18px; margin-bottom: 16px; }
+  form label.q { display: block; font-weight: 600; margin-bottom: 6px; }
+  textarea {
+    width: 100%; min-height: 96px; resize: vertical; padding: 12px 14px; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-top: 10px; }
+  .row .grow { flex: 1 1 auto; }
+  select {
+    font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); max-width: 100%;
+  }
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 9px 16px; cursor: pointer;
+  }
+  .btn:hover { background: var(--accent-soft); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn[disabled] { opacity: .55; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: .82rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 5px 12px; font-size: .86rem; cursor: pointer;
+  }
+  .chip:hover { background: var(--accent-soft); }
+
+  .status { display: flex; gap: 12px; align-items: flex-start; }
+  .spinner {
+    width: 20px; height: 20px; flex: none; margin-top: 3px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+  .status p { margin: 0 0 4px; }
+  .status .muted { color: var(--muted); font-size: .9rem; }
+
+  .notice { border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; font-size: .92rem; border: 1px solid var(--border); }
+  .notice.warn { background: var(--interp-bg); color: var(--interp-fg); border-color: transparent; }
+  .notice.err { background: var(--bad-bg); color: var(--bad-fg); border-color: transparent; }
+  .notice.info { background: var(--accent-soft); }
+
+  .qecho { font-size: 1.05rem; font-weight: 600; margin: 0 0 4px; }
+  .summary { color: var(--muted); font-size: .9rem; margin: 0 0 14px; }
+  ol.claims { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  li.claim { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--bg); }
+  .claim-head { display: flex; gap: 10px; align-items: flex-start; }
+  .badge {
+    flex: none; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap; margin-top: 2px;
+  }
+  .badge.supported { background: var(--ok-bg); color: var(--ok-fg); }
+  .badge.interpretative { background: var(--interp-bg); color: var(--interp-fg); }
+  .badge.analysis { background: var(--analysis-bg); color: var(--analysis-fg); }
+  .badge.unsupported { background: var(--bad-bg); color: var(--bad-fg); }
+  .badge.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
+  .claim-text { margin: 0; }
+  .why { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+  .cites { margin: 10px 0 0; display: grid; gap: 6px; }
+  details.cite { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  details.cite > summary { cursor: pointer; padding: 6px 10px; font-size: .88rem; font-weight: 600; color: var(--accent); }
+  details.cite .src { padding: 0 12px 10px; font-size: .9rem; }
+  .src-text { white-space: pre-wrap; border-left: 3px solid var(--border); padding-left: 10px; margin: 6px 0 8px; max-height: 18em; overflow: auto; }
+  .src-meta { color: var(--muted); font-size: .8rem; }
+  .caution { font-size: .85rem; color: var(--muted); margin: 14px 0 0; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  details.sources > summary { cursor: pointer; font-weight: 600; }
+  .src-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+  .src-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
+  .tag { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 999px; background: var(--ok-bg); color: var(--ok-fg); margin-left: 6px; }
+
+  .legend { display: grid; gap: 6px; margin: 12px 0 0; font-size: .85rem; }
+  .legend div { display: flex; gap: 8px; align-items: baseline; }
+
+  footer.page { max-width: 1180px; margin: 0 auto; padding: 4px 20px 28px; color: var(--muted); font-size: .82rem; }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">LexEuropa</span>
+  <span class="tagline">EU law research assistant &middot; every citation is checked against the source text</span>
+  <span class="pill" title="This tool does not give legal advice">Research aid &middot; not legal advice</span>
+</header>
+
+<div class="layout">
+  <aside aria-label="History and coverage">
+    <section class="panel" aria-labelledby="hist-h">
+      <h2 id="hist-h">Recent questions</h2>
+      <p class="hist-empty" id="hist-empty">Nothing yet. Your questions are kept only in this browser.</p>
+      <ul class="hist-list" id="hist-list"></ul>
+      <p style="margin:10px 0 0"><button type="button" class="linkish" id="hist-clear" hidden>Clear history</button></p>
+    </section>
+    <section class="panel">
+      <details class="coverage" id="coverage">
+        <summary>What it covers</summary>
+        <div id="coverage-body" class="hint" style="margin-top:8px">Loading&hellip;</div>
+      </details>
+    </section>
+    <section class="panel">
+      <h2>Labels</h2>
+      <div class="legend" id="legend"></div>
+    </section>
+    <p class="privacy">Your question is processed by models hosted on Hugging Face. Do not enter confidential or personal details. This page runs only on this computer.</p>
+  </aside>
+
+  <main>
+    <section class="card" aria-labelledby="ask-h">
+      <form id="ask-form" autocomplete="off">
+        <label class="q" for="question" id="ask-h">Ask a question about EU law</label>
+        <textarea id="question" name="question" maxlength="2000" placeholder="For example: Can a company send marketing emails without consent?" required></textarea>
+        <div class="row">
+          <label class="hint" for="instrument">Focus on</label>
+          <select id="instrument" aria-label="Focus on one law">
+            <option value="">All sources (automatic)</option>
+          </select>
+          <span class="grow"></span>
+          <span class="hint">Ctrl/&#8984;+Enter to ask</span>
+          <button type="submit" class="btn primary" id="ask-btn">Ask</button>
+        </div>
+        <div class="chips" id="examples" aria-label="Example questions"></div>
+      </form>
+    </section>
+
+    <div id="result" aria-live="polite"></div>
+  </main>
+</div>
+
+<footer class="page">
+  This is an AI-assisted research tool. It finds and quotes provisions and checks that each citation really supports the statement it is attached to; it does not give legal advice and does not replace a qualified lawyer. Always read the cited text.
+</footer>
+
+<script>
+"use strict";
+(function () {
+  var LABELS = {
+    supported: "The cited text directly supports this statement.",
+    interpretative: "The cited text supports it only through legal interpretation.",
+    analysis: "Combines several sources into a conclusion; treat with extra care.",
+    unsupported: "The cited source does not support this, or was not among the retrieved sources.",
+    uncertain: "No citation was given for this statement."
+  };
+  var EXAMPLES = [
+    "Can a company send marketing emails without consent?",
+    "What are the conditions for erasure under Article 17 GDPR?",
+    "Which AI practices are prohibited under the AI Act?",
+    "What must a platform do when it receives a notice about illegal content?",
+    "Does the right to be forgotten oblige a search engine to remove links?",
+    "What does the Charter say about the protection of personal data?"
+  ];
+  var HISTORY_KEY = "lexeuropa.history.v1";
+  var MAX_HISTORY = 15;
+  var MAX_STORED_TEXT = 6000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $("ask-form"), questionEl = $("question"), instrumentEl = $("instrument"), askBtn = $("ask-btn");
+  var resultEl = $("result");
+  var controller = null, timer = null;
+
+  function el(tag, props, children) {
+    var node = document.createElement(tag);
+    if (props) {
+      Object.keys(props).forEach(function (k) {
+        if (k === "class") node.className = props[k];
+        else if (k === "text") node.textContent = props[k];
+        else node.setAttribute(k, props[k]);
+      });
+    }
+    (children || []).forEach(function (c) { if (c) node.appendChild(c); });
+    return node;
+  }
+
+  // ----- history (localStorage may be blocked; everything works without it) -----
+  function readHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function writeHistory(items) {
+    while (items.length) {
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); return; }
+      catch (e) { items.pop(); }  // quota: drop the oldest until it fits
+    }
+  }
+  function slimResult(result) {
+    var copy = JSON.parse(JSON.stringify(result));
+    (copy.retrieved || []).forEach(function (c) {
+      if (c.text && c.text.length > MAX_STORED_TEXT) c.text = c.text.slice(0, MAX_STORED_TEXT) + " … [shortened in saved history]";
+    });
+    return copy;
+  }
+  function saveToHistory(question, instrument, result) {
+    var items = readHistory().filter(function (h) { return h.q !== question; });
+    items.unshift({ q: question, instrument: instrument, t: Date.now(), result: slimResult(result) });
+    writeHistory(items.slice(0, MAX_HISTORY));
+    renderHistory();
+  }
+  function renderHistory() {
+    var items = readHistory(), list = $("hist-list");
+    list.textContent = "";
+    $("hist-empty").hidden = items.length > 0;
+    $("hist-clear").hidden = items.length === 0;
+    items.forEach(function (h) {
+      var b = el("button", { type: "button", class: "hist-item" }, [
+        document.createTextNode(h.q.length > 90 ? h.q.slice(0, 90) + "…" : h.q),
+        el("small", { text: new Date(h.t).toLocaleString() })
+      ]);
+      b.addEventListener("click", function () {
+        questionEl.value = h.q;
+        instrumentEl.value = h.instrument || "";
+        renderResult(h.q, h.result);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      list.appendChild(el("li", null, [b]));
+    });
+  }
+  $("hist-clear").addEventListener("click", function () {
+    try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
+    renderHistory();
+  });
+
+  // ----- static bits -----
+  (function () {
+    var legend = $("legend");
+    Object.keys(LABELS).forEach(function (k) {
+      legend.appendChild(el("div", null, [el("span", { class: "badge " + k, text: k }), el("span", { text: LABELS[k] })]));
+    });
+    var ex = $("examples");
+    EXAMPLES.forEach(function (q) {
+      var b = el("button", { type: "button", class: "chip", text: q });
+      b.addEventListener("click", function () { questionEl.value = q; questionEl.focus(); });
+      ex.appendChild(b);
+    });
+  })();
+
+  function loadInfo() {
+    fetch("/api/info").then(function (r) { return r.json(); }).then(function (info) {
+      if (info.error) { $("coverage-body").textContent = info.error; return; }
+      var groups = { "Treaties and Charter": [], "Legislation": [], "Case law (CJEU)": [] };
+      info.instruments.forEach(function (i) {
+        var g = i.doc_type === "judgment" ? "Case law (CJEU)" : (i.doc_type === "treaty" ? "Treaties and Charter" : "Legislation");
+        groups[g].push(i);
+        if (i.alias && i.doc_type !== "judgment") {
+          var short = i.title.replace(/^(Regulation|Directive) \(EU\) /, "").replace(/^Consolidated version of the /, "");
+          instrumentEl.appendChild(el("option", { value: i.alias, text: short }));
+        }
+      });
+      var body = $("coverage-body");
+      body.textContent = "";
+      body.appendChild(el("p", { text: info.instruments.length + " documents, " + info.chunks.toLocaleString() + " passages. English only. No national law." }));
+      Object.keys(groups).forEach(function (g) {
+        if (!groups[g].length) return;
+        var ul = el("ul");
+        groups[g].forEach(function (i) {
+          var label = i.case_number ? i.case_number + " " + i.title.split(" v ")[0] : i.title;
+          ul.appendChild(el("li", null, [document.createTextNode(label.length > 70 ? label.slice(0, 70) + "…" : label)]));
+        });
+        body.appendChild(el("div", { class: "cov-group" }, [el("strong", { text: g }), ul]));
+      });
+    }).catch(function () { $("coverage-body").textContent = "Could not load the coverage list."; });
+  }
+
+  // ----- asking -----
+  function showStatus(started) {
+    resultEl.textContent = "";
+    var msg = el("p", { text: "Searching the sources and checking the citations…" });
+    var sub = el("p", { class: "muted", text: "0 s" });
+    var cancel = el("button", { type: "button", class: "linkish", text: "Cancel" });
+    cancel.addEventListener("click", function () { if (controller) controller.abort(); });
+    resultEl.appendChild(el("section", { class: "card" }, [
+      el("div", { class: "status" }, [el("div", { class: "spinner", "aria-hidden": "true" }), el("div", null, [msg, sub, cancel])])
+    ]));
+    timer = setInterval(function () {
+      var s = Math.round((Date.now() - started) / 1000);
+      var extra = "";
+      if (s >= 90) extra = " · The model can take a few minutes to start after being idle. If this ends in an error, wait a minute and ask again.";
+      else if (s >= 20) extra = " · Still working — the model may be waking up.";
+      sub.textContent = s + " s" + extra;
+    }, 1000);
+  }
+  function stopStatus() { if (timer) { clearInterval(timer); timer = null; } }
+
+  function setBusy(busy) { askBtn.disabled = busy; askBtn.textContent = busy ? "Working…" : "Ask"; }
+
+  function ask() {
+    var question = questionEl.value.trim();
+    if (question.length < 3) { questionEl.focus(); return; }
+    var instrument = instrumentEl.value || null;
+    controller = new AbortController();
+    var started = Date.now();
+    setBusy(true);
+    showStatus(started);
+    fetch("/api/ask", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: question, instrument: instrument }), signal: controller.signal
+    }).then(function (r) {
+      return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+    }).then(function (res) {
+      stopStatus(); setBusy(false);
+      if (!res.ok || res.data.error) {
+        renderError(question, res.data.error || "The request failed.", res.data);
+        return;
+      }
+      renderResult(question, res.data);
+      saveToHistory(question, instrument, res.data);
+    }).catch(function (e) {
+      stopStatus(); setBusy(false);
+      if (e && e.name === "AbortError") { resultEl.textContent = ""; return; }
+      renderError(question, "Could not reach the local LexEuropa server. Is it still running in your terminal?");
+    });
+  }
+  form.addEventListener("submit", function (e) { e.preventDefault(); ask(); });
+  questionEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ask(); }
+  });
+
+  // ----- rendering -----
+  function renderError(question, message, data) {
+    resultEl.textContent = "";
+    var box = el("section", { class: "card" }, [
+      el("p", { class: "qecho", text: question }),
+      el("div", { class: "notice err", role: "alert", text: message })
+    ]);
+    if (/503|unavailable|timed out|timeout/i.test(message)) {
+      box.appendChild(el("p", { class: "hint", text: "The answering model is probably still starting up after being idle. Wait a minute or two and ask again." }));
+    }
+    resultEl.appendChild(box);
+    if (data && data.retrieved && data.retrieved.length) resultEl.appendChild(sourcesPanel(data.retrieved, {}));
+  }
+
+  function citationName(id, byId) { var c = byId[id]; return c ? c.citation : id; }
+
+  function sourceBody(chunk) {
+    var url = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:" + encodeURIComponent(chunk.celex);
+    return el("div", { class: "src" }, [
+      el("div", { class: "src-text", text: chunk.text }),
+      el("div", { class: "src-meta" }, [
+        document.createTextNode(chunk.instrument_title + " · "),
+        el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "open the full document on EUR-Lex" })
+      ])
+    ]);
+  }
+
+  function sourcesPanel(retrieved, citedSet) {
+    var list = el("ul", { class: "src-list" });
+    retrieved.forEach(function (c) {
+      var head = el("div", null, [el("strong", { text: c.citation })]);
+      if (citedSet[c.id]) head.appendChild(el("span", { class: "tag", text: "cited" }));
+      list.appendChild(el("li", { class: "src-item" }, [head, sourceBody(c)]));
+    });
+    var d = el("details", { class: "sources" }, [el("summary", { text: "All " + retrieved.length + " retrieved sources" }), list]);
+    return el("section", { class: "card" }, [d]);
+  }
+
+  function plainText(question, result, byId) {
+    var lines = ["Question: " + question, ""];
+    result.claims.forEach(function (c, i) {
+      lines.push((i + 1) + ". [" + c.label.toUpperCase() + "] " + c.text);
+      lines.push("   Sources: " + (c.citations.map(function (id) { return citationName(id, byId); }).join("; ") || "none"));
+    });
+    lines.push("", result.disclaimer || "This is AI-assisted research, not legal advice.");
+    return lines.join("\n");
+  }
+
+  function renderResult(question, result) {
+    resultEl.textContent = "";
+    if (result.error) { renderError(question, result.error, result); return; }
+    var byId = {}, cited = {};
+    (result.retrieved || []).forEach(function (c) { byId[c.id] = c; });
+    result.claims.forEach(function (c) { c.citations.forEach(function (id) { cited[id] = true; }); });
+
+    var card = el("section", { class: "card" });
+    card.appendChild(el("p", { class: "qecho", text: question }));
+
+    var counts = {};
+    result.claims.forEach(function (c) { counts[c.label] = (counts[c.label] || 0) + 1; });
+    var parts = Object.keys(counts).map(function (k) { return counts[k] + " " + k; });
+    card.appendChild(el("p", { class: "summary", text: result.claims.length + (result.claims.length === 1 ? " statement" : " statements") + (parts.length ? " · " + parts.join(" · ") : "") + (result.elapsed_s ? " · " + result.elapsed_s + " s" : "") }));
+
+    if (result.generator === "fallback") {
+      card.appendChild(el("div", { class: "notice warn", text: "The main LexEuropa model declined or failed on this question, so a larger general-purpose model (" + result.generator_model + ") wrote this answer from the same sources." }));
+    }
+
+    var noCitation = result.claims.length > 0 && result.claims.every(function (c) { return !c.citations.length; });
+    if (noCitation) {
+      card.appendChild(el("div", { class: "notice info", text: "No answer could be given from the retrieved sources. Try rephrasing, name the law or article, or check the sources below." }));
+    }
+
+    var ol = el("ol", { class: "claims" });
+    result.claims.forEach(function (c) {
+      var li = el("li", { class: "claim" });
+      li.appendChild(el("div", { class: "claim-head" }, [
+        el("span", { class: "badge " + c.label, text: c.label, title: LABELS[c.label] || "" }),
+        el("p", { class: "claim-text", text: c.text })
+      ]));
+      if (c.reason) li.appendChild(el("p", { class: "why", text: "Check: " + c.reason }));
+      if (c.citations.length) {
+        var cites = el("div", { class: "cites" });
+        c.citations.forEach(function (id) {
+          var chunk = byId[id];
+          var d = el("details", { class: "cite" }, [el("summary", { text: citationName(id, byId) })]);
+          d.appendChild(chunk ? sourceBody(chunk) : el("div", { class: "src" }, [el("div", { class: "src-meta", text: "This source was not among the retrieved texts." })]));
+          cites.appendChild(d);
+        });
+        li.appendChild(cites);
+      }
+      ol.appendChild(li);
+    });
+    card.appendChild(ol);
+
+    card.appendChild(el("p", { class: "caution", text: "A “supported” label means the cited text backs up that statement; it does not mean the statement is complete or that nothing relevant is missing (for example, conditions or exceptions stated elsewhere). Open the cited text and read it." }));
+
+    var copy = el("button", { type: "button", class: "btn", text: "Copy answer with sources" });
+    copy.addEventListener("click", function () {
+      var text = plainText(question, result, byId);
+      var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy answer with sources"; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+    var again = el("button", { type: "button", class: "btn", text: "New question" });
+    again.addEventListener("click", function () { resultEl.textContent = ""; questionEl.value = ""; questionEl.focus(); });
+    card.appendChild(el("div", { class: "actions" }, [copy, again]));
+    card.appendChild(el("p", { class: "hint", style: "margin:12px 0 0", text: result.disclaimer || "" }));
+
+    resultEl.appendChild(card);
+    if (result.retrieved && result.retrieved.length) resultEl.appendChild(sourcesPanel(result.retrieved, cited));
+  }
+
+  renderHistory();
+  loadInfo();
+})();
+</script>
+</body>
+</html>

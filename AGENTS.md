@@ -745,6 +745,37 @@ extra spend (~$5-10) would help. Endpoint is scaled to zero, serving v1.
 A run that hangs on a provider (DeepSeek-V3 did, for over an hour) needs a
 hard limit: `perl -e 'alarm N; exec @ARGV' ...` (macOS has no `timeout`).
 
+## Web interface (2026-11)
+
+`python3 -m lexeuropa.cli serve [--port 8765] [--no-browser]` (`lexeuropa/web.py`
++ `lexeuropa/web_static/index.html`; stdlib only, no framework). Routes: `GET /`,
+`GET /api/info` (31 instruments, chunk counts, the aliases behind the "focus on"
+selector), `POST /api/ask` (`{"question", "instrument"}` -> `answer_question`
+plus `elapsed_s`). Safety, all covered by `tests/test_web.py`: binds to
+127.0.0.1 only (there is no login); rejects any Host header that is not
+localhost/127.0.0.1/[::1] (DNS rebinding); POST must be `application/json` (so a
+cross-origin page needs a preflight this server never grants); 16 KB body and
+2,000-character question limits; strict Content-Security-Policy; questions are
+never logged; one generation at a time (lock). The page inserts model/source
+text only via `textContent` (never HTML), keeps history in `localStorage` (15
+entries, shortened source text), and says plainly that questions are processed
+by Hugging Face-hosted models. `answer.py::_load_indices` is now `lru_cache`d
+so the server loads the indexes once. Verified: HTML parses, `node --check` on
+the script, API behaviour via curl, 24 server tests. NOT verified: how it looks
+in a real browser (no browser tool was available).
+
+**Finding from the first real web request (v1, reranker on):** for "Can a
+company send marketing emails without consent?" v1 returned ONE claim, ePrivacy
+Art. 13(4) (disguising the sender), labelled SUPPORTED - a correct citation of
+the wrong paragraph; the same question in the CLI earlier got a refusal, then the
+fallback gave a correct but incomplete answer (it dropped the "own similar
+products" and "context of a sale" conditions of Art. 13(2) and put the exception
+before the rule). The verifier only checks claim-vs-cited-text, never
+claim-vs-question and never completeness. Proposed next step: an answer-relevance
+check (does any claim address the question?) that triggers the fallback, plus
+prompting for rule-before-exception and full conditions; evaluate on the 25-set
+before enabling. Cold start measured at 77 s.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

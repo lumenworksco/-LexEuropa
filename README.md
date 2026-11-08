@@ -10,6 +10,18 @@ LexEuropa runs on models published on Hugging Face (a LoRA-tuned [Qwen2.5-3B gen
 
 > Not legal advice. This is a research prototype; its output does not replace a qualified legal professional.
 
+## Using it
+
+**Web interface** (recommended): from the project folder, with the environment activated,
+
+```bash
+python3 -m lexeuropa.cli serve
+```
+
+opens http://127.0.0.1:8765 in your browser: a question box, an optional "focus on one law" selector, example questions, and answers where every statement carries a coloured label and the cited text itself, one click away, next to a link to the full document on EUR-Lex. It also keeps a local history, can copy an answer with its sources, and lists exactly what it covers. It runs only on your computer (it refuses connections that are not to localhost) and needs no extra packages. The first question after the model has been idle takes a minute or two.
+
+**Command line:** `python3 -m lexeuropa.cli ask "..."` (add `--json` for machine-readable output).
+
 ## How it works
 
 ```

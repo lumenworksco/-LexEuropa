@@ -65,6 +65,12 @@ def _cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_serve(args: argparse.Namespace) -> int:
+    from lexeuropa.web import serve
+
+    return serve(port=args.port, open_browser=not args.no_browser)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="lexeuropa")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -86,6 +92,11 @@ def main(argv: list[str] | None = None) -> int:
     p_ask.add_argument("--k-final", type=int, default=8)
     p_ask.add_argument("--json", action="store_true")
     p_ask.set_defaults(func=_cmd_ask)
+
+    p_serve = sub.add_parser("serve", help="run the local web interface (http://127.0.0.1:8765)")
+    p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.add_argument("--no-browser", action="store_true", help="do not open a browser tab")
+    p_serve.set_defaults(func=_cmd_serve)
 
     args = parser.parse_args(argv)
     return args.func(args)
