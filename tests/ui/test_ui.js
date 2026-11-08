@@ -25,7 +25,9 @@ async function boot(hash, askLines, fail) {
     beforeParse(w) {
       w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.scrollTo = () => {};
       w.HTMLElement.prototype.scrollIntoView = function(){ this.dataset.scrolled = "1"; };
+      w.__asks = [];
       w.fetch = (url, opts) => {
+        if (url === "/api/ask") w.__asks.push(JSON.parse(opts.body));
         if (url === "/api/info") return Promise.resolve({ ok: true, json: () => Promise.resolve(INFO) });
         if (fail) return Promise.reject(new Error("net"));
         return Promise.resolve(stream(askLines));
@@ -43,7 +45,30 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   let doc = d.window.document;
   assert(doc.body.getAttribute("data-view") === "empty", "starts in the empty view");
   assert(doc.querySelectorAll("#try-list button").length === 4, "four example questions");
-  assert(doc.querySelectorAll("#law option").length === 3, "law selector: All + GDPR + Charter (judgments excluded)");
+  assert(doc.querySelector("select") === null, "no native <select> left (everything is styled consistently)");
+  assert(doc.getElementById("picker-pop").hidden === true, "law picker starts closed");
+  doc.getElementById("picker-btn").click();
+  assert(doc.getElementById("picker-pop").hidden === false && doc.getElementById("picker-btn").getAttribute("aria-expanded") === "true", "clicking the picker opens it");
+  assert(doc.querySelectorAll(".picker-opt").length === 3, "picker lists All + GDPR + Charter (judgments excluded)");
+  assert(doc.querySelectorAll(".picker-group").length === 2, "picker groups: Legislation, Treaties and the Charter");
+  const pq = doc.getElementById("picker-q");
+  pq.value = "char"; pq.dispatchEvent(new d.window.Event("input"));
+  assert(doc.querySelectorAll(".picker-opt").length === 1, "typing filters the picker");
+  pq.dispatchEvent(new d.window.KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+  assert(doc.getElementById("picker-val").textContent.includes("Charter"), "Enter selects the highlighted law");
+  assert(doc.getElementById("picker-pop").hidden === true, "picker closes after choosing");
+  doc.getElementById("picker-btn").click();
+  doc.querySelectorAll(".picker-opt")[0].dispatchEvent(new d.window.MouseEvent("mousedown", {bubbles: true, cancelable: true}));
+  assert(doc.getElementById("picker-val").textContent === "All sources", "choosing 'All sources' resets it");
+  doc.getElementById("picker-btn").click();
+  pq.dispatchEvent(new d.window.KeyboardEvent("keydown", {key: "Escape", bubbles: true}));
+  assert(doc.getElementById("picker-pop").hidden === true, "Escape closes the picker");
+  const la = doc.getElementById("marg-l-la").textContent, ra = doc.getElementById("marg-r-la").textContent;
+  assert(la.length > 5 && ra.length > 5 && la !== ra, "two different Latin maxims fill the margins");
+  assert(doc.getElementById("marg-l-en").textContent.length > 5, "each maxim has an English translation");
+  assert(doc.querySelector(".hero .ring polygon") !== null && doc.querySelectorAll(".hero .ring polygon").length === 12, "star-ring watermark has 12 stars");
+  assert(doc.querySelector("link[rel=icon]").getAttribute("href").startsWith("data:image/svg+xml"), "favicon is inline");
+  assert(doc.getElementById("show-example").classList.contains("btn"), "example button uses the shared button style");
   assert(doc.getElementById("cov-body").textContent.includes("3 documents"), "coverage dialog filled from /api/info");
   assert(doc.querySelector(".brand svg circle") !== null, "logo rendered");
 
@@ -64,10 +89,14 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   // 3. streamed ask with stages + fallback + off-topic warning + unsupported statement
   const lines = ['{"stage":"retrieving"}','{"stage":"generating"}','{"stage":"reviewing"}','{"stage":"second_opinion"}','{"stage":"checking"}', JSON.stringify({result: RESULT})];
   d = await boot("", lines); doc = d.window.document;
+  await tick(30);
+  doc.getElementById("picker-btn").click();
+  doc.querySelectorAll(".picker-opt")[1].dispatchEvent(new d.window.MouseEvent("mousedown", {bubbles: true, cancelable: true}));
   doc.getElementById("question").value = "What is Article 17?";
   doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
   await tick(120);
   assert(doc.body.getAttribute("data-view") === "result", "streamed ask ends in the result view");
+  assert(d.window.__asks[0].instrument === "gdpr" && d.window.__asks[0].stream === true, "the chosen law and stream flag are sent with the question");
   assert(doc.querySelectorAll("li.stmt").length === 3, "3 statements rendered");
   assert(doc.querySelectorAll(".note").length === 2, "fallback note + off-topic warning shown");
   assert(doc.querySelector(".note.bad").textContent.includes("different point"), "relevance reason shown");

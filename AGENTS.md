@@ -801,9 +801,18 @@ statements do not address the question the fallback is tried (with extra
 instructions: rule before exception, all conditions), and `answers_question` /
 `relevance_reason` are returned and shown. Tests: `tests/test_web.py`,
 `tests/test_relevance.py`, and `tests/ui/test_ui.js` (jsdom, 31 checks, also in
-CI). LIMITATION: nobody has looked at it rendered except the user - headless
-Firefox is blocked in the agent sandbox ("Operation not permitted"), so the
-visual design was written blind against the user's screenshot of version 1.
+CI). LIMITATION: the agent cannot render it (headless Firefox is blocked in
+the sandbox: "Operation not permitted"), so the visuals are designed blind and
+iterated from the user's screenshots.
+
+**Second design pass (from the user's screenshot of v2):** the native `<select>`
+and default-styled links looked foreign. Replaced with one consistent system:
+a custom searchable, grouped, keyboard-accessible **law picker** (combobox +
+listbox), one button family (`.btn`, `.primary`, `.ghost`, `.block`), quiet
+rail links, a masthead (gold rule, faint ring of 12 EU stars as a watermark),
+and **Latin legal maxims with English translations in both margins** of the empty
+state (two different ones per visit, vertical type, shown from 1240 px, hidden
+in results/print). Inline SVG favicon. `tests/ui/test_ui.js` now 46 checks.
 
 ## Extending the corpus
 
