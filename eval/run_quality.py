@@ -21,6 +21,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -57,22 +58,26 @@ def grade(question: str, statements: list[str], points: list[dict]) -> dict:
     numbered = "\n".join(f"{i}. {s}" for i, s in enumerate(statements, start=1)) or "(no statements)"
     checklist = "\n".join(f"{i}. {p['text']}" for i, p in enumerate(points, start=1))
     prompt = QUALITY_PROMPT.format(question=question, statements=numbered, points=checklist)
-    try:
-        raw, _ = chat(
-            [{"role": "user", "content": prompt}], temperature=0.0, max_tokens=900,
-            model=RELEVANCE_LLM_MODEL, base_url=RELEVANCE_LLM_BASE_URL,
-        )
-        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.MULTILINE).strip()
-        data, _ = json.JSONDecoder().raw_decode(text[text.index("{"):])
-        by_n = {int(p["n"]): bool(p["covered"]) for p in data.get("points", []) if "n" in p}
-        return {
-            "covered": [by_n.get(i, False) for i in range(1, len(points) + 1)],
-            "contradiction": bool(data.get("contradiction", False)),
-            "note": str(data.get("contradiction_note", "")),
-            "error": None,
-        }
-    except (GenerationError, ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
-        return {"covered": [False] * len(points), "contradiction": False, "note": "", "error": f"{type(e).__name__}: {e}"}
+    last_error = ""
+    for attempt in range(4):  # a flaky gateway (HTTP 504/5xx) must not become "the answer covered nothing"
+        try:
+            raw, _ = chat(
+                [{"role": "user", "content": prompt}], temperature=0.0, max_tokens=900,
+                model=RELEVANCE_LLM_MODEL, base_url=RELEVANCE_LLM_BASE_URL,
+            )
+            text = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.MULTILINE).strip()
+            data, _ = json.JSONDecoder().raw_decode(text[text.index("{"):])
+            by_n = {int(p["n"]): bool(p["covered"]) for p in data.get("points", []) if "n" in p}
+            return {
+                "covered": [by_n.get(i, False) for i in range(1, len(points) + 1)],
+                "contradiction": bool(data.get("contradiction", False)),
+                "note": str(data.get("contradiction_note", "")),
+                "error": None,
+            }
+        except (GenerationError, ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
+            last_error = f"{type(e).__name__}: {e}"
+            time.sleep((2, 5, 10, 0)[attempt])
+    return {"covered": [False] * len(points), "contradiction": False, "note": "", "error": last_error}
 
 
 def is_gold(chunk: dict, gold: list[dict]) -> bool:
@@ -80,7 +85,7 @@ def is_gold(chunk: dict, gold: list[dict]) -> bool:
 
 
 def summarize(rows: list[dict]) -> dict:
-    scored = [r for r in rows if not r.get("trap") and not r.get("error")]
+    scored = [r for r in rows if not r.get("trap") and not r.get("error") and not r.get("grade_error")]
     traps = [r for r in rows if r.get("trap")]
     comp = [r["completeness"] for r in scored]
     with_gold = [r["completeness"] for r in scored if r.get("retrieved_gold")]
@@ -93,6 +98,7 @@ def summarize(rows: list[dict]) -> dict:
         "contradictions": sum(1 for r in scored if r.get("contradiction")),
         "trap_pass": f"{sum(1 for r in traps if r.get('declined'))}/{len(traps)}" if traps else None,
         "errors": sum(1 for r in rows if r.get("error")),
+        "grader_failures_excluded": sum(1 for r in rows if r.get("grade_error")),
     }
 
 
@@ -120,6 +126,28 @@ def run_system(items: list[dict], out_path: Path | None = None) -> list[dict]:
         if out_path:  # partial results survive a stalled provider
             out_path.write_text(json.dumps(rows, indent=2, ensure_ascii=False))
     return rows
+
+
+def regrade(items: list[dict], path: Path, everything: bool) -> int:
+    """Re-grade the saved answers in `path` (no answering model involved). By default only
+    rows whose earlier grading failed; with --all, every row."""
+    by_id = {i["id"]: i for i in items}
+    rows = json.loads(path.read_text())
+    n = 0
+    for row in rows:
+        item = by_id.get(row["id"])
+        if not item or row.get("trap") or row.get("error"):
+            continue
+        if not everything and not row.get("grade_error"):
+            continue
+        g = grade(item["question"], row["statements"], item["points"])
+        row.update(covered=g["covered"], contradiction=g["contradiction"], contradiction_note=g["note"], grade_error=g["error"])
+        row["completeness"] = round(sum(g["covered"]) / len(g["covered"]), 3)
+        n += 1
+        print(f"[{row['id']}] regraded: completeness={row['completeness']}{' STILL FAILING' if g['error'] else ''}", flush=True)
+    path.write_text(json.dumps(rows, indent=2, ensure_ascii=False))
+    print(f"\nregraded {n} rows\n" + json.dumps(summarize(rows), indent=2))
+    return 0
 
 
 def calibrate(items: list[dict]) -> int:
@@ -167,6 +195,8 @@ def main() -> int:
     parser.add_argument("--file", type=Path, default=DEFAULT_FILE)
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--calibrate", action="store_true", help="grade synthetic answers to check the judge")
+    parser.add_argument("--regrade", type=Path, default=None, help="re-grade the saved answers in this results file")
+    parser.add_argument("--all", action="store_true", help="with --regrade: every row, not only failed gradings")
     parser.add_argument("--only", default=None, help="comma-separated question ids")
     args = parser.parse_args()
     items = load(args.file)
@@ -175,6 +205,8 @@ def main() -> int:
         items = [i for i in items if i["id"] in keep]
     if args.calibrate:
         return calibrate(items)
+    if args.regrade:
+        return regrade(items, args.regrade, args.all)
     rows = run_system(items, args.out)
     print("\n" + json.dumps(summarize(rows), indent=2))
     if args.out:

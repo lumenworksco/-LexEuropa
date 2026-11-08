@@ -895,6 +895,43 @@ AND (c) all 4 trap questions are still declined, AND (d) contradictions are no
 more than v1's + 1. Otherwise v1 stays. n=25 and one run each, so a smaller gap than
 0.05 is treated as noise.
 
+## Confirmation run, grader failure, and the v4 decision (2026-11)
+
+`data/finetune/quality_{v1_append,v4_append}.json`, `final6_{v1_append,v4_append}_unseen.json`.
+Same retrieval (append expansion, no reranker, local embeddings), same grader.
+
+| | mean completeness | fully complete | gold retrieved | contradictions | traps | citation P/R (25-set) |
+|---|---|---|---|---|---|---|
+| v1, 8 sources (before) | .559 | 16% | 20/25 | 1 | 4/4 | .86/.88 |
+| v1 + append expansion (shipped) | .528 | 16% | 20/25 | 0 | 4/4 | .84/.84 |
+| **v4 + append expansion** | **.751** | **48%** | 20/25 | 3 | 4/4 | .82/.88 |
+| stock 72B, 8 sources | .621 | 16% | 20/25 | 0 | 4/4 | - |
+
+**Harness bug found and fixed:** the first v1_append numbers showed .188 because 17 of 25
+grading calls hit HTTP 504 from the router and were silently scored as 0. The grader now
+retries (4 attempts), `summarize` EXCLUDES failed gradings (reports
+`grader_failures_excluded`) instead of counting zeros, and `run_quality.py --regrade FILE`
+re-scores saved answers without touching the generator. After re-grading, v1_append is
+.528. Lesson: a failed measurement must never look like a bad result. (Tests:
+`test_grade_retries_a_flaky_gateway...`, `test_a_failed_grading_is_excluded...`.)
+
+**v4 vs the pre-declared rule** (completeness >= v1 + .05; citation P/R within .03;
+traps 4/4; contradictions <= v1 + 1): (a) PASS (+.22), (b) PASS (.82/.88 vs .84/.84),
+(c) PASS, (d) **FAIL (3 vs <= 1)** -> **v1 stays the default.** The 3 flags: `ai_fines`
+(REAL: correct 7%/EUR 35M plus "also up to EUR 1.5M", which is the fine for EU institutions,
+regime blending), `gdpr_fines` (REAL: opens "the sources do not contain information", then
+lists AI Act fines before the right GDPR tiers; irrelevant appended articles copied), and
+`schrems2` (grader misflag: the note describes an omission). v4 copies every paragraph it is
+given, including irrelevant ones, so append expansion of up to 3 articles hurts it.
+Whether v4's gain comes from training or from expansion is NOT known (v4 was never run
+without expansion on this set).
+
+Next experiment (~$1.5): restrict expansion to articles of the same instrument as the
+top-ranked result (regime-consistent), run v4 on the quality set with and without
+expansion, apply the same rule. v4 is switched in by pointing the endpoint at
+`iPwnds/lexeuropa-qwen3b-merged-v4` and setting `LEXEUROPA_LLM_MODEL` (the endpoint was
+restored to v1 and scaled to zero).
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

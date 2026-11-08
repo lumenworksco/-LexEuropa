@@ -62,6 +62,7 @@ def test_grade_failure_counts_as_nothing_covered_and_is_reported(monkeypatch):
         raise rq.GenerationError("HTTP 402")
 
     monkeypatch.setattr(rq, "chat", boom)
+    monkeypatch.setattr(rq.time, "sleep", lambda s: None)
     g = rq.grade("Q?", ["A."], [{"text": "p1"}, {"text": "p2"}])
     assert g["covered"] == [False, False] and g["error"]
 
@@ -78,3 +79,27 @@ def test_summary_separates_traps_errors_and_retrieval_misses():
     assert s["n"] == 2 and s["mean_completeness"] == 0.75 and s["fully_complete"] == 0.5
     assert s["mean_completeness_when_gold_retrieved"] == 1.0 and s["n_gold_retrieved"] == 1
     assert s["contradictions"] == 1 and s["trap_pass"] == "1/2" and s["errors"] == 1
+
+
+def test_grade_retries_a_flaky_gateway_instead_of_scoring_zero(monkeypatch):
+    calls = {"n": 0}
+
+    def flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise rq.GenerationError("HTTP 504 gateway timeout")
+        return ('{"points": [{"n": 1, "covered": true}], "contradiction": false}', "stop")
+
+    monkeypatch.setattr(rq, "chat", flaky)
+    monkeypatch.setattr(rq.time, "sleep", lambda s: None)
+    g = rq.grade("Q?", ["A."], [{"text": "p1"}])
+    assert g["covered"] == [True] and g["error"] is None and calls["n"] == 3
+
+
+def test_a_failed_grading_is_excluded_from_the_statistics_not_counted_as_zero():
+    rows = [
+        {"trap": False, "completeness": 1.0, "retrieved_gold": True},
+        {"trap": False, "completeness": 0.0, "grade_error": "HTTP 504"},     # the grader failed: unknown, not zero
+    ]
+    s = rq.summarize(rows)
+    assert s["n"] == 1 and s["mean_completeness"] == 1.0 and s["grader_failures_excluded"] == 1
