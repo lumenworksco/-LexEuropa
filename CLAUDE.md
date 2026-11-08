@@ -814,6 +814,28 @@ and **Latin legal maxims with English translations in both margins** of the empt
 state (two different ones per visit, vertical type, shown from 1240 px, hidden
 in results/print). Inline SVG favicon. `tests/ui/test_ui.js` now 46 checks.
 
+## Relevance check: measured (2026-11)
+
+`verification/relevance.py` asks Qwen2.5-72B (~1.8 s, a fraction of a cent)
+whether the answer's statements address the question; "no" triggers the
+fallback (with rule-before-exception guidance) and the UI shows a warning.
+**On the 25-question set** (v1 + check + fallback): precision .86 / recall .88,
+identical to v1 + fallback without it, question for question (25/25 same
+scores); the check said "addresses the question" for all 25, i.e. no false
+alarms, and also for the 3 answers that scored zero against the single gold
+article (those cited other, plausibly relevant provisions, or were retrieval
+misses). The 42-question run hit its 30-minute limit (slow HF provider for the
+judge model) and produced no result; the fallback never fired on that set
+earlier. **Direct test on the motivating failure** (question: "Can a company
+send marketing emails without consent?"): Art. 13(4) (disguising the sender) ->
+flagged FALSE; an answer about erasure -> FALSE; exception-only answer -> TRUE
+(it does not detect incompleteness); rule + exception -> TRUE. Verdict: it
+catches wrong-topic answers (not incomplete ones), shows no benefit or harm on
+the benchmark because the set contains no such case, and is kept ON. Not
+caught by anything yet: an answer that is on topic but omits the main rule or
+the exception's conditions - that needs a completeness check against reference
+answers (next step). Endpoint left scaled to zero.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there
