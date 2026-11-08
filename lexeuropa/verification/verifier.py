@@ -183,4 +183,9 @@ def verify_claims(
     claims: list[dict], retrieved: list[Chunk], judge_fn: JudgeFn = default_llm_judge
 ) -> list[ClaimVerification]:
     retrieved_by_id = {c.id: c for c in retrieved}
-    return [verify_claim(c, retrieved_by_id, judge_fn) for c in claims]
+    if len(claims) <= 1:
+        return [verify_claim(c, retrieved_by_id, judge_fn) for c in claims]
+    # Claims are independent network round-trips (an answer that quotes a long
+    # article can have 14 of them), so check them concurrently; order is kept.
+    with ThreadPoolExecutor(max_workers=min(len(claims), 6)) as pool:
+        return list(pool.map(lambda c: verify_claim(c, retrieved_by_id, judge_fn), claims))

@@ -167,3 +167,35 @@ def test_verify_claims_runs_over_a_list():
     results = verify_claims(claims, [CHUNK], judge_fn=_stub_judge_always("interpretative"))
     assert results[0].label == "uncertain"
     assert results[1].label == "interpretative"
+
+
+def test_claims_are_verified_concurrently_and_in_order():
+    import threading
+    import time
+
+    from lexeuropa.schema import Chunk
+    from lexeuropa.verification.verifier import verify_claims
+
+    chunks = [
+        Chunk(id=f"X:{i}", celex="X", lang="en", instrument_title="t", citation=f"c{i}", unit_type="article_paragraph",
+              article=str(i), para_index="1", text=f"text {i}", source_url="")
+        for i in range(6)
+    ]
+    claims = [{"text": f"claim {i}", "citations": [f"X:{i}"]} for i in range(6)]
+    active = peak = 0
+    lock = threading.Lock()
+
+    def slow_judge(claim_text, cited):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.15)
+        with lock:
+            active -= 1
+        return "supported", claim_text
+
+    started = time.time()
+    results = verify_claims(claims, chunks, slow_judge)
+    assert [r.text for r in results] == [f"claim {i}" for i in range(6)]      # order preserved
+    assert peak > 1 and time.time() - started < 0.6                            # not 6 x 0.15 s in series

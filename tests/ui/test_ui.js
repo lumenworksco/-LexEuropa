@@ -14,7 +14,8 @@ const RESULT = {question:"Q?", language:"en", generator:"fallback", generator_mo
              {id:"A:3",celex:"12016P/TXT",citation:"Article 8 Charter",instrument_title:"Charter",text:"unused"}],
   claims:[{text:"First statement.",citations:["A:1"],label:"supported",reason:"ok",citation_labels:{}},
           {text:"Second statement.",citations:["A:2","A:1"],label:"unsupported",reason:"Does not match the source.",citation_labels:{}},
-          {text:"No source claim.",citations:[],label:"uncertain",reason:"no citation",citation_labels:{}}]};
+          {text:"No source claim.",citations:[],label:"uncertain",reason:"no citation",citation_labels:{}},
+          {text:"1. " + "Long quoted provision text. ".repeat(30),citations:["A:1"],label:"supported",reason:"",citation_labels:{}}]};
 
 function stream(lines) {
   const enc = new TextEncoder(); const chunks = lines.map(l => enc.encode(l + "\n")); let i = 0;
@@ -97,13 +98,21 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   await tick(120);
   assert(doc.body.getAttribute("data-view") === "result", "streamed ask ends in the result view");
   assert(d.window.__asks[0].instrument === "gdpr" && d.window.__asks[0].stream === true, "the chosen law and stream flag are sent with the question");
-  assert(doc.querySelectorAll("li.stmt").length === 3, "3 statements rendered");
+  assert(doc.querySelectorAll("li.stmt").length === 4, "4 statements rendered");
   assert(doc.querySelectorAll(".note").length === 2, "fallback note + off-topic warning shown");
   assert(doc.querySelector(".note.bad").textContent.includes("different point"), "relevance reason shown");
-  assert(doc.querySelector(".verdict").textContent.includes("1 of 3 statements supported"), "mixed verdict");
+  assert(doc.querySelector(".verdict").textContent.includes("2 of 4 statements supported"), "mixed verdict");
   assert(doc.querySelector(".stmt .why") !== null, "reason shown for non-supported statement");
   assert(doc.querySelectorAll("#sources .src .num").length === 2, "two cited sources numbered");
-  assert(doc.querySelector("#sources .src .row").textContent.includes("Cited in statement 1, 2"), "cited-by list is right");
+  assert(doc.querySelector("#sources .src .row").textContent.includes("Cited in statements 1, 2, 4"), "two consecutive numbers stay as a list (1, 2, 4)");
+  assert(doc.querySelectorAll(".stmt .sd").length === 2, "supported statements get a small dot instead of a label row");
+  assert(doc.querySelectorAll(".stmt .lab").length === 2, "only non-supported statements spell out their label");
+  const longStmt = doc.querySelectorAll(".stmt")[3];
+  assert(!longStmt.querySelector(".txt").textContent.startsWith("1."), "a copied paragraph number (\"1. \") is not repeated in the text");
+  assert(longStmt.querySelector(".txt").classList.contains("clamp"), "a very long statement is clamped");
+  longStmt.querySelector(".more").click();
+  assert(!longStmt.querySelector(".txt").classList.contains("clamp") && longStmt.querySelector(".more").textContent === "Show less", "the toggle expands a long statement");
+  assert(doc.getElementById("question").value === "" && doc.getElementById("question").getAttribute("placeholder").startsWith("Ask another"), "the composer is cleared after an answer and invites a follow-up");
   assert(doc.querySelectorAll("#sources .others .src").length === 1, "uncited source tucked under 'also retrieved'");
   assert(JSON.parse(d.window.localStorage.getItem("lexeuropa.history.v1")).length === 1, "answer saved to history");
   assert(doc.querySelectorAll("#hist li").length === 1, "history list rendered");
@@ -121,5 +130,14 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   doc.getElementById("question").value = "What is Article 17?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
   await tick(120);
   assert(doc.body.textContent.includes("Could not reach the local LexEuropa server"), "network failure message");
+  // 5. a source cited by many statements reads as a range
+  const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;
+  many.claims = [1,2,3,4,5,6].map(n => ({text:"Statement "+n+".",citations:["A:2"],label:"supported",reason:"",citation_labels:{}}));
+  d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: many})]); doc = d.window.document;
+  doc.getElementById("question").value = "What is Article 17?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(120);
+  assert(doc.querySelector("#sources .src .row").textContent.includes("Cited in statements 1\u20136"), "six consecutive statements read as a range (1\u20136)");
+  assert(doc.querySelector(".verdict").textContent.includes("All 6 statements are supported"), "all-supported verdict for six statements");
+  assert(doc.querySelectorAll(".stmt .lab").length === 0, "an all-supported answer has no label rows at all");
   console.log(process.exitCode ? "\nSOME CHECKS FAILED" : "\nall UI checks passed");
 })();
