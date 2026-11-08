@@ -1,0 +1,766 @@
+[
+  {
+    "id": "gdpr_lawful_bases",
+    "question": "On what legal grounds is the processing of personal data lawful under the GDPR?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Processing of personal data is lawful if the data subject has given consent to the processing for one or more specific purposes.",
+      "Processing is lawful if it is necessary for the performance of a contract to which the data subject is party or in order to take steps at the request of the data subject prior to entering into a contract.",
+      "Processing is lawful if it is necessary for compliance with a legal obligation to which the controller is subject.",
+      "Processing is lawful if it is necessary in order to protect the vital interests of the data subject or of another natural person.",
+      "Processing is lawful if it is necessary for the performance of a task carried out in the public interest or in the exercise of official authority vested in the controller.",
+      "Processing is lawful if it is necessary for the purposes of the legitimate interests pursued by the controller or by a third party, except where such interests are overridden by the interests or fundamental rights and freedoms of the data subject.",
+      "The legal grounds for processing must be laid down by Union law or Member State law to which the controller is subject.",
+      "The purpose of the processing must be determined in the legal basis and must be necessary for the performance of a task carried out in the public interest or in the exercise of official authority vested in the controller.",
+      "The legal basis for processing must meet an objective of public interest and be proportionate to the legitimate aim pursued."
+    ],
+    "declined": false,
+    "retrieved_gold": false,
+    "covered": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.857
+  },
+  {
+    "id": "gdpr_breach",
+    "question": "When must a personal data breach be reported under the GDPR, and what must the report contain?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A personal data breach must be reported to the data subject without undue delay if it is likely to result in a high risk to the rights and freedoms of natural persons.",
+      "The communication to the data subject must describe in clear and plain language the nature of the personal data breach.",
+      "The report must contain at least the information and measures referred to in points (b), (c), and (d) of Article 33(3)."
+    ],
+    "declined": false,
+    "retrieved_gold": false,
+    "covered": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.0
+  },
+  {
+    "id": "gdpr_fines",
+    "question": "What are the maximum administrative fines under the GDPR?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The maximum administrative fines under the GDPR for infringements of certain provisions are up to 10,000,000 EUR, or in the case of an undertaking, up to 2% of the total worldwide annual turnover of the preceding financial year, whichever is higher.",
+      "The maximum administrative fines under the GDPR for non-compliance with an order by the supervisory authority are up to 20,000,000 EUR, or in the case of an undertaking, up to 4% of the total worldwide annual turnover of the preceding financial year, whichever is higher."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      false,
+      true,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.6
+  },
+  {
+    "id": "gdpr_consent",
+    "question": "What conditions must consent meet under the GDPR?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Consent must be demonstrable by the controller, meaning the controller must be able to show that the data subject has consented to the processing of their personal data.",
+      "Consent must be freely given, and utmost account must be taken of whether the performance of a contract, including the provision of a service, is conditional on consent to the processing of personal data that is not necessary for the performance of that contract.",
+      "Consent cannot be regarded as freely given if the data subject has no genuine or free choice or is unable to refuse or withdraw consent without detriment.",
+      "The data subject must have the right to withdraw consent at any time, and it should be as easy to withdraw consent as it is to give it."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.8
+  },
+  {
+    "id": "gdpr_erasure",
+    "question": "When can a person have their personal data erased, and when does that right not apply?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A person can have their personal data erased if the data is no longer necessary for the purposes for which it was collected or processed.",
+      "A person can have their personal data erased if they withdraw their consent and there is no other legal ground for processing the data.",
+      "A person can have their personal data erased if they object to the processing and there are no overriding legitimate grounds for the processing.",
+      "A person can have their personal data erased if the data has been unlawfully processed.",
+      "A person can have their personal data erased if the data must be erased to comply with a legal obligation.",
+      "A person can have their personal data erased if the data was collected in relation to the offer of information society services to a child.",
+      "The right to erasure does not apply if the processing is necessary for exercising the right of freedom of expression and information.",
+      "The right to erasure does not apply if the processing is necessary for compliance with a legal obligation.",
+      "The right to erasure does not apply if the processing is necessary for the performance of a task carried out in the public interest or in the exercise of official authority vested in the controller.",
+      "The right to erasure does not apply if the processing is necessary for reasons of public interest in the area of public health.",
+      "The right to erasure does not apply if the processing is necessary for archiving purposes in the public interest, scientific or historical research purposes, or statistical purposes.",
+      "The right to erasure does not apply if the processing is necessary for the establishment, exercise, or defense of legal claims."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.875
+  },
+  {
+    "id": "gdpr_dpo",
+    "question": "When must an organisation appoint a data protection officer?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A group of undertakings may appoint a single data protection officer provided that the data protection officer is easily accessible from each establishment.",
+      "Member States shall provide for the controller to designate a data protection officer.",
+      "Each Union institution or body shall designate a data protection officer.",
+      "The data protection officer shall be a staff member of the Union institution or body, or may be designated on the basis of a service contract.",
+      "The data protection officer should ensure that the provisions of the Regulation are applied and should advise controllers and processors on fulfilling their obligations.",
+      "The data protection officer must be involved, properly and in a timely manner, in all issues which relate to the protection of personal data."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      false,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.0
+  },
+  {
+    "id": "gdpr_access",
+    "question": "What information can a person get when they ask an organisation for access to their data?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A person can obtain information about the identity and contact details of the controller, the purposes of the processing, and the right to lodge a complaint with the European Data Protection Supervisor.",
+      "A person can also receive information about the period during which the data are processed and the recipients of the data, including those in third countries.",
+      "The information provided should allow the person to verify the accuracy and lawfulness of the processing and to exercise their rights under the relevant Directive.",
+      "If personal data are transferred to a third country or international organisation, the person has the right to be informed of the appropriate safeguards in place."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.5
+  },
+  {
+    "id": "gdpr_dpia",
+    "question": "When is a data protection impact assessment required under the GDPR?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A data protection impact assessment is required under the GDPR in the case of a systematic and extensive evaluation of personal aspects relating to natural persons which is based on automated processing, including profiling, and on which decisions are based that produce legal effects concerning the natural person or similarly significantly affect the natural person.",
+      "A data protection impact assessment is required under the GDPR for processing on a large scale of special categories of data referred to in Article 9(1), or of personal data relating to criminal convictions and offences referred to in Article 10.",
+      "A data protection impact assessment is required under the GDPR for a systematic monitoring of a publicly accessible area on a large scale.",
+      "The controller shall seek the advice of the data protection officer, where designated, when carrying out a data protection impact assessment."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      false,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.75
+  },
+  {
+    "id": "gdpr_adm",
+    "question": "Can a decision about a person be made entirely by automated means under the GDPR?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Article 22(1) of the GDPR prohibits decisions based solely on automated processing, including profiling, that produce legal effects concerning the data subject or similarly significantly affect them.",
+      "The automated establishment of a probability value by a credit information agency, based on personal data concerning a person's ability to meet payment commitments, constitutes 'automated individual decision-making' under Article 22(1) of the GDPR if a third party uses that value to establish, implement, or terminate a contractual relationship with the person.",
+      "The term 'decision' in Article 22(1) of the GDPR includes measures that produce legal effects concerning the data subject or similarly significantly affect them, such as the automatic refusal of an online credit application.",
+      "The condition that the decision must be 'based solely on automated processing, including profiling' is met when the activity involves the automated establishment of a probability value based on personal data, as in the case of SCHUFA.",
+      "If Article 22(1) of the GDPR were interpreted to require a final decision by a third party to recognize 'automated individual decision-making', it would create a gap in legal protection for the data subject."
+    ],
+    "declined": false,
+    "retrieved_gold": false,
+    "covered": [
+      true,
+      false,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.25
+  },
+  {
+    "id": "ai_prohibited",
+    "question": "Which AI practices are prohibited under the AI Act?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The AI Act prohibits the use of AI systems that deploy subliminal or manipulative techniques to distort a person's behavior, causing significant harm.",
+      "The AI Act prohibits the use of AI systems that exploit vulnerabilities of individuals or groups due to age, disability, or social/economic situation, causing significant harm.",
+      "The AI Act prohibits the use of AI systems for social scoring that leads to detrimental treatment of individuals or groups in unrelated social contexts or unjustified treatment.",
+      "The AI Act prohibits the use of AI systems for risk assessments of individuals based solely on profiling or personality traits, except when supporting human assessment based on objective facts.",
+      "The AI Act prohibits the creation or expansion of facial recognition databases through untargeted scraping of facial images.",
+      "The AI Act prohibits the use of AI systems to infer emotions in workplace and education institutions, except for medical or safety reasons.",
+      "The AI Act prohibits the use of biometric categorisation systems that deduce sensitive attributes such as race, political opinions, or religious beliefs, except for law enforcement purposes.",
+      "The AI Act prohibits the use of real-time remote biometric identification systems in publicly accessible spaces for law enforcement, except for specific, necessary purposes."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.875
+  },
+  {
+    "id": "ai_fines",
+    "question": "What is the maximum fine for using a prohibited AI practice?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The maximum fine for using a prohibited AI practice is EUR 35,000,000 or, if the offender is an undertaking, up to 7% of its total worldwide annual turnover for the preceding financial year, whichever is higher.",
+      "There is also a lower maximum fine of EUR 1,500,000 for non-compliance with the prohibition of AI practices."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.5
+  },
+  {
+    "id": "ai_transparency",
+    "question": "What transparency duties apply to AI systems that interact with people or generate content?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Providers of AI systems that interact directly with natural persons must inform the users that they are interacting with an AI system, unless it is obvious to a reasonably well-informed, observant, and circumspect person.",
+      "Providers of AI systems that generate synthetic audio, image, video, or text content must ensure that the outputs are marked in a machine-readable format and detectable as artificially generated or manipulated.",
+      "Deployers of AI systems that generate or manipulate deep fakes must disclose that the content has been artificially generated or manipulated, unless the use is authorized by law for criminal offenses or the content is part of an artistic, creative, satirical, or fictional work.",
+      "Deployers of AI systems that generate or manipulate text for public information on matters of public interest must disclose that the text has been artificially generated or manipulated, unless the use is authorized by law for criminal offenses or the content has undergone human review or editorial control.",
+      "Deployers of emotion recognition systems or biometric categorisation systems must inform natural persons exposed to the system of its operation and process personal data in accordance with relevant EU regulations and directives.",
+      "High-risk AI systems must be designed and developed to ensure sufficient transparency to enable deployers to interpret the system’s output and use it appropriately.",
+      "High-risk AI systems must be accompanied by instructions for use that include concise, complete, correct, and clear information relevant to deployers.",
+      "These transparency obligations do not affect the requirements and obligations set out in Chapter III of the AI Act and are without prejudice to other transparency obligations laid down in Union or national law."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 1.0
+  },
+  {
+    "id": "dsa_hosting",
+    "question": "When is a hosting service not liable for illegal content that its users store?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A hosting service is not liable for illegal content stored by users if the service provider does not have actual knowledge of the illegal activity or content and is not aware of facts or circumstances from which the illegal activity or content is apparent.",
+      "If the service provider obtains actual knowledge or awareness of illegal content, they must act expeditiously to remove or disable access to the content to avoid liability.",
+      "The provider can obtain actual knowledge or awareness of illegal content through their own investigations or through sufficiently precise and adequately substantiated notices from individuals or entities.",
+      "General awareness that the service is used to store illegal content does not constitute specific knowledge or awareness of illegal activities or content.",
+      "Automatically indexing information, having a search function, or recommending information based on user profiles or preferences does not constitute specific knowledge of illegal activities or content."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.75
+  },
+  {
+    "id": "dsa_notice",
+    "question": "What must a notice about illegal content contain under the DSA?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A notice about illegal content must contain a sufficiently substantiated explanation of the reasons why the individual or entity considers the information to be illegal content.",
+      "The notice must include a clear indication of the exact electronic location of the illegal content, such as the exact URL or URLs, and, where necessary, additional information to identify the content.",
+      "The notice must include the name and email address of the individual or entity submitting the notice, except in cases involving offenses referred to in Articles 3 to 7 of Directive 2011/93/EU.",
+      "The notice must contain a statement confirming the bona fide belief of the individual or entity that the information and allegations in the notice are accurate and complete."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 1.0
+  },
+  {
+    "id": "dma_gatekeeper",
+    "question": "What makes a company a gatekeeper under the Digital Markets Act?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A company is designated as a gatekeeper if it has a significant impact on the internal market, provides a core platform service that is an important gateway for business users to reach end users, and enjoys an entrenched and durable position, or it is foreseeable that it will enjoy such a position in the near future.",
+      "Core platform services include online intermediation services, online search engines, online social networking services, video-sharing platform services, number-independent interpersonal communications services, operating systems, web browsers, virtual assistants, cloud computing services, and online advertising services provided by an undertaking that provides any of the core platform services listed.",
+      "The Commission may also designate an undertaking as a gatekeeper if it meets the qualitative criteria but does not satisfy the quantitative thresholds, taking into account elements such as size, market position, network effects, data advantages, lock-in effects, and conglomerate corporate structure."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.5
+  },
+  {
+    "id": "nis2_incident",
+    "question": "What deadlines apply for reporting a significant cyber incident under NIS 2?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Entities must submit an early warning without undue delay and in any event within 24 hours of becoming aware of a significant incident.",
+      "Entities must submit an incident notification without undue delay and in any event within 72 hours of becoming aware of the significant incident.",
+      "Entities must submit a final report not later than one month after the submission of the incident notification.",
+      "If the incident is ongoing at the time of the final report, entities must provide a progress report at that time and a final report within one month of handling the incident."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      false,
+      true,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.6
+  },
+  {
+    "id": "dataact_switching",
+    "question": "What must a contract with a data processing (cloud) service provider allow under the Data Act when a customer wants to switch?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The contract must allow the customer to switch to a different provider of data processing services upon request.",
+      "The contract must specify that the switching process must be completed without undue delay and not after a maximum transitional period of 30 calendar days.",
+      "The contract must include an obligation for the provider to provide reasonable assistance to the customer and third parties authorized by the customer during the switching process.",
+      "The contract must ensure that the provider acts with due care to maintain business continuity and continues to provide the functions or services under the contract during the switching process.",
+      "The contract must provide clear information concerning known risks to continuity in the provision of the functions or services on the part of the source provider of data processing services.",
+      "The contract must ensure that a high level of security is maintained throughout the switching process, including during data transfer and the retrieval period.",
+      "The contract must specify a maximum notice period for the initiation of the switching process, which shall not exceed two months.",
+      "The contract must include an exhaustive specification of all categories of data and digital assets that can be ported during the switching process, including all exportable data.",
+      "The contract must specify categories of data specific to the internal functioning of the provider’s data processing service that are exempted from exportable data if a risk of breaching trade secrets exists.",
+      "The contract must specify a minimum period for data retrieval of at least 30 calendar days after the termination of the transitional period.",
+      "The contract must include a clause guaranteeing full erasure of all exportable data and digital assets after the expiry of the retrieval period or an alternative agreed period.",
+      "The contract must specify any switching charges that may be imposed by the provider of data processing services."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 1.0
+  },
+  {
+    "id": "eprivacy_marketing",
+    "question": "Can a company send marketing emails without consent?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A company can only send marketing emails if the recipient has given prior consent.",
+      "Member States must ensure that unsolicited marketing emails are not allowed without the consent of the recipients.",
+      "It is prohibited to send marketing emails without revealing the sender's identity and providing a valid address for opting out."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      false,
+      false,
+      true,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.4
+  },
+  {
+    "id": "ecommerce_conduit",
+    "question": "When is a service provider that merely transmits information not liable for it?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "A service provider is not liable for information transmitted when it does not initiate the transmission, does not select the receiver, and does not modify the information.",
+      "The provider must not be involved with the information transmitted or accessed to benefit from the liability exemption.",
+      "Technical manipulations that do not alter the integrity of the information are allowed."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 1.0
+  },
+  {
+    "id": "infosoc_reproduction",
+    "question": "Who has the exclusive right to authorise reproduction under EU copyright law?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Authors have the exclusive right to authorise or prohibit the reproduction of their works.",
+      "Performers have the exclusive right to authorise or prohibit the reproduction of fixations of their performances.",
+      "Phonogram producers have the exclusive right to authorise or prohibit the reproduction of their phonograms.",
+      "Producers of the first fixations of films have the exclusive right to authorise or prohibit the reproduction of the original and copies of their films.",
+      "Broadcasting organisations have the exclusive right to authorise or prohibit the reproduction of fixations of their broadcasts, whether transmitted by wire or over the air, including by cable or satellite."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.833
+  },
+  {
+    "id": "charter_art8",
+    "question": "What does the Charter of Fundamental Rights say about the protection of personal data?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The Charter of Fundamental Rights of the European Union states in Article 8(1) that everyone has the right to the protection of personal data concerning him or her.",
+      "The protection of personal data is recognized as a fundamental right in the Charter of Fundamental Rights of the European Union.",
+      "The Charter emphasizes the importance of the fundamental right to respect for private life, which is guaranteed by Article 7 of the Charter.",
+      "The Charter also emphasizes the importance of the fundamental right to the protection of personal data, which is guaranteed by Article 8 of the Charter.",
+      "The Charter requires that the processing of personal data must respect and observe the freedoms and principles recognized in the Charter, including the protection of personal data.",
+      "The Charter does not specify the exact measures or safeguards for the protection of personal data, but it emphasizes the need for such protection to be balanced against other fundamental rights and to be proportionate.",
+      "The Charter does not provide specific details on the processing of special categories of personal data or derogations from the prohibition on processing such data.",
+      "The Charter does not explicitly mention the 'right to be forgotten', but it is implied in the context of the protection of personal data."
+    ],
+    "declined": false,
+    "retrieved_gold": false,
+    "covered": [
+      true,
+      false,
+      false,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.2
+  },
+  {
+    "id": "teu_principles",
+    "question": "What principles govern the limits and exercise of EU powers?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The limits of Union competences are governed by the principle of conferral.",
+      "The use of Union competences is governed by the principles of subsidiarity and proportionality.",
+      "The principle of proportionality requires that the content and form of Union action shall not exceed what is necessary to achieve the objectives of the Treaties.",
+      "The institutions of the Union shall apply the principle of proportionality as laid down in the Protocol on the application of the principles of subsidiarity and proportionality.",
+      "The provisions of the Charter are addressed to the institutions, bodies, offices, and agencies of the Union and to the Member States only when they are implementing Union law.",
+      "The principles in the Charter may be implemented by legislative and executive acts taken by institutions, bodies, offices, and agencies of the Union, and by acts of Member States when they are implementing Union law.",
+      "The provisions of the Charter are judicially cognisable only in the interpretation of such acts and in the ruling on their legality.",
+      "Member States shall lay down specific rules and procedures for the exercise of the powers and ensure that any exercise of those powers is subject to adequate safeguards laid down in the applicable national law in compliance with the Charter and with the general principles of Union law."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      false,
+      false,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.5
+  },
+  {
+    "id": "led_principles",
+    "question": "What principles must personal data processing follow under the Law Enforcement Directive?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Personal data processing under the Law Enforcement Directive must comply with the principles laid down in Article 4(1) of Directive (EU) 2016/680, including lawfulness, fairness, and transparency, purpose limitation, accuracy, and storage limitation.",
+      "The processing of biometric data for law enforcement purposes must be strictly necessary, subject to appropriate safeguards for the rights and freedoms of the data subject, and authorised by Union or Member State law.",
+      "The principles of protection must be reflected in the obligations imposed on persons responsible for processing, such as data quality, technical security, and notification to the supervisory authority.",
+      "Individuals have the right to be informed that processing is taking place, to consult the data, to request corrections, and to object to processing in certain circumstances."
+    ],
+    "declined": false,
+    "retrieved_gold": false,
+    "covered": [
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.833
+  },
+  {
+    "id": "tfeu_workers",
+    "question": "What does free movement of workers involve under the TFEU?",
+    "trap": false,
+    "generator": "primary",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "Freedom of movement for workers shall be secured within the Union.",
+      "Freedom of movement for workers entails the abolition of any discrimination based on nationality between workers of the Member States as regards employment, remuneration, and other conditions of work and employment.",
+      "The European Parliament and the Council shall issue directives or make regulations to ensure close cooperation between national employment services.",
+      "Administrative procedures and practices that form an obstacle to the liberalization of the movement of workers must be abolished.",
+      "Qualifying periods and other restrictions that impose conditions on workers from other Member States regarding the free choice of employment must be abolished.",
+      "Appropriate machinery must be set up to bring offers of employment into touch with applications for employment and to facilitate the achievement of a balance between supply and demand in the employment market.",
+      "Measures in the field of social security are necessary to provide freedom of movement for workers, including the aggregation of periods for acquiring and retaining the right to benefits and the payment of benefits to persons resident in the territories of Member States."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.4
+  },
+  {
+    "id": "schrems2",
+    "question": "What did the Court of Justice decide in Schrems II about the Privacy Shield and standard contractual clauses?",
+    "trap": false,
+    "generator": "fallback",
+    "answers_question": true,
+    "error": null,
+    "statements": [
+      "The Court of Justice was asked to interpret and assess the validity of the Privacy Shield Decision and the SCC Decision in light of the GDPR and the Charter of Fundamental Rights.",
+      "The Privacy Shield Decision allows for limitations to the Privacy Shield Framework Principles, including for national security, public interest, or law enforcement requirements, which can take precedence over the principles.",
+      "The standard contractual clauses are considered to offer adequate safeguards for the protection of privacy and fundamental rights and freedoms of individuals as required by Article 26(2) of Directive 95/46.",
+      "The Court of Justice was asked to determine whether the Privacy Shield Decision and the standard contractual clauses comply with the requirements stemming from the GDPR read in the light of the Charter.",
+      "The referring court was unsure whether Mr Schrems’s doubts about the adequacy of the level of protection in the United States were well-founded, despite the Privacy Shield Decision, leading to the referral of questions to the Court of Justice.",
+      "The referring court asked whether the Privacy Shield Decision is binding on the supervisory authority of a Member State and whether the transfer of personal data to the United States under the SCC Decision breaches the rights enshrined in Articles 7, 8, and 47 of the Charter.",
+      "The Court of Justice was asked to consider the relevance of the Privacy Shield Decision in assessing the adequacy of the safeguards provided to data transferred to the United States under the SCC Decision."
+    ],
+    "declined": false,
+    "retrieved_gold": true,
+    "covered": [
+      false,
+      true
+    ],
+    "contradiction": false,
+    "contradiction_note": "",
+    "grade_error": null,
+    "completeness": 0.5
+  },
+  {
+    "id": "trap_french_tax",
+    "question": "What is the penalty for tax evasion under French law?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The provided sources do not contain information about the penalty for tax evasion under French law."
+    ],
+    "declined": true
+  },
+  {
+    "id": "trap_us_law",
+    "question": "What are the HIPAA privacy rules for hospitals in the United States?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The provided sources do not contain information about HIPAA privacy rules for hospitals in the United States."
+    ],
+    "declined": true
+  },
+  {
+    "id": "trap_prediction",
+    "question": "Will my company win its pending GDPR court case next month?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The sources provided do not contain information to predict the outcome of a specific pending GDPR court case."
+    ],
+    "declined": true
+  },
+  {
+    "id": "trap_offtopic",
+    "question": "What is the capital of Australia?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The sources provided do not contain information about the capital of Australia."
+    ],
+    "declined": true
+  }
+]

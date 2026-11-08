@@ -72,6 +72,7 @@ def test_pinned_resolver_hit_survives_a_reranker_that_drops_it(monkeypatch):
         resolver=resolver,
         default_celex="32016R0679",
         k_final=8,
+        expand=0,   # this test is about pinning, not article expansion
     )
     assert result.reranked
     assert "32016R0679:en:art_17:001" in {c.id for c in result.chunks}
@@ -143,3 +144,24 @@ def test_recital_cap_keeps_operative_articles_in_a_small_result_list():
     # not enough operative text to fill k: recitals backfill rather than shrink the list
     only_recitals = [c("recital", i) for i in range(4)]
     assert len(_cap_recitals(only_recitals, 3, 1)) == 3
+
+
+def test_expand_articles_appends_siblings_and_never_reorders_or_displaces_the_ranked_results():
+    from lexeuropa.retrieval.pipeline import expand_articles
+    from lexeuropa.schema import Chunk
+
+    def c(celex, art, para, kind="article_paragraph"):
+        return Chunk(id=f"{celex}:{art}:{para}", celex=celex, lang="en", instrument_title="t", citation="c", unit_type=kind,
+                     article=art if kind == "article_paragraph" else None, para_index=str(para), text="x", source_url="")
+
+    corpus = [c("X", "13", p) for p in (1, 2, 3, 4)] + [c("X", "5", p) for p in (1, 2)] + [c("Y", "9", p) for p in (1, 2, 3)]
+    ranked = [c("X", "13", 3), c("Y", "9", 2), c("X", "5", 2), c("R", "0", 7, "recital")]
+    out = expand_articles(ranked, corpus, n_articles=2, max_sources=20)
+    ids = [x.id for x in out]
+    assert ids[:4] == [r.id for r in ranked]                                            # ranked results untouched, in order
+    assert ids[4:] == ["X:13:1", "X:13:2", "X:13:4", "Y:9:1", "Y:9:3"]                  # siblings of the top two articles, statutory order
+    assert "X:5:1" not in ids                                                           # the third article is not expanded (n=2)
+    assert len(ids) == len(set(ids))
+    assert expand_articles(ranked, corpus, n_articles=0, max_sources=20) == ranked      # disabled = unchanged
+    capped = expand_articles(ranked, corpus, n_articles=2, max_sources=6)
+    assert len(capped) == 6 and [x.id for x in capped[:4]] == [r.id for r in ranked]   # the cap never cuts into the ranked results

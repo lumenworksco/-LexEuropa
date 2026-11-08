@@ -95,6 +95,11 @@ EMBED_BACKEND = os.environ.get("LEXEUROPA_EMBED_BACKEND", "hf")
 RERANKER_MODEL = os.environ.get("LEXEUROPA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
 # Set LEXEUROPA_USE_RERANKER=0 to skip the local cross-encoder (no torch/weights needed).
 USE_RERANKER = os.environ.get("LEXEUROPA_USE_RERANKER", "1") != "0"
+# After ranking, the top N distinct articles are expanded to ALL their paragraphs
+# (an answer to "what are the conditions ..." needs the whole article, not whichever
+# paragraphs happened to rank). 0 disables. Up to MAX_SOURCES chunks are returned.
+EXPAND_ARTICLES = int(os.environ.get("LEXEUROPA_EXPAND_ARTICLES", "3"))
+MAX_SOURCES = int(os.environ.get("LEXEUROPA_MAX_SOURCES", "14"))
 # At most this many recitals in the final retrieved set (see retrieval/pipeline.py).
 MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "1"))
 

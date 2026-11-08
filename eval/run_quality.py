@@ -96,7 +96,7 @@ def summarize(rows: list[dict]) -> dict:
     }
 
 
-def run_system(items: list[dict], out: Path | None = None) -> list[dict]:
+def run_system(items: list[dict], out_path: Path | None = None) -> list[dict]:
     from lexeuropa.answer import answer_question
 
     rows = []
@@ -117,8 +117,8 @@ def run_system(items: list[dict], out: Path | None = None) -> list[dict]:
         status = f"trap declined={row['declined']}" if row["trap"] else f"completeness={row.get('completeness')} gold_retrieved={row.get('retrieved_gold')}"
         print(f"[{item['id']}] {status}{' ERROR ' + row['error'] if row['error'] else ''}", flush=True)
         rows.append(row)
-        if out:  # partial results survive a stalled provider
-            out.write_text(json.dumps(rows, indent=2, ensure_ascii=False))
+        if out_path:  # partial results survive a stalled provider
+            out_path.write_text(json.dumps(rows, indent=2, ensure_ascii=False))
     return rows
 
 

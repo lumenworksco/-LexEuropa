@@ -181,7 +181,7 @@ def build_positive_example(
     question = build_reference_question(gold_chunk)
     result = retrieve(
         question, bm25_index=bm25, dense_index=dense, resolver=resolver, k_candidates=20, k_final=7,
-        use_reranker=USE_RERANKER,
+        use_reranker=USE_RERANKER, expand=0,
     )
     sources = [c for c in result.chunks if c.id != gold_chunk.id]
     sources.append(gold_chunk)
@@ -231,7 +231,7 @@ def build_topic_example(
     key = (group[0].celex, group[0].article)
     result = retrieve(
         question, bm25_index=bm25, dense_index=dense, resolver=resolver, k_candidates=20,
-        k_final=8, use_reranker=USE_RERANKER,
+        k_final=8, use_reranker=USE_RERANKER, expand=0,
     )
     distractors = [c for c in result.chunks if (c.celex, c.article) != key][: max(1, 8 - len(group))]
     sources = list(group) + distractors
@@ -281,7 +281,7 @@ def build_refusal_example(
         resolver=resolver,
         k_candidates=20,
         k_final=7,
-        use_reranker=USE_RERANKER,
+        use_reranker=USE_RERANKER, expand=0,
     )
     # Guard against topical overlap pulling the real answer in anyway.
     sources = [c for c in result.chunks if c.article != off_topic_chunk.article or c.celex != off_topic_chunk.celex]

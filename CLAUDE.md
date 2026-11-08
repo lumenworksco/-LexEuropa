@@ -836,6 +836,53 @@ caught by anything yet: an answer that is on topic but omits the main rule or
 the exception's conditions - that needs a completeness check against reference
 answers (next step). Endpoint left scaled to zero.
 
+## Answer-quality evaluation (2026-11)
+
+`eval/answer_quality.jsonl` (29 questions; 25 in scope with key-point checklists,
+4 out-of-corpus traps), `eval/run_quality.py` (grader = Qwen2.5-72B; `--calibrate`
+grades synthetic answers made from real provision text: verbatim 0.98, first 40%
+0.66, unrelated 0.00), `tests/test_quality_set.py` (structure; every key phrase must
+occur in the gold provision when the corpus is present). Baseline (8 sources, no
+expansion; `data/finetune/quality_v1.json`, `quality_q72.json`): system mean
+completeness .56 / 16% fully complete; stock 72B .62 / 16%; gold provision
+retrieved 20/25 for both; traps 4/4 both; contradictions 1 vs 0.
+
+Findings, in order of importance:
+- **Retrieval-limited first.** Grading the retrieved text itself (ceiling) gives .72;
+  so retrieval caps completeness and generation loses ~.1-.15 more.
+- **Whole-article context** (top 3 articles, all paragraphs, up to 14 sources):
+  ceiling .83 / 80% fully complete. End to end with the expanded articles FIRST
+  (`quality_v1_expand.json`): mean .547 (flat), fully complete 32% (2x), completeness
+  when gold retrieved .667 (from .588), citation set P/R .90/.92 (from .86/.88)
+  (`final5_v1exp_unseen.json`) - but gold retrieval fell 20 -> 17/25: the expanded
+  articles displaced the right article for gdpr_fines, gdpr_access, ai_fines
+  (ai_fines then answered from Art. 101 with a confidently wrong 3% / EUR 15M instead
+  of Art. 99(3)'s 7% / EUR 35M, labelled supported) and v1 copied only the first
+  paragraph it saw for dataact_switching (Art. 25(1) listed first, 1.0 -> 0.0).
+  Hence the SHIPPED design appends siblings after the untouched ranked results
+  (`expand_articles`; ceiling .83 / 68% fully complete; NOT yet re-measured end to end
+  - one run, ~$0.7 of endpoint time, would confirm). `LEXEUROPA_EXPAND_ARTICLES`,
+  `LEXEUROPA_MAX_SOURCES`; the dataset builder passes `expand=0`.
+- **Dropped:** a "general regime" prior excluding EUDPR/LED unless the question
+  names institutions/law enforcement (ceiling .69); a completeness reviewer prompt
+  (flagged 23/25 incl. 4/4 complete answers: no discrimination); model size (72B
+  only .62).
+- **Parallel regimes** (GDPR / EUDPR / LED have look-alike DPO, breach and principles
+  articles) crowd each other out and blend in answers; the "Focus on" picker is the
+  user-side remedy. 5 of 25 questions miss the gold provision for this or similar
+  reasons (gdpr_lawful_bases, gdpr_breach, gdpr_adm, charter_art8, led_principles).
+- **Corpus limitation found:** the corpus is the original act text, not consolidated
+  (ePrivacy Art. 5(3) is the 2002 "right to refuse"; the current law requires consent
+  after Directive 2009/136/EC). The cookie question was therefore left out of the set.
+- Judge noise ~2% (one verbatim answer graded .5). n=25 and one run per system: per-
+  question scores swing a lot (e.g. -1.0 to +0.67); only the aggregate is meaningful.
+
+Suggested next steps: (1) confirm the append design end to end; (2) retrieval that
+resolves parallel regimes (e.g. a regime hint in the answer prompt or a per-instrument
+section in the UI); (3) consolidated texts; (4) a v1-style retrain whose targets cite
+ALL relevant paragraphs of an article (the v4 topic examples did this) now that the
+completeness set exists to judge it.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there
