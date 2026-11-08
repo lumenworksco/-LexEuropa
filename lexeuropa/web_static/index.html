@@ -186,6 +186,7 @@
   .stmt .n .sd { width: 8px; height: 8px; border-radius: 50%; background: var(--c); display: block; margin: 0 0 0 2px; }
   .stmt p { margin: 0; font: 1.08rem/1.7 var(--serif); }
   .txt.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .inst-tag { display: inline-block; font: 600 .68rem/1.5 var(--sans); letter-spacing: .04em; color: var(--muted); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 0 6px; }
   .more { background: none; border: 0; padding: 0; color: var(--accent); font-size: .8rem; text-decoration: underline; text-underline-offset: 2px; }
   .cite {
     display: inline-block; vertical-align: baseline; margin-left: 2px; padding: 0 3px; border: 0; background: none; color: var(--accent);
@@ -636,6 +637,8 @@
     while (i < a.length) { var j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++; out.push(j > i + 1 ? a[i] + "\u2013" + a[j] : (j === i ? String(a[i]) : a[i] + ", " + a[j])); i = j + 1; }
     return out.join(", ");
   }
+  function instOf(chunk) { return chunk.instrument_short || chunk.instrument_title; }
+  function isLegislation(chunk) { return !/CJ\d/.test(chunk.celex); }   // judgments quote statutes; only legislation counts as a "regime"
   function citeName(id, byId) { return byId[id] ? byId[id].citation : id; }
 
   function sourceCard(chunk, num, citedBy) {
@@ -713,6 +716,11 @@
       });
     });
 
+    var regimes = {};
+    result.claims.forEach(function (c) { c.citations.forEach(function (id) { var ch = byId[id]; if (ch && isLegislation(ch)) regimes[ch.celex] = instOf(ch); }); });
+    var regimeNames = Object.keys(regimes).map(function (k) { return regimes[k]; });
+    var mixed = regimeNames.length >= 2;
+
     var sec = el("section");
     sec.appendChild(el("p", { class: "q-label", text: "Your question" }));
     sec.appendChild(el("h1", { class: "q-text", text: q }));
@@ -731,6 +739,8 @@
     if (result.example) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Example" }), "Written by hand from the text of the Directive to show the format — not generated live."]));
     if (result.generator === "fallback") sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Second opinion. " }), "The main LexEuropa model declined or did not answer this question well, so a larger general-purpose model wrote the answer from the same sources."]));
     if (result.answers_question === false) sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Check this carefully. " }), "We could not confirm that these statements answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ". They may address a different point."]));
+
+    if (mixed) sec.appendChild(el("div", { class: "note info" }, [el("strong", { text: "More than one regime. " }), "This answer draws on " + regimeNames.length + " different instruments (" + regimeNames.join(", ") + "). Look-alike rules can differ by who they apply to \u2014 for example the GDPR for most organisations, a separate regulation for EU institutions, a directive for law-enforcement authorities. Check which one applies to you; the \u201cLaw\u201d menu above can focus a question on one instrument."]));
 
     var ol = el("ol", { class: "statements" });
     result.claims.forEach(function (c, i) {
@@ -755,6 +765,10 @@
         var more = el("button", { type: "button", class: "more", text: "Show full statement" });
         more.addEventListener("click", function () { var on = txt.classList.toggle("clamp"); more.textContent = on ? "Show full statement" : "Show less"; });
         row.appendChild(more);
+      }
+      if (mixed) {
+        var seenInst = {};
+        c.citations.forEach(function (id) { var ch = byId[id]; if (ch && isLegislation(ch) && !seenInst[ch.celex]) { seenInst[ch.celex] = 1; row.insertBefore(el("span", { class: "inst-tag", text: instOf(ch) }), row.firstChild); } });
       }
       var kids = [p]; if (row.childNodes.length) kids.push(row);
       var gutter = el("span", { class: "n l-" + key }, [el("span", { text: String(i + 1) }), key === "supported" ? el("i", { class: "sd", role: "img", "aria-label": "Supported", title: lab[2] }) : null]);

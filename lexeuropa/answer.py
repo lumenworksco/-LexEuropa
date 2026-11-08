@@ -16,6 +16,7 @@ from lexeuropa.config import (
     RELEVANCE_CHECK,
 )
 from lexeuropa.generation.client import GenerationError, chat
+from lexeuropa.ingest.chunker import SHORT_NAMES
 from lexeuropa.generation.prompts import FALLBACK_GUIDANCE, ParseError, build_messages, parse_response
 from lexeuropa.ingest.pipeline import load_chunks
 from lexeuropa.retrieval.bm25_index import BM25Index
@@ -29,6 +30,13 @@ DISCLAIMER = (
     "This is AI-assisted legal research output, not legal advice. "
     "It does not replace a qualified legal professional."
 )
+
+
+def _chunk_dict(c) -> dict:
+    """A retrieved chunk as the API returns it: with a short instrument name for display."""
+    d = c.to_dict()
+    d["instrument_short"] = SHORT_NAMES.get(c.celex)
+    return d
 
 
 class NotIngestedError(RuntimeError):
@@ -143,7 +151,7 @@ def answer_question(
         return {
             "question": question,
             "language": None,
-            "retrieved": [c.to_dict() for c in result.chunks],
+            "retrieved": [_chunk_dict(c) for c in result.chunks],
             "reranked": result.reranked,
             "claims": [],
             "disclaimer": DISCLAIMER,
@@ -168,7 +176,7 @@ def answer_question(
         # address the question, as opposed to merely being backed by their sources.
         "answers_question": relevance[0] if relevance else None,
         "relevance_reason": relevance[1] if relevance else None,
-        "retrieved": [c.to_dict() for c in result.chunks],
+        "retrieved": [_chunk_dict(c) for c in result.chunks],
         "reranked": result.reranked,
         "claims": [
             {

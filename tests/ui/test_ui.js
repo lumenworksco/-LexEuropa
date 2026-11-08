@@ -130,6 +130,29 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   doc.getElementById("question").value = "What is Article 17?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
   await tick(120);
   assert(doc.body.textContent.includes("Could not reach the local LexEuropa server"), "network failure message");
+  // 4b. an answer drawing on two different legislative instruments says so and tags each statement
+  const mix = JSON.parse(JSON.stringify(RESULT)); mix.generator = "primary"; mix.answers_question = true;
+  mix.retrieved = [{id:"G:1",celex:"32016R0679",citation:"Article 37(1) GDPR",instrument_title:"Regulation (EU) 2016/679",instrument_short:"GDPR",text:"gdpr text"},
+                   {id:"E:1",celex:"32018R1725",citation:"Article 43(1) EUDPR",instrument_title:"Regulation (EU) 2018/1725",instrument_short:"EUDPR",text:"eudpr text"},
+                   {id:"J:1",celex:"62012CJ0131",citation:"C-131/12, para. 5",instrument_title:"Google Spain",text:"case text"}];
+  mix.claims = [{text:"Organisations must appoint a DPO in some cases.",citations:["G:1","J:1"],label:"supported",reason:"",citation_labels:{}},
+                {text:"EU institutions must designate a DPO.",citations:["E:1"],label:"supported",reason:"",citation_labels:{}}];
+  d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: mix})]); doc = d.window.document;
+  doc.getElementById("question").value = "When must an organisation appoint a data protection officer?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(120);
+  const info = Array.from(doc.querySelectorAll(".note.info")).map(n => n.textContent).join(" ");
+  assert(info.includes("More than one regime") && info.includes("GDPR") && info.includes("EUDPR"), "mixed instruments are called out by name");
+  assert(!info.includes("Google Spain") && !info.includes("2016/679"), "a judgment is not counted as a regime; short names are used");
+  const tags = Array.from(doc.querySelectorAll(".stmt .inst-tag")).map(n => n.textContent);
+  assert(tags.length === 2 && tags[0] === "GDPR" && tags[1] === "EUDPR", "each statement is tagged with its own instrument (and not the judgment)");
+
+  // 4c. a single-instrument answer gets no regime notice and no tags
+  const single = JSON.parse(JSON.stringify(mix)); single.claims = [mix.claims[0]];
+  d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: single})]); doc = d.window.document;
+  doc.getElementById("question").value = "When must an organisation appoint a data protection officer?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(120);
+  assert(doc.querySelectorAll(".inst-tag").length === 0 && !Array.from(doc.querySelectorAll(".note")).some(n => n.textContent.includes("More than one regime")), "a single-instrument answer is not cluttered");
+
   // 5. a source cited by many statements reads as a range
   const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;
   many.claims = [1,2,3,4,5,6].map(n => ({text:"Statement "+n+".",citations:["A:2"],label:"supported",reason:"",citation_labels:{}}));

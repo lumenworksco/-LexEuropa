@@ -883,6 +883,18 @@ section in the UI); (3) consolidated texts; (4) a v1-style retrain whose targets
 ALL relevant paragraphs of an article (the v4 topic examples did this) now that the
 completeness set exists to judge it.
 
+## Pre-declared rule for promoting v4 on completeness (written before measuring)
+
+v4 (`iPwnds/lexeuropa-qwen3b-*-v4`, private) was trained on whole-article targets
+that cite every paragraph, and has never been scored on completeness. It replaces v1
+as the default only if, on the SAME retrieval (append-expansion, no reranker, local
+embeddings) and the same grader: (a) mean completeness on the 25 in-scope questions is
+at least v1's + 0.05, AND (b) citation precision and recall on
+`eval/questions_unseen.jsonl` are each within 0.03 of v1's (v1 with the same retrieval),
+AND (c) all 4 trap questions are still declined, AND (d) contradictions are no
+more than v1's + 1. Otherwise v1 stays. n=25 and one run each, so a smaller gap than
+0.05 is treated as noise.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

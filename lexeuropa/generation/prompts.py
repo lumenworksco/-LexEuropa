@@ -36,7 +36,8 @@ FALLBACK_GUIDANCE = """
 Additional instructions:
 - Answer the question that was actually asked.
 - If the question asks whether something is allowed or required, state the general rule FIRST, then any exceptions together with ALL of their conditions exactly as the source states them (who, what, when, for what purpose). Never state an exception without its conditions.
-- Draw on every relevant source paragraph, and cite each statement with the source it comes from."""
+- Draw on every relevant source paragraph, and cite each statement with the source it comes from.
+- Sources may come from different instruments that regulate similar matters for different groups (for example the GDPR for most organisations, a separate regulation for the EU institutions, a directive for law-enforcement authorities). Answer under the instrument that fits the question, name it in the statement, and do not blend rules from different instruments into one statement."""
 
 
 def build_messages(
