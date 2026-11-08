@@ -100,6 +100,10 @@ USE_RERANKER = os.environ.get("LEXEUROPA_USE_RERANKER", "1") != "0"
 # paragraphs happened to rank). 0 disables. Up to MAX_SOURCES chunks are returned.
 EXPAND_ARTICLES = int(os.environ.get("LEXEUROPA_EXPAND_ARTICLES", "3"))
 MAX_SOURCES = int(os.environ.get("LEXEUROPA_MAX_SOURCES", "14"))
+# Only expand articles of the same instrument as the top-ranked article, so look-alike
+# provisions of other regimes (GDPR vs EUDPR vs LED, AI Act fines for EU institutions)
+# are not appended and copied into the answer.
+EXPAND_SAME_INSTRUMENT = os.environ.get("LEXEUROPA_EXPAND_SAME_INSTRUMENT", "0") == "1"
 # At most this many recitals in the final retrieved set (see retrieval/pipeline.py).
 MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "1"))
 

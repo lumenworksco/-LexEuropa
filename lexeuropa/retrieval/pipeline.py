@@ -17,7 +17,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 
-from lexeuropa.config import EXPAND_ARTICLES, MAX_RECITALS_IN_RESULT, MAX_SOURCES, USE_RERANKER
+from lexeuropa.config import EXPAND_ARTICLES, EXPAND_SAME_INSTRUMENT, MAX_RECITALS_IN_RESULT, MAX_SOURCES, USE_RERANKER
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.fusion import reciprocal_rank_fusion
@@ -88,7 +88,9 @@ def _cap_recitals(items: list, k: int, max_recitals: int, chunk_of=lambda x: x) 
     return (out + skipped)[:k]
 
 
-def expand_articles(chunks: list[Chunk], all_chunks: list[Chunk], n_articles: int, max_sources: int) -> list[Chunk]:
+def expand_articles(
+    chunks: list[Chunk], all_chunks: list[Chunk], n_articles: int, max_sources: int, same_instrument: bool = False
+) -> list[Chunk]:
     """Append the other paragraphs of the top articles after the ranked results.
 
     An answer to "what are the conditions / which items ..." needs the whole article,
@@ -108,9 +110,12 @@ def expand_articles(chunks: list[Chunk], all_chunks: list[Chunk], n_articles: in
         if c.unit_type == "article_paragraph" and c.article is not None:
             by_article.setdefault((c.celex, c.article), []).append(c)
     top: list[tuple[str, str]] = []
+    dominant = next((c.celex for c in chunks if c.unit_type == "article_paragraph"), None)
     for c in chunks:
         key = (c.celex, c.article)
         if c.unit_type == "article_paragraph" and key not in top:
+            if same_instrument and c.celex != dominant:
+                continue   # a look-alike provision of another regime: do not expand it
             top.append(key)
     out = list(chunks)
     seen = {c.id for c in out}
@@ -178,7 +183,7 @@ def retrieve(
         scores = {c.id: s for c, s in reranked}
         if pinned_ids:
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
-        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES)
+        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT)
         scores = {c.id: scores.get(c.id, 0.0) for c in chunks}
         return RetrievalResult(chunks=chunks, scores=scores, reranked=True)
     except RerankerUnavailable as e:
@@ -189,6 +194,6 @@ def retrieve(
         scores = {c.id: s for c, s in top}
         if pinned_ids:
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
-        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES)
+        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT)
         scores = {c.id: scores.get(c.id, 0.0) for c in chunks}
         return RetrievalResult(chunks=chunks, scores=scores, reranked=False)

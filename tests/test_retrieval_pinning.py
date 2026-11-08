@@ -165,3 +165,21 @@ def test_expand_articles_appends_siblings_and_never_reorders_or_displaces_the_ra
     assert expand_articles(ranked, corpus, n_articles=0, max_sources=20) == ranked      # disabled = unchanged
     capped = expand_articles(ranked, corpus, n_articles=2, max_sources=6)
     assert len(capped) == 6 and [x.id for x in capped[:4]] == [r.id for r in ranked]   # the cap never cuts into the ranked results
+
+
+def test_same_instrument_expansion_skips_look_alike_provisions_of_other_regimes():
+    from lexeuropa.retrieval.pipeline import expand_articles
+    from lexeuropa.schema import Chunk
+
+    def c(celex, art, para):
+        return Chunk(id=f"{celex}:{art}:{para}", celex=celex, lang="en", instrument_title="t", citation="c", unit_type="article_paragraph",
+                     article=art, para_index=str(para), text="x", source_url="")
+
+    corpus = [c("GDPR", "83", p) for p in (1, 2, 3)] + [c("AIACT", "99", p) for p in (1, 2)] + [c("GDPR", "58", 1), c("GDPR", "58", 2)]
+    ranked = [c("GDPR", "83", 2), c("AIACT", "99", 1), c("GDPR", "58", 1)]
+    mixed = {x.id for x in expand_articles(ranked, corpus, 3, 20)}
+    same = {x.id for x in expand_articles(ranked, corpus, 3, 20, same_instrument=True)}
+    assert "AIACT:99:2" in mixed                         # default: every top article is expanded
+    assert "AIACT:99:2" not in same                      # same-instrument: the other regime's article is left alone
+    assert {"GDPR:83:1", "GDPR:83:3", "GDPR:58:2"} <= same   # ...while the dominant instrument's articles are expanded
+    assert all(x.id in same for x in ranked)             # and the ranked results themselves are untouched
