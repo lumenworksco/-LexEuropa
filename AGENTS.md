@@ -776,6 +776,35 @@ check (does any claim address the question?) that triggers the fallback, plus
 prompting for rule-before-exception and full conditions; evaluate on the 25-set
 before enabling. Cold start measured at 77 s.
 
+## Interface redesign (2026-11)
+
+The first page (form on top, answer below, legend dominating the left column,
+big all-caps pills, card-in-card) was organised around the form. Redesigned
+around reading and checking: three regions - a left rail (wordmark, new
+question, history with per-item delete, "what it covers" and "how to read"
+dialogs), a single reading column (the question as a heading, a one-line verdict
+with a status dot, numbered statements set in a serif face, small label with a
+distinct glyph per status, reasons shown only for non-supported statements) and a
+sticky **Sources panel** (cited passages numbered to match the citation markers,
+click a marker to scroll/highlight its passage, "also retrieved" collapsed, link
+to EUR-Lex). Under 1100 px the panel becomes a bottom sheet; under 860 px the rail
+becomes a drawer. System font stacks only (CSP forbids web fonts): Iowan
+Old Style/Charter/Palatino for text, SF/Segoe for UI. Light and dark follow the
+OS; `prefers-reduced-motion` and print are handled; `#example` shows a built-in,
+hand-written example answer (real Directive text, clearly labelled) with no model
+call. Real progress: `answer_question(progress=cb)` reports retrieving /
+generating / reviewing / second_opinion / checking and `POST /api/ask` with
+`"stream": true` returns them as newline-delimited JSON (a closed tab raises
+BrokenPipe, which stops further spend). New pipeline stage: an answer-relevance
+check (`verification/relevance.py`, Qwen2.5-72B) after generation; if the
+statements do not address the question the fallback is tried (with extra
+instructions: rule before exception, all conditions), and `answers_question` /
+`relevance_reason` are returned and shown. Tests: `tests/test_web.py`,
+`tests/test_relevance.py`, and `tests/ui/test_ui.js` (jsdom, 31 checks, also in
+CI). LIMITATION: nobody has looked at it rendered except the user - headless
+Firefox is blocked in the agent sandbox ("Operation not permitted"), so the
+visual design was written blind against the user's screenshot of version 1.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

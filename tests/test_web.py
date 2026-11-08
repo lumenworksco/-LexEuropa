@@ -129,3 +129,27 @@ def test_the_server_only_binds_to_loopback(server):
 def test_unknown_routes_are_404(server):
     assert _request(server, "GET", "/etc/passwd")[0] == 404
     assert _request(server, "POST", "/api/other", body="{}", headers={"Content-Type": "application/json"})[0] == 404
+
+
+def test_streaming_ask_emits_the_pipeline_stages_then_the_result(server, monkeypatch):
+    def fake_answer(question, *, default_instrument=None, progress=None, **kw):
+        for stage in ("retrieving", "generating", "checking"):
+            progress(stage)
+        return {"question": question, "claims": [], "retrieved": [], "disclaimer": "d"}
+
+    monkeypatch.setattr(answer_mod, "answer_question", fake_answer)
+    status, resp, data = _post_json(server, {"question": "What is Article 17?", "stream": True})
+    assert status == 200 and resp.getheader("Content-Type").startswith("application/x-ndjson")
+    events = [json.loads(line) for line in data.decode().splitlines()]
+    assert [e["stage"] for e in events if "stage" in e] == ["retrieving", "generating", "checking"]
+    assert events[-1]["result"]["question"] == "What is Article 17?" and "elapsed_s" in events[-1]["result"]
+
+
+def test_streaming_ask_reports_a_failure_as_an_error_event(server, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("endpoint exploded")
+
+    monkeypatch.setattr(answer_mod, "answer_question", boom)
+    status, _, data = _post_json(server, {"question": "What is Article 17?", "stream": True})
+    events = [json.loads(line) for line in data.decode().splitlines()]
+    assert status == 200 and "endpoint exploded" in events[-1]["error"]

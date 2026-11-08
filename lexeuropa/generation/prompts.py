@@ -29,7 +29,19 @@ Rules:
 This assists legal research. It is not legal advice and does not replace a qualified lawyer."""
 
 
-def build_messages(question: str, sources: list[Chunk]) -> tuple[list[dict], dict[str, str]]:
+# Appended to the system prompt for the FALLBACK model only: the fine-tuned model
+# was trained on the plain prompt, a stock model follows extra instructions.
+FALLBACK_GUIDANCE = """
+
+Additional instructions:
+- Answer the question that was actually asked.
+- If the question asks whether something is allowed or required, state the general rule FIRST, then any exceptions together with ALL of their conditions exactly as the source states them (who, what, when, for what purpose). Never state an exception without its conditions.
+- Draw on every relevant source paragraph, and cite each statement with the source it comes from."""
+
+
+def build_messages(
+    question: str, sources: list[Chunk], extra_system: str | None = None
+) -> tuple[list[dict], dict[str, str]]:
     """Returns (messages, handle_to_chunk_id) — the caller must map citation
     handles back to real chunk ids (see module docstring) before verifying.
     """
@@ -43,7 +55,7 @@ def build_messages(question: str, sources: list[Chunk]) -> tuple[list[dict], dic
 
     user = f"Sources:\n{sources_block}\n\nQuestion: {question}"
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT + (extra_system or "")},
         {"role": "user", "content": user},
     ]
     return messages, handle_to_id

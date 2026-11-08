@@ -13,14 +13,16 @@ from lexeuropa.config import (
     FALLBACK_LLM_BASE_URL,
     FALLBACK_LLM_MODEL,
     INSTRUMENT_ALIASES,
+    RELEVANCE_CHECK,
 )
 from lexeuropa.generation.client import GenerationError, chat
-from lexeuropa.generation.prompts import ParseError, build_messages, parse_response
+from lexeuropa.generation.prompts import FALLBACK_GUIDANCE, ParseError, build_messages, parse_response
 from lexeuropa.ingest.pipeline import load_chunks
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.pipeline import retrieve
 from lexeuropa.retrieval.reference_resolver import ReferenceResolver
+from lexeuropa.verification.relevance import check_relevance
 from lexeuropa.verification.verifier import verify_claims
 
 DISCLAIMER = (
@@ -56,7 +58,13 @@ def answer_question(
     default_instrument: str | None = None,
     k_candidates: int = 20,
     k_final: int = 8,
+    progress=None,
 ) -> dict:
+    """`progress`, if given, is called with the stage the pipeline is entering:
+    "retrieving", "generating", "reviewing", "second_opinion", "checking". The web
+    interface streams these so the page can show where a slow question is."""
+    note = progress or (lambda stage: None)
+    note("retrieving")
     bm25, dense, resolver = _load_indices()
 
     default_celex = None
@@ -84,12 +92,13 @@ def answer_question(
             "error": "no relevant sources were retrieved for this question",
         }
 
+    note("generating")
     messages, handle_to_id = build_messages(question, result.chunks)
 
-    def attempt(base_url: str | None = None, model: str | None = None):
+    def attempt(base_url: str | None = None, model: str | None = None, msgs: list[dict] | None = None):
         """One generation + parse. Returns (parsed, None) or (None, error message)."""
         try:
-            raw, finish_reason = chat(messages, base_url=base_url, model=model)
+            raw, finish_reason = chat(msgs or messages, base_url=base_url, model=model)
         except GenerationError as e:
             return None, str(e)
         try:
@@ -109,14 +118,26 @@ def answer_question(
     def is_refusal(parsed: dict) -> bool:
         return not any(claim["citations"] for claim in parsed["claims"])
 
+    def relevance_of(parsed: dict):
+        if not RELEVANCE_CHECK or is_refusal(parsed):
+            return None
+        note("reviewing")
+        return check_relevance(question, [claim["text"] for claim in parsed["claims"]])
+
     parsed, error = attempt()
     generator = "primary"
-    if (error is not None or is_refusal(parsed)) and FALLBACK_LLM_MODEL:
+    relevance = relevance_of(parsed) if error is None else None
+    off_topic = relevance is not None and relevance[0] is False
+    if (error is not None or is_refusal(parsed) or off_topic) and FALLBACK_LLM_MODEL:
         # The fine-tuned model sometimes declines when the sources do answer the
-        # question (observed live); one retry on a stronger stock model.
-        fb_parsed, fb_error = attempt(FALLBACK_LLM_BASE_URL, FALLBACK_LLM_MODEL)
+        # question, or answers a different point than the one asked (both observed
+        # live); one retry on a stronger stock model, with extra instructions.
+        note("second_opinion")
+        fb_messages, _ = build_messages(question, result.chunks, extra_system=FALLBACK_GUIDANCE)
+        fb_parsed, fb_error = attempt(FALLBACK_LLM_BASE_URL, FALLBACK_LLM_MODEL, fb_messages)
         if fb_parsed is not None and not is_refusal(fb_parsed):
             parsed, error, generator = fb_parsed, None, "fallback"
+            relevance = relevance_of(parsed)
 
     if error is not None:
         return {
@@ -135,6 +156,7 @@ def answer_question(
     for claim in parsed["claims"]:
         claim["citations"] = [handle_to_id.get(h, h) for h in claim["citations"]]
 
+    note("checking")
     verifications = verify_claims(parsed["claims"], result.chunks)
 
     return {
@@ -142,6 +164,10 @@ def answer_question(
         "language": parsed.get("language"),
         "generator": generator,
         "generator_model": FALLBACK_LLM_MODEL if generator == "fallback" else None,
+        # True / False / None (not checked or could not tell): do the statements
+        # address the question, as opposed to merely being backed by their sources.
+        "answers_question": relevance[0] if relevance else None,
+        "relevance_reason": relevance[1] if relevance else None,
         "retrieved": [c.to_dict() for c in result.chunks],
         "reranked": result.reranked,
         "claims": [

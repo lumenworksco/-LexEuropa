@@ -5,7 +5,10 @@ It serves one static page and two JSON endpoints and runs on this machine:
 
     GET  /            the chat-style page (lexeuropa/web_static/index.html)
     GET  /api/info    the corpus: instruments, chunk counts, selectable laws
-    POST /api/ask     {"question": "...", "instrument": "gdpr"|null} -> answer_question()
+    POST /api/ask     {"question": "...", "instrument": "gdpr"|null, "stream": bool}
+                      -> answer_question(). With "stream": true the response is
+                      newline-delimited JSON: {"stage": ...} events as the pipeline
+                      advances, then {"result": {...}} or {"error": "..."}.
 
 Safety: it binds to loopback only (there is no login, so it must never be
 reachable from the network); requests whose Host header is not a loopback name
@@ -172,7 +175,39 @@ class Handler(BaseHTTPRequestHandler):
 
         from lexeuropa.answer import NotIngestedError, answer_question  # lazy: loads the indexes
 
+        stream = payload.get("stream") is True
         started = time.time()
+
+        if stream:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+
+            def emit(event: dict) -> None:
+                # A closed tab raises here, which also stops the pipeline from
+                # spending on stages that nobody is waiting for.
+                self.wfile.write((json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+
+            try:
+                with _ask_lock:
+                    result = answer_question(
+                        question, default_instrument=instrument, progress=lambda s: emit({"stage": s})
+                    )
+                result["elapsed_s"] = round(time.time() - started, 1)
+                emit({"result": result})
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except NotIngestedError as e:
+                _try_emit(emit, {"error": str(e)})
+            except Exception as e:
+                _try_emit(emit, {"error": f"{type(e).__name__}: {e}"})
+            return
+
         try:
             with _ask_lock:
                 result = answer_question(question, default_instrument=instrument)
@@ -184,6 +219,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         result["elapsed_s"] = round(time.time() - started, 1)
         self._json(200, result)
+
+
+def _try_emit(emit, event: dict) -> None:
+    try:
+        emit(event)
+    except (BrokenPipeError, ConnectionResetError):
+        pass
 
 
 def make_server(port: int = 8765) -> ThreadingHTTPServer:

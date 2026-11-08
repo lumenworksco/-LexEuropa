@@ -20,6 +20,15 @@ CHUNK = Chunk(
 )
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_network_relevance_check(monkeypatch):
+    """The relevance check calls a model; keep every test hermetic unless it opts in."""
+    monkeypatch.setattr(answer_mod, "RELEVANCE_CHECK", False)
+
+
 def test_truncated_generation_names_finish_reason_in_the_error(monkeypatch):
     monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, None))
     monkeypatch.setattr(
@@ -149,3 +158,67 @@ def test_fallback_can_be_disabled_and_a_double_refusal_stays_a_refusal(monkeypat
     monkeypatch.setattr(answer_mod, "FALLBACK_LLM_MODEL", "big-stock-model")
     result = answer_mod.answer_question("Q?")
     assert result["generator"] == "primary" and not result["claims"][0]["citations"]
+
+
+def _enable_relevance(monkeypatch, verdicts):
+    """verdicts: list of (bool|None, reason) returned by successive relevance checks."""
+    monkeypatch.setattr(answer_mod, "RELEVANCE_CHECK", True)
+    monkeypatch.setattr(answer_mod, "FALLBACK_LLM_MODEL", "big-stock-model")
+    seen = []
+
+    def fake_check(question, statements):
+        seen.append(statements)
+        return verdicts[len(seen) - 1]
+
+    monkeypatch.setattr(answer_mod, "check_relevance", fake_check)
+    return seen
+
+
+def test_cited_but_off_topic_primary_answer_triggers_the_fallback_with_extra_guidance(monkeypatch):
+    _patch_retrieval(monkeypatch)
+    _enable_relevance(monkeypatch, [(False, "it covers a different point"), (True, "direct")])
+    systems = []
+
+    def fake_chat(messages, **kw):
+        systems.append((kw.get("model"), messages[0]["content"]))
+        return ChatResult(content=_cited_answer(), finish_reason="stop")
+
+    monkeypatch.setattr(answer_mod, "chat", fake_chat)
+    result = answer_mod.answer_question("Q?")
+    assert [m for m, _ in systems] == [None, "big-stock-model"]
+    assert "state the general rule FIRST" not in systems[0][1]       # primary prompt untouched
+    assert "state the general rule FIRST" in systems[1][1]           # fallback gets the guidance
+    assert result["generator"] == "fallback" and result["answers_question"] is True
+
+
+def test_on_topic_primary_answer_keeps_the_primary_and_reports_the_verdict(monkeypatch):
+    _patch_retrieval(monkeypatch)
+    _enable_relevance(monkeypatch, [(True, "direct")])
+    calls = []
+    monkeypatch.setattr(
+        answer_mod, "chat",
+        lambda messages, **kw: calls.append(kw.get("model")) or ChatResult(content=_cited_answer(), finish_reason="stop"),
+    )
+    result = answer_mod.answer_question("Q?")
+    assert calls == [None] and result["generator"] == "primary" and result["answers_question"] is True
+
+
+def test_an_unavailable_relevance_check_never_triggers_the_fallback(monkeypatch):
+    _patch_retrieval(monkeypatch)
+    _enable_relevance(monkeypatch, [(None, "relevance check unavailable")])
+    calls = []
+    monkeypatch.setattr(
+        answer_mod, "chat",
+        lambda messages, **kw: calls.append(kw.get("model")) or ChatResult(content=_cited_answer(), finish_reason="stop"),
+    )
+    result = answer_mod.answer_question("Q?")
+    assert calls == [None] and result["answers_question"] is None
+
+
+def test_a_still_off_topic_fallback_answer_is_flagged_not_hidden(monkeypatch):
+    _patch_retrieval(monkeypatch)
+    _enable_relevance(monkeypatch, [(False, "a"), (False, "still a different point")])
+    monkeypatch.setattr(answer_mod, "chat", lambda messages, **kw: ChatResult(content=_cited_answer(), finish_reason="stop"))
+    result = answer_mod.answer_question("Q?")
+    assert result["generator"] == "fallback" and result["answers_question"] is False
+    assert result["relevance_reason"] == "still a different point"

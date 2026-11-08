@@ -93,6 +93,7 @@ def main() -> int:
                 "citation_recall": recall,
                 "error": out.get("error"),
                 "generator": out.get("generator"),
+                "answers_question": out.get("answers_question"),
             }
         )
         status = "HIT" if hit else "MISS"

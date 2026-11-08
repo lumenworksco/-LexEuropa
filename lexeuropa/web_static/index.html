@@ -6,508 +6,629 @@
 <title>LexEuropa</title>
 <style>
   :root {
-    --bg: #f6f5f1; --surface: #ffffff; --text: #1c1f24; --muted: #5b6470; --border: #dcd8cf;
-    --accent: #1f3a6b; --accent-ink: #ffffff; --accent-soft: #e8edf7; --focus: #2b6cff;
-    --ok-fg: #14683c; --ok-bg: #e4f3ea;
-    --interp-fg: #7a4e00; --interp-bg: #fdf0d2;
-    --analysis-fg: #52349f; --analysis-bg: #ece8fb;
-    --bad-fg: #a3281d; --bad-bg: #fde7e4;
-    --unc-fg: #44505f; --unc-bg: #eceef2;
-    --radius: 12px;
+    color-scheme: light dark;
+    --paper: #fbfaf7; --raised: #ffffff; --panel: #f3f1ec; --ink: #1b1d21; --muted: #5f646c; --faint: #8a8f97;
+    --rule: #e3e0d8; --rule-strong: #c9c5ba; --accent: #1d3f8c; --accent-soft: #e9eef9; --accent-ink: #ffffff;
+    --gold: #a97c12; --focus: #2a63e0;
+    --s-supported: #1b7a49; --s-interpretative: #8a6100; --s-analysis: #6a49ad; --s-unsupported: #b03a2c; --s-uncertain: #5d6672;
+    --serif: "Iowan Old Style", "Charter", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --rail: 252px; --sources: 410px;
   }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #12151a; --surface: #1a1f27; --text: #e8eaee; --muted: #9aa4b2; --border: #2b323d;
-      --accent: #8fb3ff; --accent-ink: #0d1626; --accent-soft: #1d2a44; --focus: #7aa2ff;
-      --ok-fg: #7fd6a2; --ok-bg: #16301f;
-      --interp-fg: #f0c463; --interp-bg: #33290f;
-      --analysis-fg: #bba6ff; --analysis-bg: #281f4a;
-      --bad-fg: #ff9a8f; --bad-bg: #3b1814;
-      --unc-fg: #aab4c2; --unc-bg: #232a34;
+    :root {
+      --paper: #14161a; --raised: #1b1e23; --panel: #181b20; --ink: #e8e6e1; --muted: #a0a5ad; --faint: #7d838c;
+      --rule: #272b32; --rule-strong: #3a3f48; --accent: #8fb0ff; --accent-soft: #1c2740; --accent-ink: #0c1424;
+      --gold: #d4a63a; --focus: #7aa2ff;
+      --s-supported: #6fcf9a; --s-interpretative: #e0b64d; --s-analysis: #b9a2f2; --s-unsupported: #f0897c; --s-uncertain: #a3acb8;
     }
-  }
-  :root[data-theme="dark"] {
-    --bg: #12151a; --surface: #1a1f27; --text: #e8eaee; --muted: #9aa4b2; --border: #2b323d;
-    --accent: #8fb3ff; --accent-ink: #0d1626; --accent-soft: #1d2a44; --focus: #7aa2ff;
-    --ok-fg: #7fd6a2; --ok-bg: #16301f;
-    --interp-fg: #f0c463; --interp-bg: #33290f;
-    --analysis-fg: #bba6ff; --analysis-bg: #281f4a;
-    --bad-fg: #ff9a8f; --bad-bg: #3b1814;
-    --unc-fg: #aab4c2; --unc-bg: #232a34;
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
-  a { color: var(--accent); }
-  button { font: inherit; color: inherit; }
-  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15.5px/1.55 var(--sans); }
+  button, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  header.top {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
-    padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+  /* ---------- shell ---------- */
+  .app { display: grid; grid-template-columns: var(--rail) minmax(0, 1fr); min-height: 100vh; }
+  .rail {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 22px;
+    padding: 22px 16px 16px; background: var(--panel); border-right: 1px solid var(--rule);
   }
-  .brand { font-weight: 700; font-size: 1.25rem; letter-spacing: .2px; color: var(--accent); }
-  .tagline { color: var(--muted); font-size: .92rem; flex: 1 1 260px; }
-  .pill {
-    font-size: .8rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--unc-bg); color: var(--unc-fg); white-space: nowrap;
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { width: 26px; height: 26px; fill: var(--accent); flex: none; }
+  .brand b { font: 600 1.3rem/1 var(--serif); letter-spacing: .01em; }
+  .brand small { display: block; font-size: .74rem; color: var(--muted); margin-top: 3px; letter-spacing: .02em; }
+  .new-btn {
+    width: 100%; text-align: left; padding: 9px 12px; border: 1px solid var(--rule-strong); border-radius: 6px;
+    background: var(--raised); font-weight: 600; font-size: .9rem;
   }
+  .new-btn:hover { border-color: var(--accent); }
+  .rail h2 { margin: 0 0 6px; font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .hist { list-style: none; margin: 0; padding: 0; }
+  .hist li { position: relative; }
+  .hist-open {
+    display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 8px 28px 8px 8px;
+    font-size: .88rem; line-height: 1.35;
+  }
+  .hist-open:hover, .hist li:focus-within .hist-open { background: var(--raised); }
+  .hist-open .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hist-open small { color: var(--faint); font-size: .72rem; }
+  .hist-del {
+    position: absolute; right: 4px; top: 8px; width: 22px; height: 22px; border: 0; border-radius: 4px; background: none;
+    color: var(--faint); opacity: 0; font-size: 1rem; line-height: 1;
+  }
+  .hist li:hover .hist-del, .hist-del:focus-visible { opacity: 1; }
+  .hist-del:hover { color: var(--s-unsupported); background: var(--panel); }
+  .hist-empty { margin: 0; font-size: .84rem; color: var(--faint); }
+  .rail-foot { margin-top: auto; font-size: .8rem; color: var(--muted); display: grid; gap: 6px; }
+  .rail-foot button { background: none; border: 0; padding: 0; text-align: left; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; font-size: .84rem; }
+  .rail-foot p { margin: 8px 0 0; color: var(--faint); font-size: .74rem; line-height: 1.45; }
 
-  .layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px; }
-  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; padding: 16px; } }
+  .topbar { display: none; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+  body[data-view="result"] .workspace { grid-template-columns: minmax(0, 1fr) var(--sources); }
+  .main { padding: 40px clamp(20px, 5vw, 64px) 96px; min-width: 0; }
+  .col { max-width: 44rem; margin: 0 auto; }
 
-  aside .panel, main .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  }
-  aside .panel { padding: 14px 16px; margin-bottom: 16px; }
-  aside h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; }
-  .hist-empty { color: var(--muted); font-size: .9rem; margin: 0; }
-  .hist-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-  .hist-item {
-    width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 8px; cursor: pointer;
-    font-size: .92rem; line-height: 1.35;
-  }
-  .hist-item:hover { background: var(--accent-soft); }
-  .hist-item small { display: block; color: var(--muted); font-size: .76rem; }
-  .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: .85rem; }
-  details.coverage summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
-  .cov-group { margin: 10px 0 0; font-size: .85rem; }
-  .cov-group strong { display: block; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
-  .cov-group ul { list-style: none; margin: 0; padding: 0; }
-  .cov-group li { padding: 2px 0; }
-  .cov-group li span { color: var(--muted); }
-  .privacy { font-size: .8rem; color: var(--muted); }
+  /* ---------- empty state ---------- */
+  .hero { margin: 11vh auto 0; }
+  body[data-view="result"] .hero, body[data-view="loading"] .hero { display: none; }
+  body[data-view="result"] .try, body[data-view="loading"] .try { display: none; }
+  .hero h1 { font: 600 clamp(1.7rem, 3.4vw, 2.25rem)/1.2 var(--serif); margin: 0 0 10px; letter-spacing: -.005em; }
+  .hero p.lede { color: var(--muted); margin: 0 0 24px; max-width: 36rem; }
+  .try { margin: 26px 0 0; }
+  .try h2 { font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px; }
+  .try ul { list-style: none; margin: 0; padding: 0; }
+  .try button { background: none; border: 0; padding: 7px 0; text-align: left; color: var(--ink); font: 1.02rem/1.4 var(--serif); }
+  .try button::before { content: "\2192"; display: inline-block; width: 1.5em; color: var(--accent); }
+  .try button:hover { color: var(--accent); }
+  .try .ex { margin-top: 10px; font: .88rem var(--sans); }
+  .try .ex button { font: .88rem var(--sans); color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .try .ex button::before { content: none; }
 
-  main .card { padding: 18px; margin-bottom: 16px; }
-  form label.q { display: block; font-weight: 600; margin-bottom: 6px; }
-  textarea {
-    width: 100%; min-height: 96px; resize: vertical; padding: 12px 14px; font: inherit; color: var(--text);
-    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  /* ---------- composer ---------- */
+  .composer { border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--raised); }
+  .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .composer textarea {
+    display: block; width: 100%; border: 0; background: none; resize: none; outline: none; padding: 14px 16px 6px;
+    font: 1.08rem/1.5 var(--serif); min-height: 3.4em; max-height: 14em;
   }
-  .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-top: 10px; }
-  .row .grow { flex: 1 1 auto; }
-  select {
-    font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--bg); color: var(--text); max-width: 100%;
+  .composer textarea::placeholder { color: var(--faint); }
+  .composer .bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px 10px 16px; }
+  .composer label { font-size: .8rem; color: var(--muted); }
+  .composer select {
+    border: 0; background: none; font-size: .84rem; color: var(--ink); padding: 3px 2px; max-width: 15rem; text-overflow: ellipsis;
+    border-bottom: 1px dotted var(--rule-strong); border-radius: 0;
   }
-  .btn {
-    border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 9px 16px; cursor: pointer;
-  }
-  .btn:hover { background: var(--accent-soft); }
-  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
-  .btn.primary:hover { filter: brightness(1.08); }
-  .btn[disabled] { opacity: .55; cursor: not-allowed; }
-  .hint { color: var(--muted); font-size: .82rem; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .chip {
-    border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 5px 12px; font-size: .86rem; cursor: pointer;
-  }
-  .chip:hover { background: var(--accent-soft); }
+  .composer .keys { margin-left: auto; font-size: .74rem; color: var(--faint); }
+  .ask-btn { border: 0; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: .9rem; padding: 8px 18px; }
+  .ask-btn:hover { filter: brightness(1.1); }
+  .ask-btn[disabled] { opacity: .5; cursor: progress; }
+  body[data-view="result"] .composer, body[data-view="loading"] .composer { margin-bottom: 32px; }
+  body[data-view="result"] .composer textarea, body[data-view="loading"] .composer textarea { min-height: 2.9em; }
 
-  .status { display: flex; gap: 12px; align-items: flex-start; }
-  .spinner {
-    width: 20px; height: 20px; flex: none; margin-top: 3px; border-radius: 50%;
-    border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite;
-  }
+  /* ---------- progress ---------- */
+  .progress { margin: 8px 0 0; }
+  .progress h2 { font: 600 1.3rem/1.3 var(--serif); margin: 0 0 14px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .step { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: baseline; color: var(--faint); }
+  .step.done { color: var(--muted); }
+  .step.active { color: var(--ink); }
+  .step .mark { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule-strong); margin-top: 3px; }
+  .step.done .mark { background: var(--s-supported); border-color: var(--s-supported); }
+  .step.active .mark { border-color: var(--rule-strong); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+  .step .sub { display: block; font-size: .84rem; color: var(--muted); }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
-  .status p { margin: 0 0 4px; }
-  .status .muted { color: var(--muted); font-size: .9rem; }
+  @media (prefers-reduced-motion: reduce) { .step.active .mark { animation: none; border-top-color: var(--accent); } }
+  .cancel { margin-top: 16px; background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; font-size: .86rem; }
 
-  .notice { border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; font-size: .92rem; border: 1px solid var(--border); }
-  .notice.warn { background: var(--interp-bg); color: var(--interp-fg); border-color: transparent; }
-  .notice.err { background: var(--bad-bg); color: var(--bad-fg); border-color: transparent; }
-  .notice.info { background: var(--accent-soft); }
+  /* ---------- answer ---------- */
+  .q-label { font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 0; }
+  .q-text { font: 600 1.55rem/1.3 var(--serif); margin: 4px 0 18px; letter-spacing: -.005em; }
+  .verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 6px; }
+  .verdict .v { font-weight: 600; display: inline-flex; gap: 8px; align-items: baseline; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--s-supported); flex: none; position: relative; top: -1px; }
+  .dot.mixed { background: var(--s-interpretative); }
+  .dot.bad { background: var(--s-unsupported); }
+  .dot.none { background: var(--s-uncertain); }
+  .meta { color: var(--faint); font-size: .82rem; }
+  .note { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; margin: 14px 0; font-size: .9rem; color: var(--ink); }
+  .note.bad { border-color: var(--s-unsupported); }
+  .note.info { border-color: var(--accent); }
+  .note strong { font-weight: 600; }
+  .example-tag { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 1px 6px; margin-right: 8px; }
 
-  .qecho { font-size: 1.05rem; font-weight: 600; margin: 0 0 4px; }
-  .summary { color: var(--muted); font-size: .9rem; margin: 0 0 14px; }
-  ol.claims { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-  li.claim { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--bg); }
-  .claim-head { display: flex; gap: 10px; align-items: flex-start; }
-  .badge {
-    flex: none; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-    padding: 3px 9px; border-radius: 999px; white-space: nowrap; margin-top: 2px;
+  ol.statements { list-style: none; margin: 20px 0 0; padding: 0; }
+  .stmt { display: grid; grid-template-columns: 2rem minmax(0, 1fr); padding: 18px 0; border-top: 1px solid var(--rule); }
+  .stmt:last-child { border-bottom: 1px solid var(--rule); }
+  .stmt .n { color: var(--faint); font: .9rem/1.9 var(--sans); }
+  .stmt p { margin: 0; font: 1.12rem/1.7 var(--serif); }
+  .cite {
+    display: inline-block; vertical-align: baseline; margin-left: 2px; padding: 0 3px; border: 0; background: none; color: var(--accent);
+    font: 600 .72rem/1 var(--sans); position: relative; top: -.42em; border-radius: 3px;
   }
-  .badge.supported { background: var(--ok-bg); color: var(--ok-fg); }
-  .badge.interpretative { background: var(--interp-bg); color: var(--interp-fg); }
-  .badge.analysis { background: var(--analysis-bg); color: var(--analysis-fg); }
-  .badge.unsupported { background: var(--bad-bg); color: var(--bad-fg); }
-  .badge.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
-  .claim-text { margin: 0; }
-  .why { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
-  .cites { margin: 10px 0 0; display: grid; gap: 6px; }
-  details.cite { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-  details.cite > summary { cursor: pointer; padding: 6px 10px; font-size: .88rem; font-weight: 600; color: var(--accent); }
-  details.cite .src { padding: 0 12px 10px; font-size: .9rem; }
-  .src-text { white-space: pre-wrap; border-left: 3px solid var(--border); padding-left: 10px; margin: 6px 0 8px; max-height: 18em; overflow: auto; }
-  .src-meta { color: var(--muted); font-size: .8rem; }
-  .caution { font-size: .85rem; color: var(--muted); margin: 14px 0 0; }
+  .cite:hover, .cite.on { background: var(--accent-soft); }
+  .status { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; margin-top: 8px; font: .8rem/1.4 var(--sans); }
+  .status .lab { display: inline-flex; gap: 6px; align-items: baseline; font-weight: 600; color: var(--c, var(--s-uncertain)); }
+  .status .lab i { font-style: normal; }
+  .status .why { color: var(--muted); }
+  .l-supported { --c: var(--s-supported); } .l-interpretative { --c: var(--s-interpretative); } .l-analysis { --c: var(--s-analysis); }
+  .l-unsupported { --c: var(--s-unsupported); } .l-uncertain { --c: var(--s-uncertain); }
 
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-  details.sources > summary { cursor: pointer; font-weight: 600; }
-  .src-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
-  .src-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
-  .tag { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 999px; background: var(--ok-bg); color: var(--ok-fg); margin-left: 6px; }
+  .howto { font-size: .88rem; color: var(--muted); }
+  .howto dl { margin: 10px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+  .howto dt { font-weight: 600; color: var(--c); } .howto dd { margin: 0; }
+  .howto p { margin: 10px 0 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; }
+  .btn { border: 1px solid var(--rule-strong); background: var(--raised); border-radius: 6px; padding: 7px 14px; font-size: .86rem; font-weight: 600; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .disclaimer { margin: 18px 0 0; font-size: .78rem; color: var(--faint); max-width: 40rem; }
 
-  .legend { display: grid; gap: 6px; margin: 12px 0 0; font-size: .85rem; }
-  .legend div { display: flex; gap: 8px; align-items: baseline; }
+  /* ---------- sources ---------- */
+  .sources-pane { display: none; }
+  body[data-view="result"] .sources-pane {
+    display: block; position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 28px 22px 40px;
+    border-left: 1px solid var(--rule); background: var(--panel);
+  }
+  .src-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 4px; }
+  .src-head h2 { margin: 0; font: 600 1.15rem/1.3 var(--serif); }
+  .src-close { display: none; background: none; border: 0; font-size: 1.4rem; line-height: 1; color: var(--muted); }
+  .src-hint { margin: 0 0 16px; font-size: .8rem; color: var(--faint); }
+  .src { border: 1px solid var(--rule); border-radius: 8px; background: var(--raised); padding: 14px 14px 12px; margin: 0 0 12px; scroll-margin: 12px; }
+  .src.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .src header { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; }
+  .src .num { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font: 600 .74rem/20px var(--sans); text-align: center; }
+  .src .title { font-weight: 600; font-size: .94rem; line-height: 1.35; }
+  .src .inst { color: var(--muted); font-size: .78rem; }
+  .src .text { margin: 10px 0 0; font: .98rem/1.62 var(--serif); white-space: pre-wrap; }
+  .src .text.clamp { max-height: 12.5em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+  .src .row { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-top: 10px; font-size: .78rem; color: var(--muted); }
+  .src .row button { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; font-size: .78rem; }
+  .others summary { cursor: pointer; font-weight: 600; font-size: .86rem; margin: 18px 0 10px; }
+  .others .src .num { border-color: var(--rule-strong); color: var(--faint); }
 
-  footer.page { max-width: 1180px; margin: 0 auto; padding: 4px 20px 28px; color: var(--muted); font-size: .82rem; }
+  /* ---------- dialogs ---------- */
+  dialog { border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--raised); color: var(--ink); max-width: min(40rem, 94vw); width: 100%; padding: 0; }
+  dialog::backdrop { background: rgba(10, 12, 16, .5); }
+  .dlg-head { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 22px 8px; }
+  .dlg-head h2 { margin: 0; font: 600 1.25rem/1.3 var(--serif); }
+  .dlg-head button { background: none; border: 0; font-size: 1.5rem; line-height: 1; color: var(--muted); }
+  .dlg-body { padding: 4px 22px 22px; max-height: 70vh; overflow: auto; font-size: .9rem; }
+  .cov h3 { margin: 16px 0 4px; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .cov ul { list-style: none; margin: 0; padding: 0; }
+  .cov li { padding: 2px 0; display: flex; justify-content: space-between; gap: 12px; }
+  .cov li span:last-child { color: var(--faint); white-space: nowrap; }
+
+  /* ---------- narrower screens ---------- */
+  @media (max-width: 1099px) {
+    body[data-view="result"] .workspace { grid-template-columns: minmax(0, 1fr); }
+    body[data-view="result"] .sources-pane {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; height: auto; max-height: 72vh; z-index: 20;
+      border-left: 0; border-top: 1px solid var(--rule-strong); border-radius: 14px 14px 0 0; transform: translateY(105%); transition: transform .2s ease;
+      box-shadow: 0 -8px 28px rgba(0, 0, 0, .18);
+    }
+    body[data-view="result"].sheet-open .sources-pane { transform: none; }
+    .src-close { display: block; }
+  }
+  @media (prefers-reduced-motion: reduce) { body[data-view="result"] .sources-pane { transition: none; } }
+  @media (max-width: 859px) {
+    .app { grid-template-columns: minmax(0, 1fr); }
+    .rail { position: fixed; z-index: 30; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-105%); transition: transform .2s ease; box-shadow: 8px 0 28px rgba(0, 0, 0, .2); }
+    body.rail-open .rail { transform: none; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--panel); position: sticky; top: 0; z-index: 10; }
+    .topbar button { background: none; border: 1px solid var(--rule-strong); border-radius: 6px; padding: 6px 12px; font-size: .86rem; }
+    .topbar b { font: 600 1.1rem var(--serif); }
+    .main { padding: 24px 16px 80px; }
+    .hero { margin-top: 5vh; }
+    .composer .keys { display: none; }
+    .stmt { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  }
+
+  @media print {
+    .rail, .topbar, .composer, .actions, .cancel, .src-close { display: none !important; }
+    .app, .workspace, body[data-view="result"] .workspace { display: block; }
+    body[data-view="result"] .sources-pane { position: static; height: auto; transform: none; display: block; border: 0; background: none; padding: 24px 0 0; }
+    body { background: #fff; color: #000; }
+    .src .text.clamp { max-height: none; -webkit-mask-image: none; mask-image: none; }
+  }
 </style>
 </head>
-<body>
-<header class="top">
-  <span class="brand">LexEuropa</span>
-  <span class="tagline">EU law research assistant &middot; every citation is checked against the source text</span>
-  <span class="pill" title="This tool does not give legal advice">Research aid &middot; not legal advice</span>
-</header>
+<body data-view="empty">
+<div class="app">
+  <nav class="rail" id="rail" aria-label="History">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12.00" cy="3.40" r="1.25"/><circle cx="16.30" cy="4.55" r="1.25"/><circle cx="19.45" cy="7.70" r="1.25"/><circle cx="20.60" cy="12.00" r="1.25"/><circle cx="19.45" cy="16.30" r="1.25"/><circle cx="16.30" cy="19.45" r="1.25"/><circle cx="12.00" cy="20.60" r="1.25"/><circle cx="7.70" cy="19.45" r="1.25"/><circle cx="4.55" cy="16.30" r="1.25"/><circle cx="3.40" cy="12.00" r="1.25"/><circle cx="4.55" cy="7.70" r="1.25"/><circle cx="7.70" cy="4.55" r="1.25"/></svg>
+      <div><b>LexEuropa</b><small>EU law research</small></div>
+    </div>
+    <button type="button" class="new-btn" id="new-btn">New question</button>
+    <div>
+      <h2>Recent</h2>
+      <p class="hist-empty" id="hist-empty">Questions you ask will appear here. They stay in this browser.</p>
+      <ul class="hist" id="hist"></ul>
+    </div>
+    <div class="rail-foot">
+      <button type="button" id="open-coverage">What it covers</button>
+      <button type="button" id="open-howto">How to read an answer</button>
+      <p>Questions are processed by models hosted on Hugging Face &mdash; do not enter confidential details. This page is only reachable from this computer. Research aid, not legal advice.</p>
+    </div>
+  </nav>
 
-<div class="layout">
-  <aside aria-label="History and coverage">
-    <section class="panel" aria-labelledby="hist-h">
-      <h2 id="hist-h">Recent questions</h2>
-      <p class="hist-empty" id="hist-empty">Nothing yet. Your questions are kept only in this browser.</p>
-      <ul class="hist-list" id="hist-list"></ul>
-      <p style="margin:10px 0 0"><button type="button" class="linkish" id="hist-clear" hidden>Clear history</button></p>
-    </section>
-    <section class="panel">
-      <details class="coverage" id="coverage">
-        <summary>What it covers</summary>
-        <div id="coverage-body" class="hint" style="margin-top:8px">Loading&hellip;</div>
-      </details>
-    </section>
-    <section class="panel">
-      <h2>Labels</h2>
-      <div class="legend" id="legend"></div>
-    </section>
-    <p class="privacy">Your question is processed by models hosted on Hugging Face. Do not enter confidential or personal details. This page runs only on this computer.</p>
-  </aside>
+  <div class="workspace">
+    <div>
+      <div class="topbar"><button type="button" id="menu-btn" aria-controls="rail" aria-expanded="false">Menu</button><b>LexEuropa</b><button type="button" id="new-btn-2">New</button></div>
+      <main class="main" id="main">
+        <div class="col">
+          <section class="hero" id="hero">
+            <h1>What would you like to look up?</h1>
+            <p class="lede">Ask about EU data protection, digital and fundamental-rights law. Every statement in the answer is tied to the passage it comes from, so you can check it yourself.</p>
+          </section>
 
-  <main>
-    <section class="card" aria-labelledby="ask-h">
-      <form id="ask-form" autocomplete="off">
-        <label class="q" for="question" id="ask-h">Ask a question about EU law</label>
-        <textarea id="question" name="question" maxlength="2000" placeholder="For example: Can a company send marketing emails without consent?" required></textarea>
-        <div class="row">
-          <label class="hint" for="instrument">Focus on</label>
-          <select id="instrument" aria-label="Focus on one law">
-            <option value="">All sources (automatic)</option>
-          </select>
-          <span class="grow"></span>
-          <span class="hint">Ctrl/&#8984;+Enter to ask</span>
-          <button type="submit" class="btn primary" id="ask-btn">Ask</button>
+          <form class="composer" id="form" autocomplete="off">
+            <label class="sr" for="question">Your question</label>
+            <textarea id="question" rows="2" maxlength="2000" placeholder="e.g. Can a company send marketing emails without consent?"></textarea>
+            <div class="bar">
+              <label for="law">Law</label>
+              <select id="law"><option value="">All sources</option></select>
+              <span class="keys">Enter to ask &middot; Shift+Enter for a new line</span>
+              <button type="submit" class="ask-btn" id="ask-btn">Ask</button>
+            </div>
+          </form>
+
+          <section class="try" id="try">
+            <h2>Try asking</h2>
+            <ul id="try-list"></ul>
+            <div class="ex"><button type="button" id="show-example">See an example answer</button></div>
+          </section>
+
+          <div id="out" aria-live="polite"></div>
         </div>
-        <div class="chips" id="examples" aria-label="Example questions"></div>
-      </form>
-    </section>
+      </main>
+    </div>
 
-    <div id="result" aria-live="polite"></div>
-  </main>
+    <aside class="sources-pane" id="sources" aria-label="Sources"></aside>
+  </div>
 </div>
 
-<footer class="page">
-  This is an AI-assisted research tool. It finds and quotes provisions and checks that each citation really supports the statement it is attached to; it does not give legal advice and does not replace a qualified lawyer. Always read the cited text.
-</footer>
+<dialog id="dlg-coverage" aria-labelledby="dlg-cov-h">
+  <div class="dlg-head"><h2 id="dlg-cov-h">What it covers</h2><button type="button" data-close aria-label="Close">&times;</button></div>
+  <div class="dlg-body cov" id="cov-body">Loading&hellip;</div>
+</dialog>
+<dialog id="dlg-howto" aria-labelledby="dlg-how-h">
+  <div class="dlg-head"><h2 id="dlg-how-h">How to read an answer</h2><button type="button" data-close aria-label="Close">&times;</button></div>
+  <div class="dlg-body" id="how-body"></div>
+</dialog>
 
 <script>
 "use strict";
 (function () {
   var LABELS = {
-    supported: "The cited text directly supports this statement.",
-    interpretative: "The cited text supports it only through legal interpretation.",
-    analysis: "Combines several sources into a conclusion; treat with extra care.",
-    unsupported: "The cited source does not support this, or was not among the retrieved sources.",
-    uncertain: "No citation was given for this statement."
+    supported: ["●", "Supported", "The cited passage directly backs this statement."],
+    interpretative: ["◐", "Interpretative", "The cited passage supports it only through legal interpretation."],
+    analysis: ["◆", "Analysis", "Combines several sources into a conclusion. Treat with extra care."],
+    unsupported: ["✕", "Not supported", "The cited passage does not back this statement, or it was not among the retrieved sources."],
+    uncertain: ["○", "No source", "No citation was given for this statement."]
+  };
+  var STAGES = {
+    retrieving: "Finding the relevant provisions",
+    generating: "Writing the answer",
+    reviewing: "Checking that it answers your question",
+    second_opinion: "Asking a larger model for a second opinion",
+    checking: "Checking each citation against its source"
   };
   var EXAMPLES = [
     "Can a company send marketing emails without consent?",
     "What are the conditions for erasure under Article 17 GDPR?",
     "Which AI practices are prohibited under the AI Act?",
-    "What must a platform do when it receives a notice about illegal content?",
-    "Does the right to be forgotten oblige a search engine to remove links?",
-    "What does the Charter say about the protection of personal data?"
+    "Does the right to be forgotten oblige a search engine to remove links?"
   ];
-  var HISTORY_KEY = "lexeuropa.history.v1";
-  var MAX_HISTORY = 15;
-  var MAX_STORED_TEXT = 6000;
+  var SAMPLE = {"question": "Can a company send marketing emails without consent?", "language": "en", "generator": "primary", "generator_model": null, "answers_question": true, "relevance_reason": null, "elapsed_s": null, "example": true, "retrieved": [{"id": "32002L0058:en:art_13:001", "celex": "32002L0058", "citation": "Article 13(1) ePrivacy Directive", "instrument_title": "Directive 2002/58/EC (ePrivacy Directive)", "text": "1. The use of automated calling systems without human intervention (automatic calling machines), facsimile machines (fax) or electronic mail for the purposes of direct marketing may only be allowed in respect of subscribers who have given their prior consent."}, {"id": "32002L0058:en:art_13:002", "celex": "32002L0058", "citation": "Article 13(2) ePrivacy Directive", "instrument_title": "Directive 2002/58/EC (ePrivacy Directive)", "text": "2. Notwithstanding paragraph 1, where a natural or legal person obtains from its customers their electronic contact details for electronic mail, in the context of the sale of a product or a service, in accordance with Directive 95/46/EC, the same natural or legal person may use these electronic contact details for direct marketing of its own similar products or services provided that customers clearly and distinctly are given the opportunity to object, free of charge and in an easy manner, to such use of electronic contact details when they are collected and on the occasion of each message in case the customer has not initially refused such use."}, {"id": "32002L0058:en:art_13:003", "celex": "32002L0058", "citation": "Article 13(3) ePrivacy Directive", "instrument_title": "Directive 2002/58/EC (ePrivacy Directive)", "text": "3. Member States shall take appropriate measures to ensure that, free of charge, unsolicited communications for purposes of direct marketing, in cases other than those referred to in paragraphs 1 and 2, are not allowed either without the consent of the subscribers concerned or in respect of subscribers who do not wish to receive these communications, the choice between these options to be determined by national legislation."}], "claims": [{"text": "Using email for direct marketing is allowed only for subscribers who have given their prior consent.", "citations": ["32002L0058:en:art_13:001"], "label": "supported", "reason": "", "citation_labels": {}}, {"text": "There is one exception. A business that obtained a customer's email address in the context of a sale of a product or service may use it to market its own similar products or services, as long as customers are clearly and distinctly offered a free and easy way to object, both when the address is collected and in every later message (unless they refused from the start).", "citations": ["32002L0058:en:art_13:002"], "label": "supported", "reason": "", "citation_labels": {}}], "disclaimer": "This is AI-assisted legal research output, not legal advice. It does not replace a qualified legal professional."};
+  var HISTORY_KEY = "lexeuropa.history.v1", MAX_HISTORY = 15, MAX_STORED_TEXT = 6000;
 
   var $ = function (id) { return document.getElementById(id); };
-  var form = $("ask-form"), questionEl = $("question"), instrumentEl = $("instrument"), askBtn = $("ask-btn");
-  var resultEl = $("result");
-  var controller = null, timer = null;
+  var body = document.body, form = $("form"), qEl = $("question"), lawEl = $("law"), askBtn = $("ask-btn"), out = $("out"), pane = $("sources");
+  var controller = null, tick = null;
 
-  function el(tag, props, children) {
-    var node = document.createElement(tag);
-    if (props) {
-      Object.keys(props).forEach(function (k) {
-        if (k === "class") node.className = props[k];
-        else if (k === "text") node.textContent = props[k];
-        else node.setAttribute(k, props[k]);
-      });
-    }
-    (children || []).forEach(function (c) { if (c) node.appendChild(c); });
-    return node;
-  }
-
-  // ----- history (localStorage may be blocked; everything works without it) -----
-  function readHistory() {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (e) { return []; }
-  }
-  function writeHistory(items) {
-    while (items.length) {
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); return; }
-      catch (e) { items.pop(); }  // quota: drop the oldest until it fits
-    }
-  }
-  function slimResult(result) {
-    var copy = JSON.parse(JSON.stringify(result));
-    (copy.retrieved || []).forEach(function (c) {
-      if (c.text && c.text.length > MAX_STORED_TEXT) c.text = c.text.slice(0, MAX_STORED_TEXT) + " … [shortened in saved history]";
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    if (props) Object.keys(props).forEach(function (k) {
+      if (k === "class") n.className = props[k]; else if (k === "text") n.textContent = props[k]; else n.setAttribute(k, props[k]);
     });
-    return copy;
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
   }
-  function saveToHistory(question, instrument, result) {
-    var items = readHistory().filter(function (h) { return h.q !== question; });
-    items.unshift({ q: question, instrument: instrument, t: Date.now(), result: slimResult(result) });
-    writeHistory(items.slice(0, MAX_HISTORY));
-    renderHistory();
+  function openDialog(d) { if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", ""); }
+  function closeDialog(d) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); }
+  function setView(v) { body.setAttribute("data-view", v); if (v !== "result") body.classList.remove("sheet-open"); }
+  function autosize() { qEl.style.height = "auto"; qEl.style.height = Math.min(qEl.scrollHeight, 224) + "px"; }
+
+  // ---------- history ----------
+  function readHist() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (e) { return []; } }
+  function writeHist(items) {
+    while (true) { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); return; } catch (e) { if (!items.length) return; items.pop(); } }
   }
-  function renderHistory() {
-    var items = readHistory(), list = $("hist-list");
-    list.textContent = "";
-    $("hist-empty").hidden = items.length > 0;
-    $("hist-clear").hidden = items.length === 0;
-    items.forEach(function (h) {
-      var b = el("button", { type: "button", class: "hist-item" }, [
-        document.createTextNode(h.q.length > 90 ? h.q.slice(0, 90) + "…" : h.q),
-        el("small", { text: new Date(h.t).toLocaleString() })
-      ]);
-      b.addEventListener("click", function () {
-        questionEl.value = h.q;
-        instrumentEl.value = h.instrument || "";
-        renderResult(h.q, h.result);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
+  function slim(result) {
+    var c = JSON.parse(JSON.stringify(result));
+    (c.retrieved || []).forEach(function (s) { if (s.text && s.text.length > MAX_STORED_TEXT) s.text = s.text.slice(0, MAX_STORED_TEXT) + " … [shortened in saved history]"; });
+    return c;
+  }
+  function saveHist(q, law, result) {
+    var items = readHist().filter(function (h) { return h.q !== q; });
+    items.unshift({ q: q, law: law, t: Date.now(), result: slim(result) });
+    writeHist(items.slice(0, MAX_HISTORY)); renderHist();
+  }
+  function renderHist() {
+    var items = readHist(), ul = $("hist");
+    ul.textContent = ""; $("hist-empty").hidden = items.length > 0;
+    items.forEach(function (h, i) {
+      var open = el("button", { type: "button", class: "hist-open" }, [el("span", { class: "t", text: h.q }), el("small", { text: new Date(h.t).toLocaleDateString(undefined, { day: "numeric", month: "short" }) })]);
+      open.addEventListener("click", function () { qEl.value = h.q; lawEl.value = h.law || ""; autosize(); showResult(h.q, h.result); body.classList.remove("rail-open"); });
+      var del = el("button", { type: "button", class: "hist-del", "aria-label": "Remove from history", title: "Remove", text: "×" });
+      del.addEventListener("click", function () { var all = readHist(); all.splice(i, 1); writeHist(all); renderHist(); });
+      ul.appendChild(el("li", null, [open, del]));
+    });
+  }
+
+  // ---------- static content ----------
+  (function () {
+    var list = $("try-list");
+    EXAMPLES.forEach(function (q) {
+      var b = el("button", { type: "button", text: q });
+      b.addEventListener("click", function () { qEl.value = q; autosize(); qEl.focus(); });
       list.appendChild(el("li", null, [b]));
     });
-  }
-  $("hist-clear").addEventListener("click", function () {
-    try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
-    renderHistory();
-  });
-
-  // ----- static bits -----
-  (function () {
-    var legend = $("legend");
+    var dl = el("dl");
     Object.keys(LABELS).forEach(function (k) {
-      legend.appendChild(el("div", null, [el("span", { class: "badge " + k, text: k }), el("span", { text: LABELS[k] })]));
+      dl.appendChild(el("dt", { class: "l-" + k, text: LABELS[k][0] + " " + LABELS[k][1] }));
+      dl.appendChild(el("dd", { text: LABELS[k][2] }));
     });
-    var ex = $("examples");
-    EXAMPLES.forEach(function (q) {
-      var b = el("button", { type: "button", class: "chip", text: q });
-      b.addEventListener("click", function () { questionEl.value = q; questionEl.focus(); });
-      ex.appendChild(b);
-    });
-  })();
-
-  function loadInfo() {
-    fetch("/api/info").then(function (r) { return r.json(); }).then(function (info) {
-      if (info.error) { $("coverage-body").textContent = info.error; return; }
-      var groups = { "Treaties and Charter": [], "Legislation": [], "Case law (CJEU)": [] };
-      info.instruments.forEach(function (i) {
-        var g = i.doc_type === "judgment" ? "Case law (CJEU)" : (i.doc_type === "treaty" ? "Treaties and Charter" : "Legislation");
-        groups[g].push(i);
-        if (i.alias && i.doc_type !== "judgment") {
-          var short = i.title.replace(/^(Regulation|Directive) \(EU\) /, "").replace(/^Consolidated version of the /, "");
-          instrumentEl.appendChild(el("option", { value: i.alias, text: short }));
-        }
-      });
-      var body = $("coverage-body");
-      body.textContent = "";
-      body.appendChild(el("p", { text: info.instruments.length + " documents, " + info.chunks.toLocaleString() + " passages. English only. No national law." }));
-      Object.keys(groups).forEach(function (g) {
-        if (!groups[g].length) return;
-        var ul = el("ul");
-        groups[g].forEach(function (i) {
-          var label = i.case_number ? i.case_number + " " + i.title.split(" v ")[0] : i.title;
-          ul.appendChild(el("li", null, [document.createTextNode(label.length > 70 ? label.slice(0, 70) + "…" : label)]));
-        });
-        body.appendChild(el("div", { class: "cov-group" }, [el("strong", { text: g }), ul]));
-      });
-    }).catch(function () { $("coverage-body").textContent = "Could not load the coverage list."; });
-  }
-
-  // ----- asking -----
-  function showStatus(started) {
-    resultEl.textContent = "";
-    var msg = el("p", { text: "Searching the sources and checking the citations…" });
-    var sub = el("p", { class: "muted", text: "0 s" });
-    var cancel = el("button", { type: "button", class: "linkish", text: "Cancel" });
-    cancel.addEventListener("click", function () { if (controller) controller.abort(); });
-    resultEl.appendChild(el("section", { class: "card" }, [
-      el("div", { class: "status" }, [el("div", { class: "spinner", "aria-hidden": "true" }), el("div", null, [msg, sub, cancel])])
+    $("how-body").appendChild(el("div", { class: "howto" }, [
+      el("p", { text: "Each statement in an answer is checked against the passage it cites. The label tells you how well that passage backs the statement." }), dl,
+      el("p", { text: "A “supported” label does not mean the statement is complete or that nothing relevant is missing — for example, conditions or exceptions can sit in a neighbouring provision. Open the cited passage and read it. A second check asks whether the statements answer your question at all, and says so if it cannot confirm that." })
     ]));
-    timer = setInterval(function () {
-      var s = Math.round((Date.now() - started) / 1000);
-      var extra = "";
-      if (s >= 90) extra = " · The model can take a few minutes to start after being idle. If this ends in an error, wait a minute and ask again.";
-      else if (s >= 20) extra = " · Still working — the model may be waking up.";
-      sub.textContent = s + " s" + extra;
-    }, 1000);
-  }
-  function stopStatus() { if (timer) { clearInterval(timer); timer = null; } }
+  })();
+  $("show-example").addEventListener("click", function () { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); });
+  $("open-howto").addEventListener("click", function () { openDialog($("dlg-howto")); });
+  $("open-coverage").addEventListener("click", function () { openDialog($("dlg-coverage")); });
+  Array.prototype.forEach.call(document.querySelectorAll("dialog [data-close]"), function (b) { b.addEventListener("click", function () { closeDialog(b.closest("dialog")); }); });
+  Array.prototype.forEach.call(document.querySelectorAll("dialog"), function (d) { d.addEventListener("click", function (e) { if (e.target === d) closeDialog(d); }); });
 
-  function setBusy(busy) { askBtn.disabled = busy; askBtn.textContent = busy ? "Working…" : "Ask"; }
+  fetch("/api/info").then(function (r) { return r.json(); }).then(function (info) {
+    var cb = $("cov-body"); cb.textContent = "";
+    if (info.error) { cb.textContent = info.error; return; }
+    cb.appendChild(el("p", { text: info.instruments.length + " documents, " + info.chunks.toLocaleString() + " passages. English only. No national law." }));
+    var groups = [["Treaties and the Charter", function (i) { return i.doc_type === "treaty"; }], ["Legislation", function (i) { return i.doc_type !== "treaty" && i.doc_type !== "judgment"; }], ["Court of Justice case law", function (i) { return i.doc_type === "judgment"; }]];
+    groups.forEach(function (g) {
+      var items = info.instruments.filter(g[1]); if (!items.length) return;
+      var ul = el("ul");
+      items.forEach(function (i) {
+        var name = i.case_number ? i.case_number + " – " + i.title.split(" (")[0] : i.title;
+        ul.appendChild(el("li", null, [el("span", { text: name }), el("span", { text: i.chunks + " passages" })]));
+      });
+      cb.appendChild(el("h3", { text: g[0] })); cb.appendChild(ul);
+    });
+    info.instruments.forEach(function (i) {
+      if (i.alias && i.doc_type !== "judgment") lawEl.appendChild(el("option", { value: i.alias, text: i.title.replace(/^(Regulation|Directive) \(EU\) /, "").replace(/^Consolidated version of the /, "") }));
+    });
+  }).catch(function () { $("cov-body").textContent = "Could not load the coverage list."; });
+
+  // ---------- asking ----------
+  function showProgress(started) {
+    out.textContent = ""; setView("loading");
+    var steps = el("ol", { class: "steps" });
+    var cancel = el("button", { type: "button", class: "cancel", text: "Cancel" });
+    cancel.addEventListener("click", function () { if (controller) controller.abort(); });
+    out.appendChild(el("section", { class: "progress" }, [el("h2", { text: "Researching…" }), steps, cancel]));
+    var state = { order: [], active: null, since: started };
+    function paint() {
+      steps.textContent = "";
+      state.order.forEach(function (s) {
+        var done = s !== state.active;
+        var li = el("li", { class: "step " + (done ? "done" : "active") });
+        li.appendChild(el("span", { class: "mark" }));
+        var txt = el("span", { text: STAGES[s] || s });
+        if (!done && s === "generating") {
+          var secs = Math.round((Date.now() - state.since) / 1000);
+          if (secs >= 25) txt.appendChild(el("span", { class: "sub", text: "The model is starting up after being idle — this can take a minute or two (" + secs + " s)." }));
+        }
+        li.appendChild(txt); steps.appendChild(li);
+      });
+    }
+    tick = setInterval(paint, 1000);
+    return { stage: function (s) { if (state.order.indexOf(s) === -1) state.order.push(s); state.active = s; state.since = Date.now(); paint(); } };
+  }
+  function stopProgress() { if (tick) { clearInterval(tick); tick = null; } }
 
   function ask() {
-    var question = questionEl.value.trim();
-    if (question.length < 3) { questionEl.focus(); return; }
-    var instrument = instrumentEl.value || null;
+    var q = qEl.value.trim();
+    if (q.length < 3) { qEl.focus(); return; }
+    var law = lawEl.value || null;
     controller = new AbortController();
-    var started = Date.now();
-    setBusy(true);
-    showStatus(started);
-    fetch("/api/ask", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: question, instrument: instrument }), signal: controller.signal
-    }).then(function (r) {
-      return r.json().then(function (data) { return { ok: r.ok, data: data }; });
-    }).then(function (res) {
-      stopStatus(); setBusy(false);
-      if (!res.ok || res.data.error) {
-        renderError(question, res.data.error || "The request failed.", res.data);
-        return;
-      }
-      renderResult(question, res.data);
-      saveToHistory(question, instrument, res.data);
-    }).catch(function (e) {
-      stopStatus(); setBusy(false);
-      if (e && e.name === "AbortError") { resultEl.textContent = ""; return; }
-      renderError(question, "Could not reach the local LexEuropa server. Is it still running in your terminal?");
-    });
+    askBtn.disabled = true; askBtn.textContent = "Working…";
+    var prog = showProgress(Date.now()); prog.stage("retrieving");
+    var finished = false;
+    function fail(msg, data) { finished = true; stopProgress(); showError(q, msg, data); }
+    fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, instrument: law, stream: true }), signal: controller.signal })
+      .then(function (r) {
+        if (!r.ok || !r.body || !r.body.getReader) return r.json().then(function (d) { fail(d.error || "The request failed."); });
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = "";
+        function handle(line) {
+          if (!line.trim()) return;
+          var ev; try { ev = JSON.parse(line); } catch (e) { return; }
+          if (ev.stage) prog.stage(ev.stage);
+          else if (ev.result) { finished = true; stopProgress(); if (ev.result.error) showError(q, ev.result.error, ev.result); else { showResult(q, ev.result); saveHist(q, law, ev.result); } }
+          else if (ev.error) fail(ev.error);
+        }
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (chunk.done) { buf.split("\n").forEach(handle); if (!finished) fail("The connection closed before an answer arrived."); return; }
+            buf += dec.decode(chunk.value, { stream: true });
+            var lines = buf.split("\n"); buf = lines.pop(); lines.forEach(handle);
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .catch(function (e) {
+        if (e && e.name === "AbortError") { stopProgress(); out.textContent = ""; setView("empty"); return; }
+        fail("Could not reach the local LexEuropa server. Is it still running in your terminal?");
+      })
+      .then(function () { askBtn.disabled = false; askBtn.textContent = "Ask"; });
   }
   form.addEventListener("submit", function (e) { e.preventDefault(); ask(); });
-  questionEl.addEventListener("keydown", function (e) {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ask(); }
+  qEl.addEventListener("input", autosize);
+  qEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); }
   });
+  document.addEventListener("keydown", function (e) {
+    var t = e.target && e.target.tagName;
+    if (e.key === "/" && t !== "TEXTAREA" && t !== "INPUT" && t !== "SELECT") { e.preventDefault(); qEl.focus(); }
+    if (e.key === "Escape") { body.classList.remove("sheet-open"); body.classList.remove("rail-open"); }
+  });
+  function newQuestion() { stopProgress(); out.textContent = ""; pane.textContent = ""; qEl.value = ""; autosize(); setView("empty"); body.classList.remove("rail-open"); qEl.focus(); window.scrollTo(0, 0); }
+  $("new-btn").addEventListener("click", newQuestion); $("new-btn-2").addEventListener("click", newQuestion);
+  $("menu-btn").addEventListener("click", function () { var o = body.classList.toggle("rail-open"); $("menu-btn").setAttribute("aria-expanded", String(o)); });
 
-  // ----- rendering -----
-  function renderError(question, message, data) {
-    resultEl.textContent = "";
-    var box = el("section", { class: "card" }, [
-      el("p", { class: "qecho", text: question }),
-      el("div", { class: "notice err", role: "alert", text: message })
-    ]);
-    if (/503|unavailable|timed out|timeout/i.test(message)) {
-      box.appendChild(el("p", { class: "hint", text: "The answering model is probably still starting up after being idle. Wait a minute or two and ask again." }));
-    }
-    resultEl.appendChild(box);
-    if (data && data.retrieved && data.retrieved.length) resultEl.appendChild(sourcesPanel(data.retrieved, {}));
+  // ---------- rendering ----------
+  function showError(q, msg, data) {
+    out.textContent = ""; pane.textContent = "";
+    var box = el("section", null, [el("p", { class: "q-label", text: "Your question" }), el("h1", { class: "q-text", text: q }), el("div", { class: "note bad", role: "alert" }, [el("strong", { text: "Could not answer. " }), msg])]);
+    if (/503|unavailable|time/i.test(msg)) box.appendChild(el("p", { class: "meta", text: "The answering model is probably still starting up after being idle. Wait a minute or two and ask again." }));
+    out.appendChild(box);
+    if (data && data.retrieved && data.retrieved.length) { setView("result"); buildPane(data, {}, {}); } else { setView("loading"); }
   }
 
-  function citationName(id, byId) { var c = byId[id]; return c ? c.citation : id; }
+  function citeName(id, byId) { return byId[id] ? byId[id].citation : id; }
 
-  function sourceBody(chunk) {
+  function sourceCard(chunk, num, citedBy) {
     var url = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:" + encodeURIComponent(chunk.celex);
-    return el("div", { class: "src" }, [
-      el("div", { class: "src-text", text: chunk.text }),
-      el("div", { class: "src-meta" }, [
-        document.createTextNode(chunk.instrument_title + " · "),
-        el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "open the full document on EUR-Lex" })
-      ])
-    ]);
+    var card = el("article", { class: "src", "data-id": chunk.id });
+    card.appendChild(el("header", null, [num ? el("span", { class: "num", text: String(num) }) : el("span"), el("div", null, [el("div", { class: "title", text: chunk.citation }), el("div", { class: "inst", text: chunk.instrument_title })])]));
+    var long = chunk.text.length > 650;
+    var text = el("div", { class: "text" + (long ? " clamp" : ""), text: chunk.text });
+    card.appendChild(text);
+    var row = el("div", { class: "row" });
+    if (citedBy && citedBy.length) row.appendChild(el("span", { text: "Cited in statement " + citedBy.join(", ") }));
+    if (long) {
+      var tog = el("button", { type: "button", text: "Show full passage" });
+      tog.addEventListener("click", function () { var c = text.classList.toggle("clamp"); tog.textContent = c ? "Show full passage" : "Show less"; });
+      row.appendChild(tog);
+    }
+    row.appendChild(el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "Open on EUR-Lex ↗" }));
+    card.appendChild(row);
+    return card;
   }
 
-  function sourcesPanel(retrieved, citedSet) {
-    var list = el("ul", { class: "src-list" });
-    retrieved.forEach(function (c) {
-      var head = el("div", null, [el("strong", { text: c.citation })]);
-      if (citedSet[c.id]) head.appendChild(el("span", { class: "tag", text: "cited" }));
-      list.appendChild(el("li", { class: "src-item" }, [head, sourceBody(c)]));
-    });
-    var d = el("details", { class: "sources" }, [el("summary", { text: "All " + retrieved.length + " retrieved sources" }), list]);
-    return el("section", { class: "card" }, [d]);
+  function buildPane(result, numOf, citedByMap) {
+    pane.textContent = "";
+    var retrieved = result.retrieved || [];
+    var cited = retrieved.filter(function (c) { return numOf[c.id]; }).sort(function (a, b) { return numOf[a.id] - numOf[b.id]; });
+    var others = retrieved.filter(function (c) { return !numOf[c.id]; });
+    var head = el("div", { class: "src-head" }, [el("h2", { text: "Sources" })]);
+    var close = el("button", { type: "button", class: "src-close", "aria-label": "Close sources", text: "×" });
+    close.addEventListener("click", function () { body.classList.remove("sheet-open"); });
+    head.appendChild(close);
+    pane.appendChild(head);
+    pane.appendChild(el("p", { class: "src-hint", text: cited.length ? "The passages these statements rely on. Select a number in the answer to jump to its source." : "No passage was cited. These are the sources that were retrieved." }));
+    cited.forEach(function (c) { pane.appendChild(sourceCard(c, numOf[c.id], citedByMap[c.id])); });
+    if (others.length) {
+      var d = el("details", { class: "others" }, [el("summary", { text: (cited.length ? "Also retrieved, not cited (" : "Retrieved (") + others.length + ")" })]);
+      others.forEach(function (c) { d.appendChild(sourceCard(c, null, null)); });
+      if (!cited.length) d.setAttribute("open", "");
+      pane.appendChild(d);
+    }
   }
 
-  function plainText(question, result, byId) {
-    var lines = ["Question: " + question, ""];
+  function focusSource(id) {
+    var card = null;
+    Array.prototype.forEach.call(pane.querySelectorAll(".src"), function (n) { if (n.getAttribute("data-id") === id) card = n; });
+    if (!card) return;
+    var det = card.closest("details"); if (det) det.setAttribute("open", "");
+    body.classList.add("sheet-open");
+    Array.prototype.forEach.call(pane.querySelectorAll(".src.flash"), function (n) { n.classList.remove("flash"); });
+    card.classList.add("flash");
+    if (card.scrollIntoView) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(function () { card.classList.remove("flash"); }, 2200);
+  }
+
+  function plain(q, result, byId) {
+    var lines = ["Question: " + q, ""];
     result.claims.forEach(function (c, i) {
-      lines.push((i + 1) + ". [" + c.label.toUpperCase() + "] " + c.text);
-      lines.push("   Sources: " + (c.citations.map(function (id) { return citationName(id, byId); }).join("; ") || "none"));
+      lines.push((i + 1) + ". " + c.text + "  [" + (LABELS[c.label] ? LABELS[c.label][1] : c.label) + "]");
+      lines.push("   Sources: " + (c.citations.map(function (id) { return citeName(id, byId); }).join("; ") || "none"));
     });
-    lines.push("", result.disclaimer || "This is AI-assisted research, not legal advice.");
-    return lines.join("\n");
+    lines.push("", result.disclaimer || "This is AI-assisted research, not legal advice."); return lines.join("\n");
   }
 
-  function renderResult(question, result) {
-    resultEl.textContent = "";
-    if (result.error) { renderError(question, result.error, result); return; }
-    var byId = {}, cited = {};
+  function showResult(q, result) {
+    if (result.error) { showError(q, result.error, result); return; }
+    stopProgress(); out.textContent = ""; setView("result");
+    var byId = {}, numOf = {}, citedByMap = {}, n = 0;
     (result.retrieved || []).forEach(function (c) { byId[c.id] = c; });
-    result.claims.forEach(function (c) { c.citations.forEach(function (id) { cited[id] = true; }); });
-
-    var card = el("section", { class: "card" });
-    card.appendChild(el("p", { class: "qecho", text: question }));
-
-    var counts = {};
-    result.claims.forEach(function (c) { counts[c.label] = (counts[c.label] || 0) + 1; });
-    var parts = Object.keys(counts).map(function (k) { return counts[k] + " " + k; });
-    card.appendChild(el("p", { class: "summary", text: result.claims.length + (result.claims.length === 1 ? " statement" : " statements") + (parts.length ? " · " + parts.join(" · ") : "") + (result.elapsed_s ? " · " + result.elapsed_s + " s" : "") }));
-
-    if (result.generator === "fallback") {
-      card.appendChild(el("div", { class: "notice warn", text: "The main LexEuropa model declined or failed on this question, so a larger general-purpose model (" + result.generator_model + ") wrote this answer from the same sources." }));
-    }
-
-    var noCitation = result.claims.length > 0 && result.claims.every(function (c) { return !c.citations.length; });
-    if (noCitation) {
-      card.appendChild(el("div", { class: "notice info", text: "No answer could be given from the retrieved sources. Try rephrasing, name the law or article, or check the sources below." }));
-    }
-
-    var ol = el("ol", { class: "claims" });
-    result.claims.forEach(function (c) {
-      var li = el("li", { class: "claim" });
-      li.appendChild(el("div", { class: "claim-head" }, [
-        el("span", { class: "badge " + c.label, text: c.label, title: LABELS[c.label] || "" }),
-        el("p", { class: "claim-text", text: c.text })
-      ]));
-      if (c.reason) li.appendChild(el("p", { class: "why", text: "Check: " + c.reason }));
-      if (c.citations.length) {
-        var cites = el("div", { class: "cites" });
-        c.citations.forEach(function (id) {
-          var chunk = byId[id];
-          var d = el("details", { class: "cite" }, [el("summary", { text: citationName(id, byId) })]);
-          d.appendChild(chunk ? sourceBody(chunk) : el("div", { class: "src" }, [el("div", { class: "src-meta", text: "This source was not among the retrieved texts." })]));
-          cites.appendChild(d);
-        });
-        li.appendChild(cites);
-      }
-      ol.appendChild(li);
+    result.claims.forEach(function (c, i) {
+      c.citations.forEach(function (id) {
+        if (!byId[id]) return;
+        if (!numOf[id]) numOf[id] = ++n;
+        citedByMap[id] = citedByMap[id] || [];
+        if (citedByMap[id].indexOf(i + 1) === -1) citedByMap[id].push(i + 1);
+      });
     });
-    card.appendChild(ol);
 
-    card.appendChild(el("p", { class: "caution", text: "A “supported” label means the cited text backs up that statement; it does not mean the statement is complete or that nothing relevant is missing (for example, conditions or exceptions stated elsewhere). Open the cited text and read it." }));
+    var sec = el("section");
+    sec.appendChild(el("p", { class: "q-label", text: "Your question" }));
+    sec.appendChild(el("h1", { class: "q-text", text: q }));
+
+    var total = result.claims.length, ok = result.claims.filter(function (c) { return c.label === "supported"; }).length;
+    var noSource = result.claims.every(function (c) { return !c.citations.length; });
+    var dotClass = "dot", verdict;
+    if (!total || noSource) { dotClass += " none"; verdict = "No answer could be given from the sources"; }
+    else if (ok === total) { verdict = (total === 1 ? "The statement is" : (total === 2 ? "Both statements are" : "All " + total + " statements are")) + " supported by the cited text"; }
+    else { dotClass += ok ? " mixed" : " bad"; verdict = ok + " of " + total + " statements supported — check the others"; }
+    var meta = [];
+    if (result.example) meta.push("example");
+    else { if (result.elapsed_s) meta.push(Math.round(result.elapsed_s) + " s"); meta.push(result.generator === "fallback" ? "second opinion by " + (result.generator_model || "a larger model").replace(/^.*\//, "") : "LexEuropa model"); }
+    sec.appendChild(el("p", { class: "verdict" }, [el("span", { class: "v" }, [el("span", { class: dotClass }), verdict]), el("span", { class: "meta", text: meta.join(" · ") })]));
+
+    if (result.example) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Example" }), "Written by hand from the text of the Directive to show the format — not generated live."]));
+    if (result.generator === "fallback") sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Second opinion. " }), "The main LexEuropa model declined or did not answer this question well, so a larger general-purpose model wrote the answer from the same sources."]));
+    if (result.answers_question === false) sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Check this carefully. " }), "We could not confirm that these statements answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ". They may address a different point."]));
+
+    var ol = el("ol", { class: "statements" });
+    result.claims.forEach(function (c, i) {
+      var p = el("p"); p.appendChild(document.createTextNode(c.text));
+      c.citations.forEach(function (id) {
+        if (!numOf[id]) return;
+        var b = el("button", { type: "button", class: "cite", "aria-label": "Source " + numOf[id] + ": " + citeName(id, byId), title: citeName(id, byId), text: String(numOf[id]) });
+        b.addEventListener("click", function () { Array.prototype.forEach.call(document.querySelectorAll(".cite.on"), function (x) { x.classList.remove("on"); }); b.classList.add("on"); focusSource(id); });
+        p.appendChild(b);
+      });
+      var lab = LABELS[c.label] || LABELS.uncertain;
+      var status = el("div", { class: "status l-" + (LABELS[c.label] ? c.label : "uncertain") }, [el("span", { class: "lab", title: lab[2] }, [el("i", { "aria-hidden": "true", text: lab[0] }), lab[1]])]);
+      if (c.label !== "supported" && c.reason) status.appendChild(el("span", { class: "why", text: c.reason }));
+      ol.appendChild(el("li", { class: "stmt" }, [el("span", { class: "n", text: String(i + 1) }), el("div", null, [p, status])]));
+    });
+    sec.appendChild(ol);
 
     var copy = el("button", { type: "button", class: "btn", text: "Copy answer with sources" });
     copy.addEventListener("click", function () {
-      var text = plainText(question, result, byId);
-      var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy answer with sources"; }, 1800); };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+      var t = plain(q, result, byId), done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy answer with sources"; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () {});
     });
-    var again = el("button", { type: "button", class: "btn", text: "New question" });
-    again.addEventListener("click", function () { resultEl.textContent = ""; questionEl.value = ""; questionEl.focus(); });
-    card.appendChild(el("div", { class: "actions" }, [copy, again]));
-    card.appendChild(el("p", { class: "hint", style: "margin:12px 0 0", text: result.disclaimer || "" }));
-
-    resultEl.appendChild(card);
-    if (result.retrieved && result.retrieved.length) resultEl.appendChild(sourcesPanel(result.retrieved, cited));
+    var again = el("button", { type: "button", class: "btn", text: "New question" }); again.addEventListener("click", newQuestion);
+    var howto = el("button", { type: "button", class: "btn", text: "How to read this" }); howto.addEventListener("click", function () { openDialog($("dlg-howto")); });
+    sec.appendChild(el("div", { class: "actions" }, [copy, howto, again]));
+    sec.appendChild(el("p", { class: "disclaimer", text: (result.disclaimer || "This is AI-assisted research, not legal advice.") + " A “supported” label means the cited passage backs the statement, not that nothing relevant is missing — read the sources." }));
+    out.appendChild(sec);
+    buildPane(result, numOf, citedByMap);
+    window.scrollTo({ top: 0 });
   }
 
-  renderHistory();
-  loadInfo();
+  autosize(); renderHist();
+  if (location.hash === "#example") { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); }
 })();
 </script>
 </body>

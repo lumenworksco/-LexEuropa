@@ -1,0 +1,6 @@
+{
+  "name": "lexeuropa-ui-tests",
+  "private": true,
+  "scripts": { "test": "node test_ui.js" },
+  "devDependencies": { "jsdom": "^26.0.0" }
+}

@@ -70,6 +70,13 @@ LLM_MODEL = os.environ.get("LEXEUROPA_LLM_MODEL", "iPwnds/lexeuropa-qwen3b-merge
 FALLBACK_LLM_BASE_URL = os.environ.get("LEXEUROPA_FALLBACK_LLM_BASE_URL", "https://router.huggingface.co/v1")
 FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen2.5-72B-Instruct")
 
+# After generation, a stronger model checks that the statements actually answer the
+# question (the per-claim judge only checks claim-vs-source). If not, the fallback
+# is tried. LEXEUROPA_RELEVANCE_CHECK=0 disables it.
+RELEVANCE_CHECK = os.environ.get("LEXEUROPA_RELEVANCE_CHECK", "1") != "0"
+RELEVANCE_LLM_BASE_URL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_BASE_URL", FALLBACK_LLM_BASE_URL)
+RELEVANCE_LLM_MODEL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_MODEL", FALLBACK_LLM_MODEL or "Qwen/Qwen2.5-72B-Instruct")
+
 JUDGE_BASE_URL = os.environ.get("LEXEUROPA_JUDGE_BASE_URL", "https://router.huggingface.co/v1")
 JUDGE_MODEL = os.environ.get("LEXEUROPA_JUDGE_MODEL", "Qwen/Qwen2.5-7B-Instruct:featherless-ai")
 

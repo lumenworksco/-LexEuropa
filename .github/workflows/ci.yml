@@ -21,3 +21,10 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Offline tests
         run: python -m pytest tests/ -v -k "not full_hybrid"
+      - uses: actions/setup-node@v4
+        if: matrix.python-version == '3.12'
+        with:
+          node-version: "22"
+      - name: Web page behaviour tests (jsdom)
+        if: matrix.python-version == '3.12'
+        run: cd tests/ui && npm install --no-audit --no-fund && npm test
