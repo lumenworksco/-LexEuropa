@@ -33,7 +33,7 @@ question
 
 ## Quickstart
 
-Requires Python 3.11+ and a [Hugging Face token](https://huggingface.co/settings/tokens) with Inference Providers access. Embeddings, the judge and (by default) generation are HF-hosted calls that need account credits.
+Requires Python 3.11+ and a [Hugging Face token](https://huggingface.co/settings/tokens) with Inference Providers access. Embeddings, the judge, the fallback and (by default) generation are HF-hosted calls that need account credits; set `LEXEUROPA_EMBED_BACKEND=local` to embed queries on your machine instead.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -91,44 +91,45 @@ Not covered: other languages, national law, Advocate General opinions, Treaty pr
 
 ## Evaluation
 
-The generator is a LoRA-tuned Qwen2.5-3B (v1, trained on 506 examples from the GDPR and two judgments). Final run on the current 6,872-chunk index, no reranker, stock Qwen2.5-7B as the judge for every row. Precision is the share of cited sources that point at the gold article or case, and recall is whether at least one does.
+All rows below ran on the same retrieval (6,872 chunks, article headings indexed, at most one recital in the result list, no reranker), the same parser and the same judge (stock Qwen2.5-7B). P = share of cited sources that point at the gold article or case; R = whether at least one does.
 
-| | 42 templated questions (P / R) | 25 natural-language questions (P / R) |
-|---|---|---|
-| Stock Qwen2.5-7B | 0.92 / 0.98 | 0.63 / 0.84 |
-| **Qwen2.5-3B + LoRA v1 (default)** | **1.00 / 1.00** | **0.76 / 0.76** |
-| Qwen2.5-3B + LoRA v3 (retrained on full corpus) | 0.95 / 0.95 | 0.56 / 0.56 |
+| generator | 42 templated (P / R) | 25 natural-language (P / R) | legislation (13) | judgments (12) |
+|---|---|---|---|---|
+| **LexEuropa v1 + fallback (default)** | 0.95 / 0.95 | **0.86 / 0.88** | 0.81 / 0.85 | 0.91 / 0.92 |
+| LexEuropa v1 alone (3B, LoRA) | 0.95 / 0.95 | 0.82 / 0.84 | 0.81 / 0.85 | 0.82 / 0.83 |
+| stock Qwen2.5-7B | 0.91 / 0.98 | 0.67 / 0.88 | 0.57 / 0.92 | 0.78 / 0.83 |
+| stock Qwen2.5-72B | 0.93 / 1.00 | 0.72 / 0.88 | 0.59 / 0.83 | 0.85 / 0.92 |
+| stock Qwen3-235B | 0.91 / 0.98 | 0.66 / 0.92 | 0.53 / 0.92 | 0.80 / 0.92 |
+| stock DeepSeek-V3 | 0.89 / 0.98 | 0.68 / 0.88 | 0.58 / 0.92 | 0.79 / 0.83 |
 
-The 25-question set, split (retrieval surfaced the gold source for 77% of the legislation questions and 100% of the judgment questions):
+(Llama-3.3-70B is omitted: 13 of its 25 natural-language answers broke the JSON format.)
 
-| | legislation (13) P / R | judgments (12) P / R |
-|---|---|---|
-| Stock Qwen2.5-7B | 0.43 / 0.77 | 0.85 / 0.92 |
-| v1 | 0.69 / 0.69 | 0.82 / 0.83 |
-| v3 | 0.46 / 0.46 | 0.67 / 0.67 |
+**The fallback.** If the fine-tuned model refuses (no cited claim) or its output cannot be parsed, the question is retried once on Qwen2.5-72B through the Hugging Face router and the answer is labelled as coming from the fallback (`LEXEUROPA_FALLBACK_LLM_MODEL=""` disables it). It fired on 1 of 25 natural questions and 0 of 42 templated ones. It exists because a live test showed v1 refusing "Can a company send marketing emails without consent?" even though all four paragraphs of ePrivacy Article 13 had been retrieved.
 
 What this does and does not show:
 
-- v1 is **more precise** than the stock 7B on legislation (it cites fewer wrong sources) but **not more complete**: its recall on unseen law is below the stock model's, and on judgments it is no better. The fine-tune bought citation discipline, not coverage.
-- **Retraining on the full corpus (v3) made it worse**, and a pre-declared promotion rule (the new adapter must be within 0.03 of v1 everywhere) failed, so v1 stays the default.
-- **Round 2.** Retrieval was improved (article headings are now indexed and recitals are capped in the result list: hit@8 on the 25 questions went 0.88 → 0.96, and on 34 fresh questions written to validate the cap it went 0.85 → 0.91; the stock model improved to 0.69 / 0.88). A v4 adapter trained on natural-language topic questions with whole-article targets scored 0.98 / 0.98 on the 42-question set but 0.68 / 0.75 on the 25 (stock 7B: 0.69 / 0.88): much better than v3, still lower recall than the stock model. v1 could not be re-measured on the new retrieval because the Hugging Face account ran out of credits, so v4-vs-v1 is unresolved. v3 and v4 are not published.
-- The 42-question set is templated with phrasing v1 was trained on, so its near-perfect scores are optimistic. The 25-question set is small (n=25), so differences of a few points are noise.
+- The 3B fine-tune is **more precise** than every stock model tested, including 235B-parameter ones, because it cites the single most relevant article instead of hedging across several. Its recall is about the same as the 7B and 72B, a few points below the biggest models.
+- **That is partly a property of the benchmark.** Each question has one gold article, so a model that cites exactly that article scores best. The metric measures *which sources are cited*, not whether the prose answer is correct or complete, and larger models that cite several relevant provisions are penalized on precision. Treat these numbers as evidence of citation discipline, not of legal reasoning.
+- n=25 for the natural-language set, so one question moves a score by about 4 points. The 42 templated questions are easy (the provision is named) and v1 was trained on that phrasing.
+- Retraining more adapters did not help. v3 (reference-style training questions) regressed; v4 (natural-language topic questions, whole-article targets) was clearly better than v3 but below v1 (0.68 / 0.75 on the 25 questions, measured with a recital cap of 3, a slightly different retrieval). v3 and v4 are not published.
+- Retrieval, not generation, was the biggest lever: indexing article headings and capping recitals lifted hit@8 on 25 questions from 0.88 to 0.96 and, on 34 fresh validation questions, from 0.85 to 0.91.
 - Held-out wording can still reach training through verbatim quotation (judgments quote recitals).
-- Honest summary: across three adapters the fine-tune improves citation precision and output discipline but has never clearly beaten the stock 7B on natural questions about unseen law. Retrieval quality, and possibly a stronger base model, matter more than more training.
+- A second weakness seen live: asked about risk management for high-risk AI systems, v1 quoted Recital 65 instead of the operative Article 9 even though Article 9 was retrieved.
 
-Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft) (`v2` tag = the 506 examples v1 and v2 were trained on). Method and caveats: [`CLAUDE.md`](CLAUDE.md).
+Artifacts: [v1 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged), [v1 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora), [v2 merged](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v2), [v2 adapter](https://huggingface.co/iPwnds/lexeuropa-qwen3b-lora-v2), [training dataset](https://huggingface.co/datasets/iPwnds/lexeuropa-sft) (revision tags `v2` = 506 examples used for v1/v2, `v3` = 1,680, `main` = v4's 1,402). Method and caveats: [`CLAUDE.md`](CLAUDE.md).
 
 ## Known limitations
 
 - English only; no national law.
-- Retrieval is the main lever on natural-language questions about legislation; after the round-2 fixes the right provision surfaced for 24 of 25 test questions, but the cap that achieved this was tuned on the same small set.
+- Retrieval surfaces the right provision for about 24 of 25 natural questions on the tuned set and 31 of 34 on fresh ones; the remaining misses are mostly judgments quoting a statute outranking it.
+- The fine-tuned model sometimes refuses when the sources do answer the question (mitigated by the fallback) and sometimes quotes a recital instead of the operative article.
 - The live adapter (v1) was trained on only the GDPR and two judgments, and its output has some claims split mid-sentence at inline cross-references (fixed in the data builder; the retrain that used the fix did not score better).
 - The judge rarely uses the `analysis` label; treat that label as unreliable.
 - Output is research assistance, not legal advice.
 
 ## Roadmap
 
-See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: add credits and finish the v1-vs-v4 comparison, evaluate a larger base model, and add Advocate General opinions and treaty protocols.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: judge answer quality beyond which sources are cited (human or rubric review of answers), prefer operative articles over recitals when both are retrieved, and add Advocate General opinions and treaty protocols.
 
 ## License
 

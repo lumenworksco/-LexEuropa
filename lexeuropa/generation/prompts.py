@@ -89,10 +89,10 @@ def parse_response(raw: str, *, allow_repair: bool = True) -> dict:
         raise ParseError(f"no JSON object found in model output: {raw!r}")
     body = text[start:]
 
-    end = text.rfind("}")
-    candidate = text[start : end + 1] if end >= start else body
+    # Read the first complete JSON object and ignore whatever follows it: larger
+    # models often append commentary (or a second object) after a valid answer.
     try:
-        data = json.loads(candidate)
+        data, _ = json.JSONDecoder().raw_decode(body)
     except json.JSONDecodeError as e:
         repaired = _repair_missing_closing_brackets(body) if allow_repair else None
         if repaired is None:

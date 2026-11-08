@@ -96,3 +96,14 @@ def test_does_not_repair_text_truncated_inside_an_open_string():
     truncated_mid_string = '{"language": "en", "claims": [{"text": "cut off mid'
     with pytest.raises(ParseError):
         parse_response(truncated_mid_string)
+
+
+def test_parse_response_ignores_text_after_the_json_object():
+    """Larger models append commentary (sometimes containing braces) or a second
+    object after a valid answer; that must not discard the answer."""
+    from lexeuropa.generation.prompts import parse_response
+
+    answer = '{"language": "en", "claims": [{"text": "Claim.", "citations": ["S1"]}]}'
+    for trailing in ["", "\n\nNote: I cited S1 only.", '\n{"extra": true}', "\n\n(see {S1} above)"]:
+        assert parse_response(answer + trailing)["claims"][0]["citations"] == ["S1"]
+    assert parse_response("Here is the answer:\n```json\n" + answer + "\n```\nHope this helps")["claims"]

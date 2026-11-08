@@ -1,0 +1,177 @@
+[
+  {
+    "question": "Which AI practices are prohibited outright under the AI Act?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What must a risk management system for high-risk AI systems involve?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 6 column 230 (char 1009)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"A risk management system for high-risk AI systems must be established, implemented, documented, and maintained.\", \"citations\": [\"S1\"]},\\n{\"text\": \"The risk management system should consist of a continuous, iterative process that is planned and run throughout the entire lifecycle of a high-risk AI system.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The risk management system shall comprise the identification and analysis of known and reasonably foreseeable risks, estimation and evaluation of risks, evaluation of other risks, and adoption of appropriate risk management measures.\", \"citations\": [\"S4\"]},\\n{\"text\": \"The risk management system should be regularly reviewed and updated to ensure its continuing effectiveness.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The risk management measures should eliminate or reduce risks as far as technically feasible, implement adequate mitigation and control measures, and provide information and training to deployers.\", \"citations\": [\"S6\"]},\\n]}'"
+  },
+  {
+    "question": "What transparency duties apply to AI systems that interact directly with people, like chatbots?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 7 column 232 (char 1426)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"Providers of AI systems intended to interact directly with natural persons must inform those persons that they are interacting with an AI system, unless this is obvious from the point of view of a natural person who is reasonably well-informed, observant and circumspect.\", \"citations\": [\"S1\"]},\\n{\"text\": \"This transparency obligation does not apply to AI systems authorised by law to detect, prevent, investigate or prosecute criminal offences, subject to appropriate safeguards for the rights and freedoms of third parties.\", \"citations\": [\"S1\"]},\\n{\"text\": \"When implementing the transparency obligation, the characteristics of natural persons belonging to vulnerable groups due to their age or disability should be taken into account.\", \"citations\": [\"S2\"]},\\n{\"text\": \"Natural persons should be notified when they are exposed to AI systems that, by processing their biometric data, can identify or infer the emotions or intentions of those persons or assign them to specific categories.\", \"citations\": [\"S2\"]},\\n{\"text\": \"The information and notifications should be provided in accessible formats for persons with disabilities.\", \"citations\": [\"S2\"]},\\n{\"text\": \"The transparency obligations for AI systems that interact directly with people are without prejudice to other transparency obligations laid down in Union or national law for deployers of AI systems.\", \"citations\": [\"S3\"]},\\n]}'"
+  },
+  {
+    "question": "When is a hosting service provider not liable for illegal content stored at a user's request?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 6 column 278 (char 1223)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"A hosting service provider is not liable for illegal content stored at a user\\'s request if the provider does not have actual knowledge of the illegal activity or content and, as regards claims for damages, is not aware of facts or circumstances from which the illegal activity or content is apparent.\", \"citations\": [\"S1\", \"S2\"]},\\n{\"text\": \"The provider must also act expeditiously to remove or disable access to the illegal content upon obtaining such knowledge or awareness.\", \"citations\": [\"S1\", \"S2\", \"S3\"]},\\n{\"text\": \"The removal or disabling of access should be undertaken in the observance of the fundamental rights of the recipients of the service, including the right to freedom of expression and of information.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The provider\\'s general awareness that its service is used to store illegal content is not sufficient to establish liability.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The provider\\'s automatic indexing of information, search function, or recommendation of information based on user profiles is also not a sufficient ground for considering the provider to have specific knowledge of illegal activities or content.\", \"citations\": [\"S3\"]},\\n]}'"
+  },
+  {
+    "question": "How does a platform get designated as a very large online platform under the DSA?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 5 column 214 (char 921)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"The Commission designates an online platform as a very large online platform if it has a number of average monthly active recipients of the service equal to or higher than the number referred to in Article 33(1) of the DSA.\", \"citations\": [\"S1\", \"S5\"]},\\n{\"text\": \"The Commission bases its decision on data reported by the provider of the online platform or on information requested or available to the Commission.\", \"citations\": [\"S1\"]},\\n{\"text\": \"The provider of the online platform is given 10 working days to submit its views on the Commission\\'s preliminary findings and intention to designate the platform as a very large online platform.\", \"citations\": [\"S1\"]},\\n{\"text\": \"The failure of the provider to submit its views or comply with reporting requirements does not prevent the Commission from designating the platform as a very large online platform.\", \"citations\": [\"S1\"]},\\n]}'"
+  },
+  {
+    "question": "What criteria make an undertaking a gatekeeper under the Digital Markets Act?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 4 column 247 (char 943)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"An undertaking shall be designated as a gatekeeper if it has a significant impact on the internal market, provides a core platform service which is an important gateway for business users to reach end users, and enjoys an entrenched and durable position, in its operations, or it is foreseeable that it will enjoy such a position in the near future.\", \"citations\": [\"S4\"]},\\n{\"text\": \"The Commission may also designate an undertaking as a gatekeeper without meeting the quantitative thresholds if it meets certain requirements, taking into account elements such as size, network effects, and business user or end user lock-in.\", \"citations\": [\"S1\", \"S2\"]},\\n{\"text\": \"The Commission\\'s assessment of an undertaking\\'s gatekeeper status may consider factors including the undertaking\\'s size, operations, and position, as well as foreseeable developments in relation to these elements.\", \"citations\": [\"S2\"]},\\n]}'"
+  },
+  {
+    "question": "What may gatekeepers not do when ranking their own services versus third-party ones?",
+    "hit_at_k": true,
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What are the rules for notifying a personal data breach to the European Data Protection Supervisor?",
+    "hit_at_k": true,
+    "citation_precision": 0.3333333333333333,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What principles govern the processing of personal data by competent authorities for criminal law enforcement?",
+    "hit_at_k": false,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 6 column 210 (char 1510)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"The processing of personal data by competent authorities for the purposes of the prevention, investigation, detection or prosecution of criminal offences or the execution of criminal penalties must be necessary for the performance of a task carried out in the public interest by a competent authority based on Union or Member State law.\", \"citations\": [\"S1\"]},\\n{\"text\": \"The processing of personal data relating to criminal convictions and offences or related security measures must be carried out only under the control of official authority or when the processing is authorised by Union or Member State law providing for appropriate safeguards for the rights and freedoms of data subjects.\", \"citations\": [\"S2\", \"S5\", \"S6\"]},\\n{\"text\": \"The principles of lawfulness, fairness, and transparency, as well as purpose limitation, data minimisation, accuracy, storage limitation, and integrity and confidentiality, apply to the processing of personal data by competent authorities for criminal law enforcement purposes.\", \"citations\": [\"S8\"]},\\n{\"text\": \"Competent authorities must respect the principles of confidentiality and of professional and commercial secrecy and shall protect personal data in accordance with Union or national law.\", \"citations\": [\"S4\"]},\\n{\"text\": \"The protection of vital interests of the data subject is also a consideration in the processing of personal data by competent authorities for criminal law enforcement purposes.\", \"citations\": [\"S1\"]},\\n]}'"
+  },
+  {
+    "question": "What cybersecurity risk-management measures must essential and important entities take under NIS 2?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 7 column 187 (char 1338)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"Essential and important entities must take appropriate and proportionate technical, operational and organisational measures to manage the risks posed to the security of network and information systems.\", \"citations\": [\"S3\"]},\\n{\"text\": \"These measures must ensure a level of security of network and information systems appropriate to the risks posed, taking into account the state-of-the-art and relevant European and international standards.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The measures must also prevent or minimise the impact of incidents on recipients of their services and on other services.\", \"citations\": [\"S3\"]},\\n{\"text\": \"When assessing the proportionality of these measures, due account must be taken of the degree of the entity’s exposure to risks, the entity’s size and the likelihood of occurrence of incidents and their severity.\", \"citations\": [\"S3\"]},\\n{\"text\": \"Entities must also consider the vulnerabilities specific to each direct supplier and service provider and the overall quality of products and cybersecurity practices of their suppliers and service providers.\", \"citations\": [\"S5\"]},\\n{\"text\": \"The management bodies of essential and important entities must approve the cybersecurity risk-management measures and oversee their implementation.\", \"citations\": [\"S1\", \"S4\"]},\\n]}'"
+  },
+  {
+    "question": "When must an entity report a significant cyber incident under NIS 2?",
+    "hit_at_k": true,
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What right do users have to access data generated by their connected products?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 5 column 214 (char 851)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"Users have the right to access data generated by their connected products in a comprehensive, structured, commonly used and machine-readable format, free of charge.\", \"citations\": [\"S1\"]},\\n{\"text\": \"The data that users have access to includes product data and related service data, as well as relevant metadata necessary to interpret and use those data.\", \"citations\": [\"S1\"]},\\n{\"text\": \"Before concluding a contract for the purchase, rent or lease of a connected product, the seller must provide information to the user on how they may access, retrieve or erase the data.\", \"citations\": [\"S4\"]},\\n{\"text\": \"The right to access data is subject to certain conditions, such as the requirement for a valid legal basis for processing personal data under Article 6 of Regulation (EU) 2016/679.\", \"citations\": [\"S3\"]},\\n]}'"
+  },
+  {
+    "question": "Under what conditions can public sector bodies allow re-use of protected data they hold?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 11 column 297 (char 2220)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"Public sector bodies can allow re-use of protected data they hold if they ensure that the protected nature of the data is preserved, in accordance with Union and national law.\", \"citations\": [\"S1\"]},\\n{\"text\": \"They may provide for requirements such as anonymising personal data, modifying or aggregating commercially confidential information, and providing secure processing environments.\", \"citations\": [\"S1\"]},\\n{\"text\": \"Public sector bodies must make publicly available the conditions for allowing re-use and the procedure to request re-use via a single information point.\", \"citations\": [\"S2\"]},\\n{\"text\": \"Additional safeguards should be put in place to protect the rights and interests of undertakings and data subjects, particularly with regard to personal data, commercially sensitive data, and intellectual property rights.\", \"citations\": [\"S3\"]},\\n{\"text\": \"Public sector bodies should not allow re-use of information for purposes that would run counter to fundamental rights, such as discriminating in the setting of prices.\", \"citations\": [\"S3\"]},\\n{\"text\": \"Re-users must inform the public sector body of their intention to transfer non-personal data to a third country and the purpose of such transfer.\", \"citations\": [\"S4\"]},\\n{\"text\": \"The public sector body shall not allow the re-use unless the legal person whose rights and interests may be affected gives permission for the transfer.\", \"citations\": [\"S4\"]},\\n{\"text\": \"Public sector bodies may impose conditions to preserve the integrity of the functioning of the technical systems of the secure processing environment used.\", \"citations\": [\"S7\"]},\\n{\"text\": \"They may also reserve the right to verify the process, means, and results of processing of data undertaken by the re-user and prohibit the use of results that contain information jeopardising the rights and interests of third parties.\", \"citations\": [\"S7\"]},\\n{\"text\": \"Public sector bodies can transmit non-personal confidential data or data protected by intellectual property rights to a re-user that intends to transfer those data to a third country only if the re-user contractually commits to complying with certain obligations.\", \"citations\": [\"S8\"]},\\n]}'"
+  },
+  {
+    "question": "Is a pre-ticked checkbox valid consent for storing cookies?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "Can a website that embeds a social media plugin be a joint controller of the data collected?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 5 column 315 (char 1127)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"A website that embeds a social media plugin can be considered a controller, within the meaning of Article 2(d) of Directive 95/46, despite having no control over the processing of the data transmitted to the provider of that plugin.\", \"citations\": [\"S1\", \"S2\", \"S5\"]},\\n{\"text\": \"The website\\'s liability as a controller is limited to the operation or set of operations involving the processing of personal data in respect of which it actually determines the purposes and means.\", \"citations\": [\"S1\", \"S5\"]},\\n{\"text\": \"The website can be considered a joint controller, together with the provider of the social plugin, for operations involving the collection and disclosure by transmission of the personal data of visitors to its website.\", \"citations\": [\"S3\", \"S6\", \"S7\"]},\\n{\"text\": \"As a joint controller, the website and the provider of the social plugin must each pursue a legitimate interest, within the meaning of Article 7(f) of Directive 95/46, through the processing operations in order for those operations to be justified in respect of each of them.\", \"citations\": [\"S6\", \"S7\"]},\\n]}'"
+  },
+  {
+    "question": "Is a dynamic IP address personal data in the hands of a website operator?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "Why did the Court strike down the Data Retention Directive?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 6 column 212 (char 1078)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"The Court struck down the Data Retention Directive because it was incompatible with the principle of proportionality.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The directive allowed for the storing of many types of data in relation to an unlimited number of persons for a long time, affecting almost exclusively persons whose conduct did not justify the retention of data relating to them.\", \"citations\": [\"S5\"]},\\n{\"text\": \"The retention of data constituted a particularly serious interference with the fundamental rights to privacy and other rights laid down in Article 7 of the Charter.\", \"citations\": [\"S6\"]},\\n{\"text\": \"However, the directive did not permit the acquisition of knowledge of the content of the electronic communications as such, and thus did not adversely affect the essence of those rights.\", \"citations\": [\"S6\"]},\\n{\"text\": \"The Court\\'s judgment was based on the objective pursued by the directive and its context, as well as the close relationship between the retention of data and access to that data.\", \"citations\": [\"S2\"]},\\n]}'"
+  },
+  {
+    "question": "Is general and indiscriminate retention of traffic and location data compatible with EU law?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": null
+  },
+  {
+    "question": "Are an exam candidate's written answers and the examiner's comments personal data?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "Is there a minimum seriousness threshold for compensation of non-material damage under Article 82 GDPR?",
+    "hit_at_k": true,
+    "citation_precision": 0.8333333333333334,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "Can a competition authority consider GDPR compliance when assessing an abuse of dominant position?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 5 column 192 (char 666)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"A competition authority can consider GDPR compliance when assessing an abuse of dominant position.\", \"citations\": [\"S1\", \"S5\", \"S7\"]},\\n{\"text\": \"The competition authority must cooperate with the supervisory authority to ensure consistency of GDPR application.\", \"citations\": [\"S2\", \"S6\"]},\\n{\"text\": \"The competition authority\\'s finding of GDPR non-compliance does not replace the supervisory authority\\'s role.\", \"citations\": [\"S3\"]},\\n{\"text\": \"The competition authority must consider any existing decisions by the supervisory authority or lead supervisory authority regarding the undertaking\\'s conduct.\", \"citations\": [\"S4\"]},\\n]}'"
+  },
+  {
+    "question": "Does automated credit scoring count as an automated individual decision under Article 22 GDPR?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court decide about the validity of the Privacy Shield decision?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What is a data controller's liability when it jointly determines purposes and means with a university-run fan page operator?",
+    "hit_at_k": true,
+    "citation_precision": 0.6666666666666666,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "Under what conditions could Safe Harbour transfers to the US be considered adequate?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": "could not parse model output: model output was not valid JSON: Illegal trailing comma before end of array: line 4 column 353 (char 1110)\nraw: '{\"language\": \"en\", \"claims\": [\\n{\"text\": \"The conditions for Safe Harbour transfers to be considered adequate are met when the organisation receiving the data has unambiguously and publicly disclosed its commitment to comply with the Principles implemented in accordance with the FAQs, and the organisation is subject to the statutory powers of a government body in the United States listed in Annex VII to Decision 2000/520.\", \"citations\": [\"S5\"]},\\n{\"text\": \"The organisation must also self-certify its adherence to the Principles implemented in accordance with the FAQs from the date on which the organisation notifies to the US Department of Commerce the public disclosure of the commitment and the identity of the government body.\", \"citations\": [\"S5\"]},\\n{\"text\": \"Additionally, the transfer must comply with the safe harbour privacy principles for the protection of personal data transferred from a Member State to the United States, and the organisations should publicly disclose their privacy policies and be subject to the jurisdiction of the Federal Trade Commission (FTC).\", \"citations\": [\"S5\", \"S8\"]},\\n]}'"
+  }
+]

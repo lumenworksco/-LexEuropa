@@ -699,6 +699,52 @@ stock Qwen2.5-7B on natural questions about unseen law, and its recall is
 lower. The most valuable remaining work is not more training but retrieval
 quality and, if the goal is "own models", a stronger base model than 3B.
 
+## Round 3 (2026-11): credits restored, like-for-like comparison, fallback
+
+HF credits were topped up ($10) and the payment method accepted `resume()`.
+Everything below ran on the same retrieval (cap 1, titles, no reranker, local
+query embeddings), the fixed parser and the stock-7B judge; files
+`data/finetune/final3_*.json`.
+
+| generator | 42 templated | 25 NL | legislation(13) | judgments(12) |
+|---|---|---|---|---|
+| v1 + fallback (default) | .95/.95 | .86/.88 | .81/.85 | .91/.92 |
+| v1 alone | .95/.95 | .82/.84 | .81/.85 | .82/.83 |
+| stock Qwen2.5-7B | .91/.98 | .67/.88 | .57/.92 | .78/.83 |
+| stock Qwen2.5-72B | .93/1.00 | .72/.88 | .59/.83 | .85/.92 |
+| stock Qwen3-235B | .91/.98 | .66/.92 | .53/.92 | .80/.92 |
+| stock DeepSeek-V3 | .89/.98 | .68/.88 | .58/.92 | .79/.83 |
+| Llama-3.3-70B | unusable: 13/25 JSON-format failures | | | |
+
+This **supersedes the earlier "the fine-tune never clearly beats stock" reading**
+(which compared v1's round-1 numbers on older retrieval with round-2 numbers
+for other models). Like-for-like, v1 has the best precision of everything
+tried (.82 vs .66-.72), recall within a few points of the 72B/7B. Caveat that
+matters: the benchmark has ONE gold article per question, so a model that
+cites exactly one article wins on precision and larger models that cite
+several relevant provisions lose; it scores which sources are cited, not
+whether the answer is right. n=25 (one question = 4 points).
+
+**Parser bug found and fixed:** `parse_response` rejected a valid JSON object
+followed by trailing text ("Extra data"), which sank the 72B model (32/42
+errors) until fixed - it now reads the first complete object
+(`raw_decode`). Test: `test_parse_response_ignores_text_after_the_json_object`.
+
+**Fallback generator** (`answer.py`, `config.FALLBACK_LLM_*`): if the primary
+model refuses (no cited claim) or its output cannot be parsed, retry once on
+Qwen2.5-72B via the router; output carries `generator`/`generator_model` and the
+CLI prints a note. Motivated by a live smoke test where v1 refused "Can a
+company send marketing emails without consent?" with ePrivacy Art. 13(1)-(4)
+retrieved. It fired on 1/25 NL questions (fixing a zero) and 0/42 templated.
+Live smoke test also showed v1 quoting Recital 65 instead of AI Act Art. 9.
+
+Cost notes: l4x1 $0.80/h, l40sx1 $1.80/h, a10g-large $1.50/h, a100-large
+$2.50/h (`hf jobs hardware`). A bigger-base fine-tune was NOT run: the big
+stock models do not beat v1 on this benchmark, so there is no evidence the
+extra spend (~$5-10) would help. Endpoint is scaled to zero, serving v1.
+A run that hangs on a provider (DeepSeek-V3 did, for over an hour) needs a
+hard limit: `perl -e 'alarm N; exec @ARGV' ...` (macOS has no `timeout`).
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

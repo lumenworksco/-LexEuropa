@@ -92,6 +92,7 @@ def main() -> int:
                 "citation_precision": precision,
                 "citation_recall": recall,
                 "error": out.get("error"),
+                "generator": out.get("generator"),
             }
         )
         status = "HIT" if hit else "MISS"
@@ -105,6 +106,9 @@ def main() -> int:
     hit_rate = sum(r["hit_at_k"] for r in results) / n
     avg_precision = sum(r["citation_precision"] for r in results) / n
     avg_recall = sum(r["citation_recall"] for r in results) / n
+    n_fallback = sum(1 for r in results if r.get("generator") == "fallback")
+    if n_fallback:
+        print(f"fallback model used for {n_fallback}/{len(results)} questions")
     print(
         f"\nhit@k: {hit_rate:.2f}  citation_precision: {avg_precision:.2f}  "
         f"citation_recall: {avg_recall:.2f}  (n={len(results)}, errors={n_errors})"

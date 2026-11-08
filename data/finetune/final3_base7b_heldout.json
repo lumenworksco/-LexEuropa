@@ -1,0 +1,296 @@
+[
+  {
+    "question": "What does Article 5(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 6, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 7(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 9(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 10, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 15(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 17(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 20, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 21(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 25(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 30, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 35(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 40(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 45, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 50(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 0.0,
+    "citation_recall": 0.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 55(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 0.3333333333333333,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 60, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 65(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 0.5,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 70(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 75, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 80(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 85(1) of the GDPR provide?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to the GDPR, what is set out in Article 90, paragraph 1?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What does Article 95(1) of the General Data Protection Regulation state?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 5 of C-131/12?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-131/12, what did the Court hold in paragraph 15?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 25 of C-131/12?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-131/12, what did the Court hold in paragraph 35?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 45 of C-131/12?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-131/12, what did the Court hold in paragraph 55?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 65 of C-131/12?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-131/12, what did the Court hold in paragraph 75?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 85 of C-131/12?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-131/12, what did the Court hold in paragraph 95?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 5 of C-136/17?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-136/17, what did the Court hold in paragraph 15?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 25 of C-136/17?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-136/17, what did the Court hold in paragraph 35?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 45 of C-136/17?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-136/17, what did the Court hold in paragraph 55?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "What did the Court state in paragraph 65 of C-136/17?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  },
+  {
+    "question": "According to C-136/17, what did the Court hold in paragraph 75?",
+    "hit_at_k": true,
+    "citation_precision": 1.0,
+    "citation_recall": 1.0,
+    "error": null
+  }
+]

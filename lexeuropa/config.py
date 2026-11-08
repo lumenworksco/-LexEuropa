@@ -64,6 +64,12 @@ LLM_MODEL = os.environ.get("LEXEUROPA_LLM_MODEL", "iPwnds/lexeuropa-qwen3b-merge
 # fine-tuned adapter trained to always emit {"claims": [...]} JSON, sending
 # judge prompts (plain-text label+reason) to that same model would get
 # JSON back instead of a judgeable answer, breaking verification silently.
+# If the primary generator refuses (no cited claim) or its output cannot be parsed,
+# retry once on this stronger stock model via the HF router; set
+# LEXEUROPA_FALLBACK_LLM_MODEL="" to disable. The answer is labelled as a fallback.
+FALLBACK_LLM_BASE_URL = os.environ.get("LEXEUROPA_FALLBACK_LLM_BASE_URL", "https://router.huggingface.co/v1")
+FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen2.5-72B-Instruct")
+
 JUDGE_BASE_URL = os.environ.get("LEXEUROPA_JUDGE_BASE_URL", "https://router.huggingface.co/v1")
 JUDGE_MODEL = os.environ.get("LEXEUROPA_JUDGE_MODEL", "Qwen/Qwen2.5-7B-Instruct:featherless-ai")
 

@@ -5,7 +5,13 @@ directly instead of shelling out.
 """
 from __future__ import annotations
 
-from lexeuropa.config import BM25_INDEX_PATH, DENSE_INDEX_PATH, INSTRUMENT_ALIASES
+from lexeuropa.config import (
+    BM25_INDEX_PATH,
+    DENSE_INDEX_PATH,
+    FALLBACK_LLM_BASE_URL,
+    FALLBACK_LLM_MODEL,
+    INSTRUMENT_ALIASES,
+)
 from lexeuropa.generation.client import GenerationError, chat
 from lexeuropa.generation.prompts import ParseError, build_messages, parse_response
 from lexeuropa.ingest.pipeline import load_chunks
@@ -75,31 +81,40 @@ def answer_question(
         }
 
     messages, handle_to_id = build_messages(question, result.chunks)
-    try:
-        raw, finish_reason = chat(messages)
-    except GenerationError as e:
-        return {
-            "question": question,
-            "language": None,
-            "retrieved": [c.to_dict() for c in result.chunks],
-            "reranked": result.reranked,
-            "claims": [],
-            "disclaimer": DISCLAIMER,
-            "error": str(e),
-        }
 
-    try:
-        # Skip the bracket-repair path on a real length cutoff: that failure
-        # mode can truncate mid-string, which isn't safely repairable by
-        # appending closing brackets the way a missing-final-brace slip is.
-        parsed = parse_response(raw, allow_repair=finish_reason != "length")
-    except ParseError as e:
-        truncation_note = (
-            " (generation stopped due to finish_reason=length — the output was cut "
-            "off mid-response; see the context-window notes in CLAUDE.md)"
-            if finish_reason == "length"
-            else ""
-        )
+    def attempt(base_url: str | None = None, model: str | None = None):
+        """One generation + parse. Returns (parsed, None) or (None, error message)."""
+        try:
+            raw, finish_reason = chat(messages, base_url=base_url, model=model)
+        except GenerationError as e:
+            return None, str(e)
+        try:
+            # Skip the bracket-repair path on a real length cutoff: that failure
+            # mode can truncate mid-string, which isn't safely repairable by
+            # appending closing brackets the way a missing-final-brace slip is.
+            return parse_response(raw, allow_repair=finish_reason != "length"), None
+        except ParseError as e:
+            truncation_note = (
+                " (generation stopped due to finish_reason=length — the output was cut "
+                "off mid-response; see the context-window notes in CLAUDE.md)"
+                if finish_reason == "length"
+                else ""
+            )
+            return None, f"could not parse model output: {e}{truncation_note}"
+
+    def is_refusal(parsed: dict) -> bool:
+        return not any(claim["citations"] for claim in parsed["claims"])
+
+    parsed, error = attempt()
+    generator = "primary"
+    if (error is not None or is_refusal(parsed)) and FALLBACK_LLM_MODEL:
+        # The fine-tuned model sometimes declines when the sources do answer the
+        # question (observed live); one retry on a stronger stock model.
+        fb_parsed, fb_error = attempt(FALLBACK_LLM_BASE_URL, FALLBACK_LLM_MODEL)
+        if fb_parsed is not None and not is_refusal(fb_parsed):
+            parsed, error, generator = fb_parsed, None, "fallback"
+
+    if error is not None:
         return {
             "question": question,
             "language": None,
@@ -107,7 +122,7 @@ def answer_question(
             "reranked": result.reranked,
             "claims": [],
             "disclaimer": DISCLAIMER,
-            "error": f"could not parse model output: {e}{truncation_note}",
+            "error": error,
         }
 
     # Map source handles ("S1") back to real chunk ids before verifying. An
@@ -121,6 +136,8 @@ def answer_question(
     return {
         "question": question,
         "language": parsed.get("language"),
+        "generator": generator,
+        "generator_model": FALLBACK_LLM_MODEL if generator == "fallback" else None,
         "retrieved": [c.to_dict() for c in result.chunks],
         "reranked": result.reranked,
         "claims": [
