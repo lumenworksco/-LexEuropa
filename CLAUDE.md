@@ -961,6 +961,35 @@ default". Reverting is two env vars (`LEXEUROPA_LLM_MODEL`, `LEXEUROPA_EXPAND_SA
 plus repointing the endpoint. Caveats: n=25, one run per configuration; the judge ~2% noise;
 the fallback fires on ~24% of questions, so part of every score is the 72B fallback, not v4.
 
+## Named-law restriction and the final configuration (2026-11-09)
+
+Live smoke test of the promoted defaults: "When must a personal data breach be reported under
+the GDPR ...?" retrieved mostly EUDPR (EU institutions) articles and the answer said "Under the
+GDPR" while citing EUDPR paragraphs, labelled supported. Cause: naming a law did not focus
+retrieval, and the UI "Law" menu only helped resolve bare article numbers. Fix:
+`ReferenceResolver.instruments_named`, `answer_question` restricts to the single named
+instrument (or the menu choice), `retrieve(restrict_celex=...)` filters the fused list
+(search depth 400; fewer than 3 hits -> unrestricted), several instruments or none -> no
+restriction. Judgments: a restriction to a statute keeps at most `MAX_CASE_LAW_WHEN_RESTRICTED`
+(=2) case-law paragraphs; a restriction to a judgment keeps only it.
+
+| (offline, no answering model) | gold retrieved | ceiling | fully-complete ceiling | citation-set hit |
+|---|---|---|---|---|
+| no restriction | 20/25 | .84 | 68% | 24/25 |
+| exclusive restriction | 25/25 | .93 | 84% | 21/25 (judgment questions naming a statute lost their case law) |
+| restriction + <=2 case-law paragraphs | 25/25 | .95 | 88% | 24/25 |
+
+End to end, v4 + same-instrument expansion + restriction (`quality_v4_restrict.json` exclusive,
+`quality_v4_final.json` final; `final8/final9_*_unseen.json`): FINAL mean completeness .815,
+60% fully complete, gold retrieved 25/25, contradictions 1 (ai_fines), traps 4/4, fallback 5/25;
+citation set hit .96 / P .82 / R .88. Exclusive variant: .817 / 60% / 25/25 but citation hit .84.
+Remaining known errors: ai_fines (question does not name the AI Act, so no restriction;
+the fallback blends Art. 99(3)'s 7%/EUR 35M with Art. 100's EUR 1.5M, which applies only to
+EU institutions - different addressees of the same act); dma_gatekeeper and schrems2 score 0.0
+with the right provision retrieved (many passages listed, key points not conveyed).
+The endpoint serves v4 and is scaled to zero. Total spend this phase (3 end-to-end runs, 4
+ceiling runs, graders): roughly $5.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

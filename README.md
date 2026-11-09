@@ -134,29 +134,30 @@ Artifacts: [v4 merged (default)](https://huggingface.co/iPwnds/lexeuropa-qwen3b-
 
 The citation tables above only count *which sources are cited*. To measure whether an answer is **complete and correct**, `eval/answer_quality.jsonl` has 29 questions where completeness is at stake (rules with exceptions, lists, multi-part conditions). Each of the 25 in-scope questions has a checklist of key points, written by hand and **grounded in the real provision text** (126 points; a test fails if a key phrase is not in the source), graded by a stronger model against the checklist (`eval/run_quality.py`). The judge was calibrated first: the verbatim provision scores 0.98, its first 40% scores 0.66, an unrelated provision scores 0.00. Four "trap" questions (French tax law, US law, outcome prediction, off-topic) should be declined.
 
-| (25 in-scope questions) | v1, 8 sources | v4, no expansion | **v4 + same-instrument expansion (default)** | stock Qwen2.5-72B |
-|---|---|---|---|---|
-| mean completeness | 0.56 | 0.56 | **0.70** | 0.62 |
-| fully complete answers | 16% | 20% | **52%** | 16% |
-| right provision retrieved | 20 / 25 | 20 / 25 | 20 / 25 | 20 / 25 |
-| completeness when the right provision was retrieved | 0.59 | 0.60 | **0.80** | 0.67 |
-| answers contradicting the provision | 1 | 0 | **0** | 0 |
-| trap questions declined | 4 / 4 | 4 / 4 | **4 / 4** | 4 / 4 |
+| (25 in-scope questions) | v1, 8 sources | v4, no expansion | v4 + same-instrument expansion | **v4 + named-law restriction (default)** | stock Qwen2.5-72B |
+|---|---|---|---|---|---|
+| mean completeness | 0.56 | 0.56 | 0.70 | **0.82** | 0.62 |
+| fully complete answers | 16% | 20% | 52% | **60%** | 16% |
+| right provision retrieved | 20 / 25 | 20 / 25 | 20 / 25 | **25 / 25** | 20 / 25 |
+| answers contradicting the provision | 1 | 0 | 0 | 1 | 0 |
+| trap questions declined | 4 / 4 | 4 / 4 | 4 / 4 | **4 / 4** | 4 / 4 |
+| citation set: right source / precision / recall | 0.96 / 0.86 / 0.88 | n/a | 0.96 / 0.81 / 0.88 | 0.96 / 0.82 / 0.88 | n/a |
 
-**State of the product: answers are less often incomplete than before, but still often.** Half of the answers are now fully complete; the rest miss items or conditions. A perfect reader of the retrieved text would reach 0.72, so retrieval is the main cap, and generation loses another 0.1. Two recurring causes: only some paragraphs of the right article reach the model, and parallel provisions in the GDPR, the EU-institutions regulation and the Law Enforcement Directive crowd each other out (a "when must a breach be reported?" question returned the other regimes' articles).
+**State of the product: three in five answers are now fully complete (from one in six), the rest miss items or conditions.** A perfect reader of the retrieved text would reach 0.72, so retrieval is the main cap, and generation loses another 0.1. Two recurring causes: only some paragraphs of the right article reach the model, and parallel provisions in the GDPR, the EU-institutions regulation and the Law Enforcement Directive crowd each other out (a "when must a breach be reported?" question returned the other regimes' articles).
 
 What was tried:
 
 - **Whole articles as context.** Expanding the top articles to all their paragraphs raises the best achievable completeness from 0.72 to **0.83** (fully complete 44% to 80%). End to end, with the expanded articles placed *first*, our model doubled its fully-complete answers (16% to 32%) and improved citation precision / recall on the 25-question set (0.86 / 0.88 to 0.90 / 0.92), but mean completeness stayed flat (0.56 to 0.55) because the expansion pushed the right article out for three questions and, for one, produced a confidently wrong penalty from the neighbouring article. The shipped version therefore **appends** the sibling paragraphs after the ranked results and never reorders them (`LEXEUROPA_EXPAND_ARTICLES=0` disables it). Measured end to end with that final version, v1 scores 0.53 mean completeness (16% fully complete) against 0.56 before: no gain for v1, no harm.
 - **Preferring the general regime over parallel ones**: no gain (ceiling 0.69), dropped.
 - **A reviewer that flags incomplete answers**: it flagged 23 of 25 answers including all 4 complete ones, so it cannot discriminate; not used.
+- **Naming a law focuses the search.** If a question names exactly one instrument ("under the GDPR", "the AI Act") or you choose it in the *Law* menu, retrieval searches that instrument only, because GDPR, the EU-institutions regulation and the Law Enforcement Directive have look-alike articles that otherwise displace each other (a live test of "when must a breach be reported under the GDPR?" returned the other regime's rules and cited them as "the GDPR"). All five questions in the quality set whose right provision had been missed named their law; with the restriction the right provision is retrieved for 25/25 and mean completeness rose from 0.70 to 0.82. Restricting too hard also hid court judgments for questions about case law (citation-set hit rate 0.96 to 0.84), so up to two case-law paragraphs are allowed alongside the statute; that restored 0.96 without bringing back the crowding.
 - **A larger stock model**: only slightly more complete (0.62) and equally rarely fully complete, so model size is not the main lever.
 - **The v4 adapter** (trained on whole-article targets that cite every paragraph) **with article expansion** is the best configuration found: 0.70 mean completeness and 52% fully complete (3x v1's), 0 flagged contradictions, all 4 trap questions declined, citation precision / recall 0.81 / 0.88 on the 25-question set. Two things matter: (1) **without expansion v4 is no better than v1** (0.56), because the gain comes from v4 actually using the extra sources, which v1 ignores; (2) expanding articles of *any* instrument (3 articles) scored higher still (0.75) but copied look-alike provisions of other regimes into answers and produced two genuine errors (a fine that applies only to EU institutions appended to the right fine; AI Act fines mixed into a GDPR answer), so expansion is restricted to the instrument of the top-ranked result. It replaced v1 under a promotion rule written before measuring; one clause (citation precision within 0.03 of v1) passed narrowly (0.811 vs 0.840 on the closest matching run, a gap of about one question at n=25). v1 remains available (`LEXEUROPA_LLM_MODEL=iPwnds/lexeuropa-qwen3b-merged`).
 
 ## Known limitations
 
 - English only; no national law. The corpus holds the **original text of each act, not consolidated versions**, so later amendments are missing (for example ePrivacy Article 5(3) is the 2002 wording, which was later amended to require consent for cookies; answers about it would be out of date).
-- Answers are often incomplete (see above); treat them as a starting point and read the cited text.
+- Answers are often incomplete (two in five in the quality set); treat them as a starting point and read the cited text. Known remaining errors: a question that does not name its law is not restricted, and provisions for different addressees of the *same* act can still be blended (the AI Act fine answer adds a EUR 1.5 million fine that applies only to EU institutions); a few answers (e.g. the Digital Markets Act gatekeeper criteria, Schrems II) list many passages without conveying the key points.
 - Retrieval surfaces the right provision for about 24 of 25 natural questions on the tuned set and 31 of 34 on fresh ones; the remaining misses are mostly judgments quoting a statute outranking it.
 - The fine-tuned model sometimes refuses when the sources do answer the question (mitigated by the fallback; the fallback fires on roughly a quarter of questions) and sometimes quotes a recital instead of the operative article.
 - The live adapter (v4) copies the passages it is given, so irrelevant sources can leak into an answer (expansion is restricted to one instrument for this reason). It was trained on 19 instruments and three judgments, evaluated with n=25 and one run per configuration.
