@@ -79,6 +79,14 @@ def answer_question(
     if default_instrument:
         default_celex = INSTRUMENT_ALIASES.get(default_instrument.lower())
 
+    # One instrument named in the question (or chosen in the "Law" menu) -> search that one only.
+    # Several named, or a case number involved -> no restriction (the user is comparing).
+    restrict_celex = default_celex
+    if restrict_celex is None:
+        named = resolver.instruments_named(question)
+        if len(named) == 1:
+            restrict_celex = next(iter(named))
+
     result = retrieve(
         question,
         bm25_index=bm25,
@@ -87,6 +95,7 @@ def answer_question(
         k_candidates=k_candidates,
         k_final=k_final,
         default_celex=default_celex,
+        restrict_celex=restrict_celex,
     )
 
     if not result.chunks:

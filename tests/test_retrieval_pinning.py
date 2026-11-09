@@ -183,3 +183,35 @@ def test_same_instrument_expansion_skips_look_alike_provisions_of_other_regimes(
     assert "AIACT:99:2" not in same                      # same-instrument: the other regime's article is left alone
     assert {"GDPR:83:1", "GDPR:83:3", "GDPR:58:2"} <= same   # ...while the dominant instrument's articles are expanded
     assert all(x.id in same for x in ranked)             # and the ranked results themselves are untouched
+
+
+def _chunk(celex, art, para, text):
+    from lexeuropa.schema import Chunk
+
+    return Chunk(id=f"{celex}:en:art_{art}:{para:03d}", celex=celex, lang="en", instrument_title="t", citation=f"Article {art}({para})",
+                 unit_type="article_paragraph", article=art, para_index=str(para), text=text, source_url="")
+
+
+def test_restrict_celex_searches_only_the_named_instrument():
+    gdpr = [_chunk("32016R0679", "33", i, f"breach notification supervisory authority {i}") for i in range(1, 5)]
+    eudpr = [_chunk("32018R1725", "34", i, "breach breach notification notification personal data breach notification EDPS") for i in range(1, 5)]
+    chunks = gdpr + eudpr
+    bm25 = BM25Index(chunks)
+    resolver = ReferenceResolver(chunks)
+    kwargs = dict(bm25_index=bm25, dense_index=_EmptyDenseIndex(), resolver=resolver, k_final=8, use_reranker=False, expand=0)
+
+    free = pipeline_mod.retrieve("when must a breach notification be made", **kwargs)
+    assert {c.celex for c in free.chunks} == {"32016R0679", "32018R1725"}          # unrestricted: the regimes compete
+    only = pipeline_mod.retrieve("when must a breach notification be made", restrict_celex="32016R0679", **kwargs)
+    assert {c.celex for c in only.chunks} == {"32016R0679"}                        # restricted: only the named one
+
+
+def test_restrict_celex_falls_back_when_the_instrument_has_too_few_hits():
+    gdpr = [_chunk("32016R0679", "33", 1, "something unrelated")]
+    eudpr = [_chunk("32018R1725", "34", i, "breach notification EDPS") for i in range(1, 6)]
+    filler = [_chunk("32022R2065", "9", i, f"unrelated filler text number {i}") for i in range(1, 15)]   # keeps BM25 weights positive
+    chunks = gdpr + eudpr + filler
+    kwargs = dict(bm25_index=BM25Index(chunks), dense_index=_EmptyDenseIndex(), resolver=ReferenceResolver(chunks),
+                  k_final=8, use_reranker=False, expand=0)
+    out = pipeline_mod.retrieve("breach notification", restrict_celex="32016R0679", **kwargs)
+    assert out.chunks and {c.celex for c in out.chunks} == {"32018R1725"}          # not an empty answer for an instrument that does not cover it

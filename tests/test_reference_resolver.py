@@ -191,3 +191,17 @@ def test_resolves_recital_and_annex_references():
 def test_prose_annex_without_roman_numeral_does_not_match():
     resolver = ReferenceResolver(_recital_annex_chunks())
     assert resolver.resolve("According to the AI Act, an annex is attached to the text") == []
+
+
+def test_instruments_named_finds_each_named_instrument_including_by_case_number():
+    from lexeuropa.schema import Chunk
+
+    def ch(celex, kind="article_paragraph", art="1", para="1"):
+        return Chunk(id=f"{celex}:{kind}:{art}:{para}", celex=celex, lang="en", instrument_title="t", citation="c", unit_type=kind,
+                     article=art if kind == "article_paragraph" else None, para_index=para, text="x", source_url="")
+
+    resolver = ReferenceResolver([ch("32016R0679"), ch("32022R2065"), ch("62012CJ0131", "judgment_paragraph")])
+    assert resolver.instruments_named("When must a breach be reported under the GDPR?") == {"32016R0679"}
+    assert resolver.instruments_named("How do the GDPR and the DSA differ?") == {"32016R0679", "32022R2065"}
+    assert resolver.instruments_named("What did C-131/12 hold about the GDPR?") == {"32016R0679", "62012CJ0131"}
+    assert resolver.instruments_named("When must a breach be reported?") == set()

@@ -139,6 +139,7 @@ def retrieve(
     default_celex: str | None = None,
     use_reranker: bool | None = None,
     expand: int | None = None,
+    restrict_celex: str | None = None,
 ) -> RetrievalResult:
     if use_reranker is None:
         use_reranker = USE_RERANKER
@@ -148,10 +149,19 @@ def retrieve(
     # Search deeper than the final pool so operative articles ranked below a
     # screenful of recitals can still be selected (see _cap_recitals).
     depth = max(k_candidates * 2, 40)
+    if restrict_celex:
+        depth = 400   # most of a deep search is other instruments; look far enough to find this one's
     bm25_hits = [c for c, _ in bm25_index.search(query, depth)]
     dense_hits = [c for c, _ in dense_index.search(query, depth)]
 
     fused = reciprocal_rank_fusion([resolved, bm25_hits, dense_hits])
+    if restrict_celex:
+        # The question (or the user's "Law" choice) names one instrument: search only that
+        # one, so look-alike provisions of other regimes (GDPR vs EUDPR vs LED) cannot take
+        # its place. Too few hits (an instrument that does not cover the topic) -> unrestricted.
+        only = [(c, sc) for c, sc in fused if c.celex == restrict_celex]
+        if len(only) >= 3:
+            fused = only
     fused = _cap_recitals(fused, len(fused), k_candidates // 2, chunk_of=lambda x: x[0])
     fused_chunks = [c for c, _ in fused][:k_candidates]
     # Pinning is gated on the *precise* hit count alone, not resolved's

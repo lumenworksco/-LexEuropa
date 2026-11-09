@@ -4,7 +4,10 @@ import json
 import lexeuropa.answer as answer_mod
 from lexeuropa.generation.client import ChatResult
 from lexeuropa.retrieval.pipeline import RetrievalResult
+from lexeuropa.retrieval.reference_resolver import ReferenceResolver
 from lexeuropa.schema import Chunk
+
+_EMPTY_RESOLVER = ReferenceResolver([])   # the real flow always has a resolver
 
 CHUNK = Chunk(
     id="32016R0679:en:art_17:001",
@@ -30,7 +33,7 @@ def _no_network_relevance_check(monkeypatch):
 
 
 def test_truncated_generation_names_finish_reason_in_the_error(monkeypatch):
-    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, None))
+    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, _EMPTY_RESOLVER))
     monkeypatch.setattr(
         answer_mod,
         "retrieve",
@@ -49,7 +52,7 @@ def test_truncated_generation_names_finish_reason_in_the_error(monkeypatch):
 
 
 def test_parse_failure_without_length_cutoff_has_no_truncation_note(monkeypatch):
-    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, None))
+    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, _EMPTY_RESOLVER))
     monkeypatch.setattr(
         answer_mod,
         "retrieve",
@@ -67,7 +70,7 @@ def test_parse_failure_without_length_cutoff_has_no_truncation_note(monkeypatch)
 def test_citation_handles_are_mapped_back_to_real_chunk_ids(monkeypatch):
     import lexeuropa.verification.verifier as verifier_mod
 
-    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, None))
+    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, _EMPTY_RESOLVER))
     monkeypatch.setattr(
         answer_mod,
         "retrieve",
@@ -110,7 +113,7 @@ _REFUSAL = json.dumps(
 
 
 def _patch_retrieval(monkeypatch):
-    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, None))
+    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, _EMPTY_RESOLVER))
     monkeypatch.setattr(
         answer_mod,
         "retrieve",
@@ -222,3 +225,45 @@ def test_a_still_off_topic_fallback_answer_is_flagged_not_hidden(monkeypatch):
     result = answer_mod.answer_question("Q?")
     assert result["generator"] == "fallback" and result["answers_question"] is False
     assert result["relevance_reason"] == "still a different point"
+
+
+def _capture_retrieve(monkeypatch, instruments):
+    """Patch the indices/retrieval and record the restrict_celex the answer flow chooses."""
+    from lexeuropa.retrieval.reference_resolver import ReferenceResolver
+
+    def mk(celex):
+        return Chunk(id=f"{celex}:en:art_1:001", celex=celex, lang="en", instrument_title="t", citation="c", unit_type="article_paragraph",
+                     article="1", para_index="1", text="x", source_url="")
+
+    resolver = ReferenceResolver([mk(c) for c in instruments])
+    monkeypatch.setattr(answer_mod, "_load_indices", lambda: (None, None, resolver))
+    seen = {}
+
+    def fake_retrieve(*a, **k):
+        seen.update(k)
+        return RetrievalResult(chunks=[CHUNK], scores={CHUNK.id: 1.0}, reranked=False)
+
+    monkeypatch.setattr(answer_mod, "retrieve", fake_retrieve)
+    monkeypatch.setattr(answer_mod, "chat", lambda *a, **k: ChatResult(content="not json", finish_reason="stop"))
+    monkeypatch.setattr(answer_mod, "FALLBACK_LLM_MODEL", "")
+    return seen
+
+
+def test_a_question_naming_exactly_one_instrument_is_restricted_to_it(monkeypatch):
+    seen = _capture_retrieve(monkeypatch, ["32016R0679", "32018R1725"])
+    answer_mod.answer_question("When must a personal data breach be reported under the GDPR?")
+    assert seen["restrict_celex"] == "32016R0679"
+
+
+def test_a_question_naming_two_instruments_or_none_is_not_restricted(monkeypatch):
+    seen = _capture_retrieve(monkeypatch, ["32016R0679", "32022R2065"])
+    answer_mod.answer_question("How do the GDPR and the DSA treat notices?")
+    assert seen["restrict_celex"] is None
+    answer_mod.answer_question("When must a breach be reported?")
+    assert seen["restrict_celex"] is None
+
+
+def test_the_law_menu_choice_restricts_even_when_the_question_names_nothing(monkeypatch):
+    seen = _capture_retrieve(monkeypatch, ["32016R0679", "32018R1725"])
+    answer_mod.answer_question("When must a breach be reported?", default_instrument="eudpr")
+    assert seen["restrict_celex"] == "32018R1725"

@@ -94,6 +94,23 @@ class ReferenceResolver:
                 return celex
         return None
 
+    def instruments_named(self, text: str) -> set[str]:
+        """Every present instrument whose alias appears (whole word) in the text,
+        plus any instrument named by case number. Used to decide whether a
+        question is about exactly one instrument."""
+        lowered = text.lower()
+        named = {
+            celex
+            for alias, celex in INSTRUMENT_ALIASES.items()
+            if celex in self._celex_present
+            and re.search(r"(?<!\w)" + re.escape(alias) + r"(?!\w)", lowered)
+        }
+        for m in _CASE_RE.finditer(text):
+            celex = CASE_NUMBER_ALIASES.get(f"c-{m.group(1)}/{m.group(2)}")
+            if celex in self._celex_present:
+                named.add(celex)
+        return named
+
     @staticmethod
     def _dedupe(chunks: list[Chunk]) -> list[Chunk]:
         seen: set[str] = set()
