@@ -23,7 +23,7 @@ below for the actual numbers and what they do and don't show.
 
 | Component | Where | Model |
 |---|---|---|
-| Generation (default) | Dedicated HF Inference Endpoint, scale-to-zero (`LLM_BASE_URL`) | `iPwnds/lexeuropa-qwen3b-merged` (Qwen2.5-3B + LoRA, merged — see "Stage 2: Fine-tuning") |
+| Generation (default) | Dedicated HF Inference Endpoint, scale-to-zero (`LLM_BASE_URL`) | `iPwnds/lexeuropa-qwen3b-merged-v4` (Qwen2.5-3B + LoRA v4, merged; v1 = `...-merged` was the default until 2026-11-09 — see "v4 promoted" below) |
 | Judge (always, regardless of `LLM_MODEL`) | HF Inference Providers (`router.huggingface.co/v1`, featherless-ai) | `Qwen/Qwen2.5-7B-Instruct` |
 | Embeddings | HF Inference Providers (`router.huggingface.co/hf-inference`) | `BAAI/bge-large-en-v1.5` |
 | Reranker | **Optional, local** (CPU; `pip install -e ".[rerank]"`, off if not installed or `LEXEUROPA_USE_RERANKER=0`) | `BAAI/bge-reranker-v2-m3` — confirmed not viable via `hf-inference`, see "What's implemented" below |
@@ -931,6 +931,35 @@ top-ranked result (regime-consistent), run v4 on the quality set with and withou
 expansion, apply the same rule. v4 is switched in by pointing the endpoint at
 `iPwnds/lexeuropa-qwen3b-merged-v4` and setting `LEXEUROPA_LLM_MODEL` (the endpoint was
 restored to v1 and scaled to zero).
+
+## v4 promoted (2026-11-09)
+
+Experiment (`quality_v4_noexp.json`, `quality_v4_same.json`, `final7_v4_same_unseen.json`; all gradings
+complete after `--regrade` of 14 + 9 rows that hit router 504s, none counted as zero):
+
+| (25 in-scope) | mean completeness | fully complete | gold retrieved | contradictions | traps | citation P/R |
+|---|---|---|---|---|---|---|
+| v1, 8 sources | .559 | 16% | 20/25 | 1 | 4/4 | .86/.88 |
+| v1 + append (3 articles, any instrument) | .528 | 16% | 20/25 | 0 | 4/4 | .84/.84 |
+| v4, NO expansion | .559 | 20% | 20/25 | 0 | 4/4 | - |
+| v4 + append (3 articles, any instrument) | .751 | 48% | 20/25 | 3 (2 real) | 4/4 | .82/.88 |
+| **v4 + same-instrument expansion (default)** | **.699** | **52%** | 20/25 | **0** | 4/4 | .81/.88 |
+
+Findings: (1) v4's training alone does NOT improve completeness (.559 = v1); the gain needs
+expansion AND a model that uses the extra sources (v1 ignores them: .528). (2) Restricting
+expansion to the dominant instrument (`EXPAND_SAME_INSTRUMENT`, `expand_articles(
+same_instrument=True)`) removed the blending errors (ai_fines now 1.0 with 35M/7% only;
+gdpr_fines no longer opens with a refusal or AI Act fines) for ~.05 of completeness.
+**Rule outcome (declared before measuring): all four clauses pass** - completeness +.14 vs
+v1's best; citation P .811/R .880 vs v1 .840/.840 on the closest matching run (P -.029, within
+.03; vs the older no-expansion v1 run, .858, the gap would be -.047, so this clause is
+BORDERLINE and the "same retrieval" comparator was read as the closest measured one);
+traps 4/4; contradictions 0 vs <=1. Promoted: `config.LLM_MODEL` = v4,
+`EXPAND_SAME_INSTRUMENT` default on, endpoint `lexeuropa-eval` redeployed on v4 (revision
+032758d2) and scaled to zero, v4 repos made public with cards, v1 card marked "previous
+default". Reverting is two env vars (`LEXEUROPA_LLM_MODEL`, `LEXEUROPA_EXPAND_SAME_INSTRUMENT=0`)
+plus repointing the endpoint. Caveats: n=25, one run per configuration; the judge ~2% noise;
+the fallback fires on ~24% of questions, so part of every score is the 72B fallback, not v4.
 
 ## Extending the corpus
 

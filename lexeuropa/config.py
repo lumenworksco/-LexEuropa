@@ -57,7 +57,9 @@ HF_TOKEN = os.environ.get("HF_TOKEN")
 LLM_BASE_URL = os.environ.get(
     "LEXEUROPA_LLM_BASE_URL", "https://6ac3628565c8b62f296a02a0.endpoints.huggingface.cloud/v1"
 )
-LLM_MODEL = os.environ.get("LEXEUROPA_LLM_MODEL", "iPwnds/lexeuropa-qwen3b-merged")
+# v4 is the default since 2026-11 (whole-article targets; best completeness with
+# same-instrument article expansion). v1 is "iPwnds/lexeuropa-qwen3b-merged".
+LLM_MODEL = os.environ.get("LEXEUROPA_LLM_MODEL", "iPwnds/lexeuropa-qwen3b-merged-v4")
 
 # The judge is a deliberately separate model/endpoint from the generator
 # (not just LLM_BASE_URL/LLM_MODEL again): if LLM_MODEL ever points at a
@@ -103,7 +105,7 @@ MAX_SOURCES = int(os.environ.get("LEXEUROPA_MAX_SOURCES", "14"))
 # Only expand articles of the same instrument as the top-ranked article, so look-alike
 # provisions of other regimes (GDPR vs EUDPR vs LED, AI Act fines for EU institutions)
 # are not appended and copied into the answer.
-EXPAND_SAME_INSTRUMENT = os.environ.get("LEXEUROPA_EXPAND_SAME_INSTRUMENT", "0") == "1"
+EXPAND_SAME_INSTRUMENT = os.environ.get("LEXEUROPA_EXPAND_SAME_INSTRUMENT", "1") == "1"
 # At most this many recitals in the final retrieved set (see retrieval/pipeline.py).
 MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "1"))
 
