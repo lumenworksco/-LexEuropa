@@ -30,6 +30,7 @@ import pytest
 def _no_network_relevance_check(monkeypatch):
     """The relevance check calls a model; keep every test hermetic unless it opts in."""
     monkeypatch.setattr(answer_mod, "RELEVANCE_CHECK", False)
+    monkeypatch.setattr(answer_mod, "QUERY_REWRITE", False)
 
 
 def test_truncated_generation_names_finish_reason_in_the_error(monkeypatch):

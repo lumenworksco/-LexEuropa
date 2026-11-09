@@ -17,7 +17,8 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 
-from lexeuropa.config import EXPAND_ARTICLES, EXPAND_SAME_INSTRUMENT, MAX_RECITALS_IN_RESULT, MAX_SOURCES, USE_RERANKER
+from lexeuropa.config import EXPAND_ARTICLES, EXPAND_RULINGS, EXPAND_SAME_INSTRUMENT, MAX_RECITALS_IN_RESULT, MAX_SOURCES, USE_RERANKER
+from lexeuropa.corpus_status import INSTITUTION_QUESTION_RE, is_institution_only, status_of
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.fusion import reciprocal_rank_fusion
@@ -31,6 +32,8 @@ from lexeuropa.schema import Chunk
 MAX_PINNED_RESOLVER_HITS = 4
 # When a question is restricted to one statute, at most this many case-law paragraphs may accompany it.
 MAX_CASE_LAW_WHEN_RESTRICTED = 2
+# Extra slots (beyond MAX_SOURCES) for the rulings of the top judgments.
+MAX_RULING_CHUNKS = 4
 
 
 @dataclass
@@ -130,6 +133,32 @@ def expand_articles(
     return out
 
 
+def expand_rulings(chunks: list[Chunk], all_chunks: list[Chunk], n_cases: int, max_sources: int) -> list[Chunk]:
+    """Append the ruling (operative part) of the first `n_cases` judgments in the results.
+
+    "What did the Court decide in Schrems II?" is answered by the operative part ("the Privacy
+    Shield Decision is invalid"), which a paragraph-level search over 200+ body paragraphs rarely
+    surfaces. The ranked results are never reordered or displaced; rulings are appended."""
+    if n_cases <= 0:
+        return chunks
+    cases: list[str] = []
+    for c in chunks:
+        if c.unit_type in ("judgment_paragraph", "judgment_operative") and c.celex not in cases:
+            cases.append(c.celex)
+    out = list(chunks)
+    seen = {c.id for c in out}
+    for celex in cases[:n_cases]:
+        ops = sorted(
+            (c for c in all_chunks if c.celex == celex and c.unit_type == "judgment_operative"),
+            key=lambda c: int(c.para_index[2:]) if c.para_index[2:].isdigit() else 0,
+        )
+        for c in ops:
+            if c.id not in seen and len(out) < max_sources:
+                out.append(c)
+                seen.add(c.id)
+    return out
+
+
 def retrieve(
     query: str,
     *,
@@ -142,6 +171,7 @@ def retrieve(
     use_reranker: bool | None = None,
     expand: int | None = None,
     restrict_celex: str | None = None,
+    extra_queries: tuple[str, ...] = (),
 ) -> RetrievalResult:
     if use_reranker is None:
         use_reranker = USE_RERANKER
@@ -156,7 +186,24 @@ def retrieve(
     bm25_hits = [c for c, _ in bm25_index.search(query, depth)]
     dense_hits = [c for c, _ in dense_index.search(query, depth)]
 
-    fused = reciprocal_rank_fusion([resolved, bm25_hits, dense_hits])
+    rankings = [resolved, bm25_hits, dense_hits]
+    for extra in extra_queries:   # e.g. the question rewritten in the legal texts' own vocabulary
+        rankings.append([c for c, _ in bm25_index.search(extra, depth)])
+        rankings.append([c for c, _ in dense_index.search(extra, depth)])
+    fused = reciprocal_rank_fusion(rankings)
+    # Out-of-date and institution-only provisions are skipped unless the question asks for them:
+    # repealed law (Directive 95/46, e-Commerce Arts 12-15) is only wanted when named, and
+    # provisions for EU institutions (e.g. the AI Act's fines on Union bodies) only when asked.
+    named_here = resolver.instruments_named(query)
+    asks_institutions = bool(INSTITUTION_QUESTION_RE.search(query))
+    fused = [
+        (c, sc)
+        for c, sc in fused
+        if not (
+            (status_of(c) and status_of(c)[0] == "repealed" and c.celex not in named_here)
+            or (is_institution_only(c) and not asks_institutions)
+        )
+    ]
     if restrict_celex:
         # The question (or the user's "Law" choice) names one instrument: search only that
         # one, so look-alike provisions of other regimes (GDPR vs EUDPR vs LED) cannot take
@@ -209,6 +256,9 @@ def retrieve(
         if pinned_ids:
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
         chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT)
+        # Rulings come last, with their own small allowance, so they never use up the slots the
+        # article siblings need (measured: rulings first cost two statute questions 0.2-0.25).
+        chunks = expand_rulings(chunks, bm25_index.chunks, EXPAND_RULINGS if n_expand > 0 else 0, len(chunks) + MAX_RULING_CHUNKS)
         scores = {c.id: scores.get(c.id, 0.0) for c in chunks}
         return RetrievalResult(chunks=chunks, scores=scores, reranked=True)
     except RerankerUnavailable as e:
@@ -220,5 +270,8 @@ def retrieve(
         if pinned_ids:
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
         chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT)
+        # Rulings come last, with their own small allowance, so they never use up the slots the
+        # article siblings need (measured: rulings first cost two statute questions 0.2-0.25).
+        chunks = expand_rulings(chunks, bm25_index.chunks, EXPAND_RULINGS if n_expand > 0 else 0, len(chunks) + MAX_RULING_CHUNKS)
         scores = {c.id: scores.get(c.id, 0.0) for c in chunks}
         return RetrievalResult(chunks=chunks, scores=scores, reranked=False)

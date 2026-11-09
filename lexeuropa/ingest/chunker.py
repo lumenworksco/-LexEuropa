@@ -42,6 +42,10 @@ def chunk_instrument(instrument: Instrument, lang: str, xhtml: str) -> list[Chun
             slug = unit.article.replace("Annex", "").strip() or "0"
             key = f"anx_{slug}:{unit.para_index.zfill(3)}"
             citation = unit.citation + (f" {short}" if short else "")
+        elif unit.unit_type == "judgment_operative":
+            key = f"op_{unit.para_index[2:]}"
+            case = instrument.case_number or instrument.celex
+            citation = f"{case}, {unit.citation}"
         else:  # judgment_paragraph
             key = f"pt_{unit.para_index}"
             case = instrument.case_number or instrument.celex

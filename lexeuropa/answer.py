@@ -13,15 +13,18 @@ from lexeuropa.config import (
     FALLBACK_LLM_BASE_URL,
     FALLBACK_LLM_MODEL,
     INSTRUMENT_ALIASES,
+    QUERY_REWRITE,
     RELEVANCE_CHECK,
 )
 from lexeuropa.generation.client import GenerationError, chat
+from lexeuropa.corpus_status import status_of
 from lexeuropa.ingest.chunker import SHORT_NAMES
 from lexeuropa.generation.prompts import FALLBACK_GUIDANCE, ParseError, build_messages, parse_response
 from lexeuropa.ingest.pipeline import load_chunks
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.pipeline import retrieve
+from lexeuropa.retrieval.rewrite import rewrite_query
 from lexeuropa.retrieval.reference_resolver import ReferenceResolver
 from lexeuropa.verification.relevance import check_relevance
 from lexeuropa.verification.verifier import verify_claims
@@ -36,6 +39,8 @@ def _chunk_dict(c) -> dict:
     """A retrieved chunk as the API returns it: with a short instrument name for display."""
     d = c.to_dict()
     d["instrument_short"] = SHORT_NAMES.get(c.celex)
+    status = status_of(c)
+    d["notice_kind"], d["notice"] = status if status else (None, None)
     return d
 
 
@@ -87,6 +92,11 @@ def answer_question(
         if len(named) == 1:
             restrict_celex = next(iter(named))
 
+    extra = ()
+    if QUERY_REWRITE:
+        rewritten = rewrite_query(question)
+        extra = (rewritten,) if rewritten else ()
+
     result = retrieve(
         question,
         bm25_index=bm25,
@@ -96,6 +106,7 @@ def answer_question(
         k_final=k_final,
         default_celex=default_celex,
         restrict_celex=restrict_celex,
+        extra_queries=extra,
     )
 
     if not result.chunks:

@@ -187,6 +187,8 @@
   .stmt p { margin: 0; font: 1.08rem/1.7 var(--serif); }
   .txt.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
   .inst-tag { display: inline-block; font: 600 .68rem/1.5 var(--sans); letter-spacing: .04em; color: var(--muted); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 0 6px; }
+  .warn-tag { color: var(--s-interpretative); border-color: var(--s-interpretative); }
+  .src .stale { margin: 8px 0 0; font-size: .8rem; color: var(--s-interpretative); }
   .more { background: none; border: 0; padding: 0; color: var(--accent); font-size: .8rem; text-decoration: underline; text-underline-offset: 2px; }
   .cite {
     display: inline-block; vertical-align: baseline; margin-left: 2px; padding: 0 3px; border: 0; background: none; color: var(--accent);
@@ -648,6 +650,7 @@
     var long = chunk.text.length > 650;
     var text = el("div", { class: "text" + (long ? " clamp" : ""), text: chunk.text });
     card.appendChild(text);
+    if (chunk.notice) card.appendChild(el("p", { class: "stale", text: (chunk.notice_kind === "repealed" ? "Repealed. " : "Amended since. ") + chunk.notice }));
     var row = el("div", { class: "row" });
     if (citedBy && citedBy.length) row.appendChild(el("span", { text: "Cited in statement" + (citedBy.length > 1 ? "s " : " ") + ranges(citedBy) }));
     if (long) {
@@ -742,6 +745,11 @@
 
     if (mixed) sec.appendChild(el("div", { class: "note info" }, [el("strong", { text: "More than one regime. " }), "This answer draws on " + regimeNames.length + " different instruments (" + regimeNames.join(", ") + "). Look-alike rules can differ by who they apply to \u2014 for example the GDPR for most organisations, a separate regulation for EU institutions, a directive for law-enforcement authorities. Check which one applies to you; the \u201cLaw\u201d menu above can focus a question on one instrument."]));
 
+    var stale = {};
+    result.claims.forEach(function (c) { c.citations.forEach(function (id) { var ch = byId[id]; if (ch && ch.notice) stale[ch.notice] = ch.notice_kind; }); });
+    var staleNotes = Object.keys(stale);
+    if (staleNotes.length) sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Out of date. " }), "This answer cites provisions that have since been " + (staleNotes.some(function (n) { return stale[n] === "repealed"; }) ? "repealed or amended" : "amended") + ": " + staleNotes.join(" ") + " Check the current law before relying on it."]));
+
     var ol = el("ol", { class: "statements" });
     result.claims.forEach(function (c, i) {
       var text = tidy(c.text), long = text.length > 420;
@@ -770,6 +778,7 @@
         var seenInst = {};
         c.citations.forEach(function (id) { var ch = byId[id]; if (ch && isLegislation(ch) && !seenInst[ch.celex]) { seenInst[ch.celex] = 1; row.insertBefore(el("span", { class: "inst-tag", text: instOf(ch) }), row.firstChild); } });
       }
+      c.citations.forEach(function (id) { var ch = byId[id]; if (ch && ch.notice) row.appendChild(el("span", { class: "inst-tag warn-tag", title: ch.notice, text: ch.notice_kind === "repealed" ? "Repealed law" : "Amended since" })); });
       var kids = [p]; if (row.childNodes.length) kids.push(row);
       var gutter = el("span", { class: "n l-" + key }, [el("span", { text: String(i + 1) }), key === "supported" ? el("i", { class: "sd", role: "img", "aria-label": "Supported", title: lab[2] }) : null]);
       ol.appendChild(el("li", { class: "stmt" }, [gutter, el("div", null, kids)]));

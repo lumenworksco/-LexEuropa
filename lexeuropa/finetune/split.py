@@ -54,6 +54,8 @@ def _unseen_eval_targets() -> tuple[set[tuple[str, str]], set[str]]:
 
 
 def _is_held_out(c: Chunk, unseen_articles: set, unseen_judgments: set) -> bool:
+    if c.unit_type == "judgment_operative":
+        return c.celex in unseen_judgments    # the ruling follows its judgment: held out only with it
     if c.unit_type == "judgment_paragraph":
         if c.celex in unseen_judgments:
             return True  # whole judgment held out for the unseen eval

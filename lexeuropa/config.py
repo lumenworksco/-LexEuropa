@@ -75,6 +75,8 @@ FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen2.
 # After generation, a stronger model checks that the statements actually answer the
 # question (the per-claim judge only checks claim-vs-source). If not, the fallback
 # is tried. LEXEUROPA_RELEVANCE_CHECK=0 disables it.
+# Add a legal-vocabulary rewrite of the question as an extra search query (retrieval/rewrite.py).
+QUERY_REWRITE = os.environ.get("LEXEUROPA_QUERY_REWRITE", "1") == "1"
 RELEVANCE_CHECK = os.environ.get("LEXEUROPA_RELEVANCE_CHECK", "1") != "0"
 RELEVANCE_LLM_BASE_URL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_BASE_URL", FALLBACK_LLM_BASE_URL)
 RELEVANCE_LLM_MODEL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_MODEL", FALLBACK_LLM_MODEL or "Qwen/Qwen2.5-72B-Instruct")
@@ -106,6 +108,9 @@ MAX_SOURCES = int(os.environ.get("LEXEUROPA_MAX_SOURCES", "14"))
 # provisions of other regimes (GDPR vs EUDPR vs LED, AI Act fines for EU institutions)
 # are not appended and copied into the answer.
 EXPAND_SAME_INSTRUMENT = os.environ.get("LEXEUROPA_EXPAND_SAME_INSTRUMENT", "1") == "1"
+# Whenever a judgment appears in the results, its ruling (operative part) is shown too: the holdings
+# are the most quoted part and are not what a paragraph-level search finds. Number of judgments, 0 disables.
+EXPAND_RULINGS = int(os.environ.get("LEXEUROPA_EXPAND_RULINGS", "2"))
 # At most this many recitals in the final retrieved set (see retrieval/pipeline.py).
 MAX_RECITALS_IN_RESULT = int(os.environ.get("LEXEUROPA_MAX_RECITALS", "1"))
 

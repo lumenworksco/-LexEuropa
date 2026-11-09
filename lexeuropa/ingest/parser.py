@@ -37,7 +37,7 @@ ANNEX_CHUNK_CHARS = 1800
 
 @dataclass
 class ParsedUnit:
-    unit_type: str  # "article_paragraph" | "recital" | "annex" | "judgment_paragraph"
+    unit_type: str  # "article_paragraph" | "recital" | "annex" | "judgment_paragraph" | "judgment_operative"
     article: str | None
     para_index: str
     citation: str
@@ -389,6 +389,59 @@ def parse_annexes(doc) -> list[ParsedUnit]:
     return units
 
 
+OPERATIVE_RE = re.compile(r"hereby (?:rules|declares|decides)", re.IGNORECASE)
+OPERATIVE_NUMBER_RE = re.compile(r"^\d+\.$")
+
+
+def parse_operative_part(doc) -> list[ParsedUnit]:
+    """The ruling: after "On those grounds, the Court ... hereby rules:" come pairs of a
+    number ("1.") and its text, then the signatures. These points are the holdings, the most
+    quoted part of a judgment, and they are unnumbered as paragraphs, so the paragraph parser
+    never sees them."""
+    marks = doc.xpath("//p[contains(normalize-space(.), 'hereby ')]")
+    marks = [m for m in marks if OPERATIVE_RE.search(_clean_text(m))]
+    if not marks:
+        return []
+    blocks = [(el.get("class") or "", _clean_text(el)) for el in marks[-1].xpath("following::p")]
+    units: list[ParsedUnit] = []
+    i = 0
+    while i + 1 < len(blocks):
+        cls, text = blocks[i]
+        if OPERATIVE_NUMBER_RE.match(text) and "count" in cls:
+            number = text.rstrip(".")
+            body = blocks[i + 1][1]
+            if body:
+                units.append(
+                    ParsedUnit(
+                        unit_type="judgment_operative",
+                        article=None,
+                        para_index=f"op{number}",
+                        citation=f"operative part, point {number}",
+                        text=body,
+                        title="Ruling of the Court (operative part)",
+                    )
+                )
+            i += 2
+        elif units:
+            break   # signatures, notes: the ruling is over
+        else:
+            i += 1
+    if units:
+        return units
+    # No numbered points: a single unnumbered ruling follows the marker (e.g. "Directive 2006/24/EC
+    # ... is invalid."), possibly over several paragraphs, ending at the signatures or the judges' names.
+    body: list[str] = []
+    for _cls, text in blocks:
+        if not text or text.startswith(("[Signatures]", "Delivered")) or len(text.split()) <= 2:
+            break
+        body.append(text)
+    if body:
+        units.append(
+            ParsedUnit("judgment_operative", None, "op1", "operative part", " ".join(body), "Ruling of the Court (operative part)")
+        )
+    return units
+
+
 def parse_judgment(xhtml: str) -> list[ParsedUnit]:
     doc = lxml_html.fromstring(xhtml.encode("utf-8"))
     units: list[ParsedUnit] = []
@@ -429,6 +482,7 @@ def parse_judgment(xhtml: str) -> list[ParsedUnit]:
                 text=text,
             )
         )
+    units.extend(parse_operative_part(doc))
     return units
 
 

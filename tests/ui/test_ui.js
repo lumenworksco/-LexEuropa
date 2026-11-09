@@ -153,6 +153,22 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   await tick(120);
   assert(doc.querySelectorAll(".inst-tag").length === 0 && !Array.from(doc.querySelectorAll(".note")).some(n => n.textContent.includes("More than one regime")), "a single-instrument answer is not cluttered");
 
+  // 4d. an answer citing repealed / amended provisions warns at the top, on the statement and on the source
+  const old = JSON.parse(JSON.stringify(RESULT)); old.generator = "primary"; old.answers_question = true;
+  old.retrieved = [{id:"R:1",celex:"31995L0046",citation:"Article 7 Directive 95/46",instrument_title:"Directive 95/46/EC",text:"processing is lawful if",
+                    notice_kind:"repealed", notice:"Directive 95/46/EC was repealed with effect from 25 May 2018 by the GDPR."},
+                   {id:"R:2",celex:"32016R0679",citation:"Article 6(1) GDPR",instrument_title:"GDPR",text:"current text",notice_kind:null,notice:null}];
+  old.claims = [{text:"Processing is lawful if one of the grounds applies.",citations:["R:1"],label:"supported",reason:"",citation_labels:{}},
+                {text:"The GDPR lists six grounds.",citations:["R:2"],label:"supported",reason:"",citation_labels:{}}];
+  d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: old})]); doc = d.window.document;
+  doc.getElementById("question").value = "What are the lawful grounds for processing?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(120);
+  assert(Array.from(doc.querySelectorAll(".note")).some(n => n.textContent.includes("Out of date") && n.textContent.includes("25 May 2018")), "a top-of-answer note names the repeal");
+  const warn = Array.from(doc.querySelectorAll(".stmt .warn-tag")).map(n => n.textContent);
+  assert(warn.length === 1 && warn[0] === "Repealed law", "only the statement citing the repealed provision is tagged");
+  assert(Array.from(doc.querySelectorAll("#sources .stale")).some(n => n.textContent.startsWith("Repealed.")), "the source card carries the notice");
+  assert(doc.querySelectorAll("#sources .stale").length === 1, "a current provision gets no notice");
+
   // 5. a source cited by many statements reads as a range
   const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;
   many.claims = [1,2,3,4,5,6].map(n => ({text:"Statement "+n+".",citations:["A:2"],label:"supported",reason:"",citation_labels:{}}));
