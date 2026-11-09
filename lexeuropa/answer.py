@@ -187,6 +187,34 @@ def answer_question(
     note("checking")
     verifications = verify_claims(parsed["claims"], result.chunks)
 
+    claims_out = [
+        {
+            "text": v.text,
+            "citations": v.citations,
+            "label": v.label,
+            "reason": v.reason,
+            "citation_labels": {
+                cid: {"label": lbl, "reason": r} for cid, (lbl, r) in v.citation_labels.items()
+            },
+        }
+        for v in verifications
+    ]
+    # If the relevance check says the statements do not address the question (even after the
+    # fallback), they must not be presented as an answer: show the standard refusal, and keep the
+    # drafted statements available so the reader can still look at them.
+    withheld = None
+    if relevance is not None and relevance[0] is False:
+        withheld = claims_out
+        claims_out = [
+            {
+                "text": "The provided sources do not contain information addressing this question.",
+                "citations": [],
+                "label": "uncertain",
+                "reason": relevance[1] or "the drafted statements did not address the question",
+                "citation_labels": {},
+            }
+        ]
+
     return {
         "question": question,
         "language": parsed.get("language"),
@@ -198,17 +226,7 @@ def answer_question(
         "relevance_reason": relevance[1] if relevance else None,
         "retrieved": [_chunk_dict(c) for c in result.chunks],
         "reranked": result.reranked,
-        "claims": [
-            {
-                "text": v.text,
-                "citations": v.citations,
-                "label": v.label,
-                "reason": v.reason,
-                "citation_labels": {
-                    cid: {"label": lbl, "reason": r} for cid, (lbl, r) in v.citation_labels.items()
-                },
-            }
-            for v in verifications
-        ],
+        "claims": claims_out,
+        "withheld_claims": withheld,
         "disclaimer": DISCLAIMER,
     }

@@ -169,6 +169,18 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   assert(Array.from(doc.querySelectorAll("#sources .stale")).some(n => n.textContent.startsWith("Repealed.")), "the source card carries the notice");
   assert(doc.querySelectorAll("#sources .stale").length === 1, "a current provision gets no notice");
 
+  // 4e. withheld statements: not shown as an answer, available behind a disclosure
+  const held = JSON.parse(JSON.stringify(RESULT)); held.generator = "fallback"; held.answers_question = false; held.relevance_reason = "It covers a different point.";
+  held.withheld_claims = [{text:"Generic GDPR principle.",citations:["A:1"],label:"supported",reason:"",citation_labels:{}}];
+  held.claims = [{text:"The provided sources do not contain information addressing this question.",citations:[],label:"uncertain",reason:"It covers a different point.",citation_labels:{}}];
+  d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: held})]); doc = d.window.document;
+  doc.getElementById("question").value = "Will my company win its pending case next month?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(120);
+  const wnote = Array.from(doc.querySelectorAll(".note")).find(n => n.textContent.includes("Withheld"));
+  assert(wnote && wnote.textContent.includes("different point"), "a withheld answer says why");
+  assert(doc.querySelector(".withheld ol li").textContent.includes("Generic GDPR principle."), "the withheld statements stay reachable behind a disclosure");
+  assert(doc.querySelectorAll("li.stmt").length === 1 && doc.querySelector(".stmt .txt").textContent.includes("do not contain information"), "only the refusal is shown as the answer");
+
   // 5. a source cited by many statements reads as a range
   const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;
   many.claims = [1,2,3,4,5,6].map(n => ({text:"Statement "+n+".",citations:["A:2"],label:"supported",reason:"",citation_labels:{}}));

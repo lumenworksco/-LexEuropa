@@ -226,6 +226,18 @@ def test_a_still_off_topic_fallback_answer_is_flagged_not_hidden(monkeypatch):
     result = answer_mod.answer_question("Q?")
     assert result["generator"] == "fallback" and result["answers_question"] is False
     assert result["relevance_reason"] == "still a different point"
+    # ...and not presented as an answer: the standard refusal is shown, the drafted statements are kept aside
+    assert len(result["claims"]) == 1 and not result["claims"][0]["citations"]
+    assert "do not contain information" in result["claims"][0]["text"]
+    assert result["withheld_claims"] and result["withheld_claims"][0]["citations"] == [CHUNK.id]
+
+
+def test_an_answer_the_check_accepts_is_not_withheld(monkeypatch):
+    _patch_retrieval(monkeypatch)
+    _enable_relevance(monkeypatch, [(True, "direct")])
+    monkeypatch.setattr(answer_mod, "chat", lambda messages, **kw: ChatResult(content=_cited_answer(), finish_reason="stop"))
+    result = answer_mod.answer_question("Q?")
+    assert result["withheld_claims"] is None and result["claims"][0]["citations"] == [CHUNK.id]
 
 
 def _capture_retrieve(monkeypatch, instruments):

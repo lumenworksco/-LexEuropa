@@ -189,6 +189,9 @@
   .inst-tag { display: inline-block; font: 600 .68rem/1.5 var(--sans); letter-spacing: .04em; color: var(--muted); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 0 6px; }
   .warn-tag { color: var(--s-interpretative); border-color: var(--s-interpretative); }
   .src .stale { margin: 8px 0 0; font-size: .8rem; color: var(--s-interpretative); }
+  .withheld { margin-top: 8px; font-size: .86rem; }
+  .withheld summary { cursor: pointer; color: var(--accent); }
+  .withheld ol { margin: 8px 0 0; padding-left: 1.2rem; color: var(--muted); }
   .more { background: none; border: 0; padding: 0; color: var(--accent); font-size: .8rem; text-decoration: underline; text-underline-offset: 2px; }
   .cite {
     display: inline-block; vertical-align: baseline; margin-left: 2px; padding: 0 3px; border: 0; background: none; color: var(--accent);
@@ -741,7 +744,13 @@
 
     if (result.example) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Example" }), "Written by hand from the text of the Directive to show the format — not generated live."]));
     if (result.generator === "fallback") sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Second opinion. " }), "The main LexEuropa model declined or did not answer this question well, so a larger general-purpose model wrote the answer from the same sources."]));
-    if (result.answers_question === false) sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Check this carefully. " }), "We could not confirm that these statements answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ". They may address a different point."]));
+    if (result.withheld_claims && result.withheld_claims.length) {
+      var held = el("details", { class: "withheld" }, [el("summary", { text: "Show the withheld statements anyway" })]);
+      var hl = el("ol");
+      result.withheld_claims.forEach(function (c) { hl.appendChild(el("li", { text: tidy(c.text) + (c.citations.length ? "  [" + c.citations.map(function (id) { return citeName(id, byId); }).join("; ") + "]" : "") })); });
+      held.appendChild(hl);
+      sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Withheld. " }), "The system drafted statements but could not confirm that they answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ", so they are not shown as an answer. ", held]));
+    } else if (result.answers_question === false) sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Check this carefully. " }), "We could not confirm that these statements answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ". They may address a different point."]));
 
     if (mixed) sec.appendChild(el("div", { class: "note info" }, [el("strong", { text: "More than one regime. " }), "This answer draws on " + regimeNames.length + " different instruments (" + regimeNames.join(", ") + "). Look-alike rules can differ by who they apply to \u2014 for example the GDPR for most organisations, a separate regulation for EU institutions, a directive for law-enforcement authorities. Check which one applies to you; the \u201cLaw\u201d menu above can focus a question on one instrument."]));
 
