@@ -990,6 +990,30 @@ with the right provision retrieved (many passages listed, key points not conveye
 The endpoint serves v4 and is scaled to zero. Total spend this phase (3 end-to-end runs, 4
 ceiling runs, graders): roughly $5.
 
+## Remaining-error fixes and the final numbers (2026-11-09)
+
+Changes: judgment **operative parts** are parsed and indexed (`judgment_operative`, 34 rulings; the top 2
+judgments' rulings are appended after the ranked results, `EXPAND_RULINGS`, `MAX_RULING_CHUNKS`);
+`corpus_status.py` marks repealed/amended provisions (repealed law is skipped unless the question names
+it; the UI warns on statements and sources); articles that apply only to EU institutions are skipped
+unless the question is about them; statements the relevance check says do not answer the question are
+withheld (refusal shown, statements behind "show anyway"); quality set updated (e-Commerce question moved
+to DSA Art. 4, Schrems II/I, Planet49, Google Spain added; 32 questions, 28 in scope).
+
+Offline ceiling (no answering model): filters/rulings took it from .915 to .951; rulings fixed Schrems II
+(0 -> 1.0) and the institution filter fixed ai_fines (.5 -> 1.0).
+
+**Query rewrite (`LEXEUROPA_QUERY_REWRITE`) stays OFF.** It fixed dma_gatekeeper and gdpr_access in one
+measurement but broke gdpr_dpo (1.0 -> 0.0) and displaced the Data Act results for one citation-set
+question (hit 24/25 -> 23/25); down-weighting it (`REWRITE_WEIGHT` .5) and telling it to keep the
+question's own terms restored the citation hit but not the quality-set stability.
+
+**Final end to end (v4, rewrite off, `quality_v4_final2.json`, `final11_v4_final2_unseen.json`):**
+mean completeness .869 (28 in scope; was .815 on 25), 71% fully complete, gold retrieved 28/28,
+contradictions 0, traps 4/4 (the court-outcome prediction trap needed the withhold fix); citation set
+hit .96, P .87, R .88, fallback 1/25. Weakest: dma_gatekeeper 0.0, planet49 .33, gdpr_access .5,
+schrems1 .5, gdpr_breach .62. The questions changed, so the comparison with .815 is approximate.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

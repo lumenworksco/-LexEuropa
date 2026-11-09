@@ -134,16 +134,18 @@ Artifacts: [v4 merged (default)](https://huggingface.co/iPwnds/lexeuropa-qwen3b-
 
 The citation tables above only count *which sources are cited*. To measure whether an answer is **complete and correct**, `eval/answer_quality.jsonl` has 29 questions where completeness is at stake (rules with exceptions, lists, multi-part conditions). Each of the 25 in-scope questions has a checklist of key points, written by hand and **grounded in the real provision text** (126 points; a test fails if a key phrase is not in the source), graded by a stronger model against the checklist (`eval/run_quality.py`). The judge was calibrated first: the verbatim provision scores 0.98, its first 40% scores 0.66, an unrelated provision scores 0.00. Four "trap" questions (French tax law, US law, outcome prediction, off-topic) should be declined.
 
-| (25 in-scope questions) | v1, 8 sources | v4, no expansion | v4 + same-instrument expansion | **v4 + named-law restriction (default)** | stock Qwen2.5-72B |
-|---|---|---|---|---|---|
-| mean completeness | 0.56 | 0.56 | 0.70 | **0.82** | 0.62 |
-| fully complete answers | 16% | 20% | 52% | **60%** | 16% |
-| right provision retrieved | 20 / 25 | 20 / 25 | 20 / 25 | **25 / 25** | 20 / 25 |
-| answers contradicting the provision | 1 | 0 | 0 | 1 | 0 |
-| trap questions declined | 4 / 4 | 4 / 4 | 4 / 4 | **4 / 4** | 4 / 4 |
-| citation set: right source / precision / recall | 0.96 / 0.86 / 0.88 | n/a | 0.96 / 0.81 / 0.88 | 0.96 / 0.82 / 0.88 | n/a |
+| | v1, 8 sources (25 q) | v4 + same-instrument expansion (25 q) | v4 + named-law restriction (25 q) | **current default (28 q)** |
+|---|---|---|---|---|
+| mean completeness | 0.56 | 0.70 | 0.82 | **0.87** |
+| fully complete answers | 16% | 52% | 60% | **71%** |
+| right provision retrieved | 20 / 25 | 20 / 25 | 25 / 25 | **28 / 28** |
+| answers contradicting the provision | 1 | 0 | 1 | **0** |
+| trap questions declined | 4 / 4 | 4 / 4 | 4 / 4 | **4 / 4** |
+| citation set: right source / precision / recall | 0.96 / 0.86 / 0.88 | 0.96 / 0.81 / 0.88 | 0.96 / 0.82 / 0.88 | **0.96 / 0.87 / 0.88** |
 
-**State of the product: three in five answers are now fully complete (from one in six), the rest miss items or conditions.** A perfect reader of the retrieved text would reach 0.72, so retrieval is the main cap, and generation loses another 0.1. Two recurring causes: only some paragraphs of the right article reach the model, and parallel provisions in the GDPR, the EU-institutions regulation and the Law Enforcement Directive crowd each other out (a "when must a breach be reported?" question returned the other regimes' articles).
+The last column also includes the judgment rulings (operative parts), a filter for articles that apply only to EU institutions, and withholding of statements that do not answer the question. The question set changed (one outdated question replaced, three case-law holdings added, 28 in scope instead of 25), so the comparison with earlier columns is approximate. n is small and each configuration was run once.
+
+**State of the product: seven in ten answers are fully complete (from one in six); the rest miss items or conditions.** Weakest questions: DMA gatekeeper criteria (0.0), Planet49 (0.33), GDPR access, Schrems I and breach notification (about 0.5 to 0.6). A query-rewriting step fixed some of these but broke others, so it is off by default.
 
 What was tried:
 
