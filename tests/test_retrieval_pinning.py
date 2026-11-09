@@ -215,3 +215,22 @@ def test_restrict_celex_falls_back_when_the_instrument_has_too_few_hits():
                   k_final=8, use_reranker=False, expand=0)
     out = pipeline_mod.retrieve("breach notification", restrict_celex="32016R0679", **kwargs)
     assert out.chunks and {c.celex for c in out.chunks} == {"32018R1725"}          # not an empty answer for an instrument that does not cover it
+
+
+def test_restricting_to_a_statute_keeps_case_law_but_drops_other_legislation():
+    from lexeuropa.schema import Chunk
+
+    gdpr = [_chunk("32016R0679", "82", i, f"compensation damage infringement {i}") for i in range(1, 4)]
+    eudpr = [_chunk("32018R1725", "65", i, "compensation damage infringement compensation damage") for i in range(1, 4)]
+    case = [Chunk(id=f"62021CJ0300:en:pt_{i}", celex="62021CJ0300", lang="en", instrument_title="t", citation="c", unit_type="judgment_paragraph",
+                  article=None, para_index=str(i), text="compensation for non-material damage under the regulation", source_url="") for i in range(1, 4)]
+    filler = [_chunk("32022R2065", "9", i, f"unrelated filler text number {i}") for i in range(1, 15)]
+    chunks = gdpr + eudpr + case + filler
+    kwargs = dict(bm25_index=BM25Index(chunks), dense_index=_EmptyDenseIndex(), resolver=ReferenceResolver(chunks), k_final=10, use_reranker=False, expand=0)
+    out = pipeline_mod.retrieve("compensation damage infringement", restrict_celex="32016R0679", **kwargs)
+    celexes = {c.celex for c in out.chunks}
+    assert "32016R0679" in celexes and "62021CJ0300" in celexes     # the statute and the case law about it
+    assert "32018R1725" not in celexes                              # the look-alike regime is gone
+    assert sum(1 for c in out.chunks if c.unit_type == "judgment_paragraph") <= 2   # case law accompanies, never crowds
+    only_case = pipeline_mod.retrieve("compensation damage infringement", restrict_celex="62021CJ0300", **kwargs)
+    assert {c.celex for c in only_case.chunks} == {"62021CJ0300"}   # restricting to a judgment keeps only that judgment

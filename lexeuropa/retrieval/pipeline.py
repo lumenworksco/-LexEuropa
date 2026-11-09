@@ -29,6 +29,8 @@ from lexeuropa.schema import Chunk
 # precise set (an exact "Article N(M)" match) — not a bare case-number
 # match, which can return 80-100 paragraphs and would overwhelm k_final.
 MAX_PINNED_RESOLVER_HITS = 4
+# When a question is restricted to one statute, at most this many case-law paragraphs may accompany it.
+MAX_CASE_LAW_WHEN_RESTRICTED = 2
 
 
 @dataclass
@@ -158,8 +160,21 @@ def retrieve(
     if restrict_celex:
         # The question (or the user's "Law" choice) names one instrument: search only that
         # one, so look-alike provisions of other regimes (GDPR vs EUDPR vs LED) cannot take
-        # its place. Too few hits (an instrument that does not cover the topic) -> unrestricted.
-        only = [(c, sc) for c, sc in fused if c.celex == restrict_celex]
+        # its place. Court judgments are kept (they interpret the named statute and the user
+        # may be asking about them); a restriction to a judgment itself keeps only that judgment.
+        # Too few hits (an instrument that does not cover the topic) -> unrestricted.
+        keep_case_law = "CJ" not in restrict_celex
+        only = []
+        case_law = 0
+        for c, sc in fused:
+            if c.celex == restrict_celex:
+                only.append((c, sc))
+            elif keep_case_law and c.unit_type == "judgment_paragraph" and case_law < MAX_CASE_LAW_WHEN_RESTRICTED:
+                # Unlimited case law crowded the statute out again (judgments quote it at
+                # length): 21/25 right provisions retrieved instead of 25/25. Two paragraphs
+                # still surface the relevant judgment for a question about case law.
+                only.append((c, sc))
+                case_law += 1
         if len(only) >= 3:
             fused = only
     fused = _cap_recitals(fused, len(fused), k_candidates // 2, chunk_of=lambda x: x[0])
