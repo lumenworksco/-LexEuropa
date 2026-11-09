@@ -14,6 +14,7 @@ Small, precise resolver hits are pinned below to fix this.
 """
 from __future__ import annotations
 
+import os
 import warnings
 from dataclasses import dataclass
 
@@ -34,6 +35,8 @@ MAX_PINNED_RESOLVER_HITS = 4
 MAX_CASE_LAW_WHEN_RESTRICTED = 2
 # Extra slots (beyond MAX_SOURCES) for the rulings of the top judgments.
 MAX_RULING_CHUNKS = 4
+# Weight of the query-rewrite rankings in fusion, relative to the original question's (1.0).
+REWRITE_WEIGHT = float(os.environ.get("LEXEUROPA_REWRITE_WEIGHT", "0.5"))
 
 
 @dataclass
@@ -187,10 +190,15 @@ def retrieve(
     dense_hits = [c for c, _ in dense_index.search(query, depth)]
 
     rankings = [resolved, bm25_hits, dense_hits]
+    weights = [1.0, 1.0, 1.0]
     for extra in extra_queries:   # e.g. the question rewritten in the legal texts' own vocabulary
+        # A hint, not a replacement: the rewrite can name the wrong law (it turned a Data Act
+        # question about "connected products" into a GDPR "data subject" query and displaced every
+        # Data Act result), so its rankings count for less than the user's own words.
         rankings.append([c for c, _ in bm25_index.search(extra, depth)])
         rankings.append([c for c, _ in dense_index.search(extra, depth)])
-    fused = reciprocal_rank_fusion(rankings)
+        weights += [REWRITE_WEIGHT, REWRITE_WEIGHT]
+    fused = reciprocal_rank_fusion(rankings, weights=weights)
     # Out-of-date and institution-only provisions are skipped unless the question asks for them:
     # repealed law (Directive 95/46, e-Commerce Arts 12-15) is only wanted when named, and
     # provisions for EU institutions (e.g. the AI Act's fines on Union bodies) only when asked.

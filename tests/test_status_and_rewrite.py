@@ -102,3 +102,13 @@ def test_expand_rulings_appends_the_ruling_of_the_top_judgments_without_reorderi
     assert "C:op1" not in ids                                         # the third is not expanded
     assert expand_rulings(ranked, corpus, n_cases=0, max_sources=14) == ranked
     assert len(expand_rulings(ranked, corpus, n_cases=2, max_sources=5)) == 5
+
+
+def test_rrf_weights_let_a_hint_ranking_count_for_less_than_the_original():
+    from lexeuropa.retrieval.fusion import reciprocal_rank_fusion
+
+    a, b, c = _c("X", "1"), _c("X", "2"), _c("X", "3")
+    equal = [ch.article for ch, _ in reciprocal_rank_fusion([[a, b], [c, b]])]
+    weighted = [ch.article for ch, _ in reciprocal_rank_fusion([[a, b], [c, b]], weights=[1.0, 0.5])]
+    assert equal[0] == "2"                           # b is in both: it wins when both count equally
+    assert weighted.index("1") < weighted.index("3")  # with the second ranking down-weighted, the original's top hit beats its top hit

@@ -76,7 +76,7 @@ FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen2.
 # question (the per-claim judge only checks claim-vs-source). If not, the fallback
 # is tried. LEXEUROPA_RELEVANCE_CHECK=0 disables it.
 # Add a legal-vocabulary rewrite of the question as an extra search query (retrieval/rewrite.py).
-QUERY_REWRITE = os.environ.get("LEXEUROPA_QUERY_REWRITE", "1") == "1"
+QUERY_REWRITE = os.environ.get("LEXEUROPA_QUERY_REWRITE", "0") == "1"   # off: helped some questions, hurt others (see CLAUDE.md)
 RELEVANCE_CHECK = os.environ.get("LEXEUROPA_RELEVANCE_CHECK", "1") != "0"
 RELEVANCE_LLM_BASE_URL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_BASE_URL", FALLBACK_LLM_BASE_URL)
 RELEVANCE_LLM_MODEL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_MODEL", FALLBACK_LLM_MODEL or "Qwen/Qwen2.5-72B-Instruct")

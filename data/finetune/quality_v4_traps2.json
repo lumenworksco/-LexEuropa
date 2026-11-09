@@ -1,0 +1,50 @@
+[
+  {
+    "id": "trap_french_tax",
+    "question": "What is the penalty for tax evasion under French law?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The provided sources do not contain information addressing this question."
+    ],
+    "declined": true
+  },
+  {
+    "id": "trap_us_law",
+    "question": "What are the HIPAA privacy rules for hospitals in the United States?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The provided sources do not contain information addressing this question."
+    ],
+    "declined": true
+  },
+  {
+    "id": "trap_prediction",
+    "question": "Will my company win its pending GDPR court case next month?",
+    "trap": true,
+    "generator": "fallback",
+    "answers_question": false,
+    "error": null,
+    "statements": [
+      "The provided sources do not contain information addressing this question."
+    ],
+    "declined": true
+  },
+  {
+    "id": "trap_offtopic",
+    "question": "What is the capital of Australia?",
+    "trap": true,
+    "generator": "primary",
+    "answers_question": null,
+    "error": null,
+    "statements": [
+      "The question provided does not contain information addressing this query."
+    ],
+    "declined": true
+  }
+]

@@ -15,6 +15,8 @@ from lexeuropa.generation.client import GenerationError, chat
 
 REWRITE_PROMPT = """Rewrite this question about EU law as ONE short search query written in the terminology of the legal texts themselves: the legal concept (use the term the legislation uses, e.g. "data subject", "controller", "gatekeeper", "undertaking", "provider"), the most likely instrument by its usual name, and the typical headings of the articles that would answer it.
 
+Keep the distinctive words of the question itself (product types, actors, specific terms such as "connected products", "search engine", "cloud") and ADD the legal terminology to them; do not replace them. Only name a law if the question clearly points to it.
+
 Example: "Can my boss read my work emails?" -> "employer monitoring of employees' electronic communications processing of personal data legitimate interests proportionality GDPR"
 
 Output ONLY the query on one line, no quotes or explanation.
