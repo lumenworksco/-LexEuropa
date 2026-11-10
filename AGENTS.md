@@ -1014,6 +1014,44 @@ contradictions 0, traps 4/4 (the court-outcome prediction trap needed the withho
 hit .96, P .87, R .88, fallback 1/25. Weakest: dma_gatekeeper 0.0, planet49 .33, gdpr_access .5,
 schrems1 .5, gdpr_breach .62. The questions changed, so the comparison with .815 is approximate.
 
+## Consolidated texts and the EU expansion (2026-11-10): 81 instruments, 14,880 chunks
+
+Done with no HF credits (CELLAR downloads, parsing, and `LEXEUROPA_EMBED_BACKEND=local` embeddings).
+
+- **Consolidated articles.** `seed_corpus.CONSOLIDATED_SOURCE` maps an act's original CELEX to its latest
+  consolidated version (found with a CELLAR SPARQL query on `"0" + celex[1:] + "-"`, ordered by CELEX).
+  `chunk_instrument(..., consolidated_xhtml=...)` takes the ARTICLES from it and keeps recitals/annexes from the
+  original (a consolidated text has no recitals). `Instrument.consolidated` records which version. The identifier
+  stays the ORIGINAL CELEX, so citations, aliases and evaluation gold are unchanged. The consolidated markup differs
+  (`parse_consolidated_articles`): paragraphs are `div.norm`/`p.norm` blocks without ids, list items are
+  `grid-container` blocks or one `<table>` each, and `modref` flags ("▼M2") are dropped. Real-excerpt tests in
+  `tests/test_chunker.py` (ePrivacy Art. 5, InfoSoc Art. 2, e-Commerce Art. 2). Effects verified on the real text:
+  ePrivacy Art. 5(3) now requires consent; e-Commerce Arts 12-15 are gone; the AI Act gains Arts 4a, 60a, 75a-d.
+  Because of this, the status registry (`corpus_status.py`) now holds only Directive 95/46 (repealed whole).
+- **+27 EU acts, +23 judgments** (consumer, private international law, competition, employment, equality,
+  whistleblowing, trade secrets, free movement, AML, MiCA, copyright, cyber resilience, asylum; constitutional,
+  competition, consumer and rule-of-law case law). Dates and titles come from CELLAR, not from memory. For each act the
+  consolidated text is used only if it parses to at least 90% of the original's articles and differs in at least one
+  provision; 11 acts have no fetchable consolidated version and stay original.
+- **Judgment layouts.** `parse_judgment` now handles the 1991-2009 plain layout (`<a name="pointN">`) and the
+  1991-1998 "Grounds" run of `N text` paragraphs; `OPERATIVE_RE` accepts "hereby:" (Kadi). Judgments before ~1990
+  (capitals, number glued to the first word) are NOT parsed, so Van Gend en Loos, Costa v ENEL, Cassis de Dijon,
+  Defrenne are missing. Mangold, Viking, Laval parse to zero paragraphs (another layout) and were left out.
+- **Retrieval on the doubled corpus** (`eval/retrieval_eval.py`, local embeddings, no reranker; hit@8 / MRR):
+  unseen 25: .96 / .847 (was .96 / .800); retrieval 34: .88 / .543 (was .91 / .586: one question lost);
+  NEW `eval/questions_retrieval_eu.jsonl` (43 questions on the new areas, key phrase checked against the gold
+  provision by `tests/test_corpus_definition.py`): .86 / .582, gold in the top-200 pool for all 43. Misses are broad
+  lay questions with no law named (working time, pay transparency, discrimination, distance-contract information).
+  Answer quality (completeness) on the new corpus has NOT been measured: it needs the grader and the endpoint (credits).
+- **Strasbourg law is NOT covered, and why.** HUDOC (ECtHR case law) and the Convention PDF on echr.coe.int are behind
+  Cloudflare/bot filters: Python gets 403 (also with an honest User-Agent) and HUDOC's query endpoint answered 404 to
+  curl. A browser-style User-Agent got one PDF download through, but the code does not use that and does not work around
+  such filters. An attempt to parse the PDF also failed on its two-column page order (article numbers interleave), so
+  no code was kept. To add the Convention later: save the PDF by hand in a browser, extract with a column-aware method
+  (`pdftotext -bbox-layout`), and verify the article count per Protocol.
+- Not done: the frozen train/held-out split and the adapters know nothing about the new instruments; a retrain needs
+  credits and a new per-type split.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

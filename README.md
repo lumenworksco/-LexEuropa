@@ -36,7 +36,7 @@ question
 
 | Component | Implementation |
 |---|---|
-| Corpus | 31 instruments, 6,872 chunks, English only: [see below](#corpus) |
+| Corpus | 81 instruments, 14,880 chunks, English only: [see below](#corpus) |
 | Retrieval | `rank_bm25`, `BAAI/bge-large-en-v1.5` via HF Inference, regex/alias reference resolver, reciprocal rank fusion |
 | Reranker | Optional. `BAAI/bge-reranker-v2-m3` locally on CPU if you install the `rerank` extra; otherwise the fused ranking is used |
 | Generation | `Qwen2.5-3B-Instruct` + LoRA fine-tune **v4** (merged), on a scale-to-zero HF Inference Endpoint; the top articles are expanded to their other paragraphs before generation |
@@ -73,37 +73,78 @@ python -m pytest tests/ -v -k "not full_hybrid"
 
 ## Corpus
 
-31 instruments, 6,872 chunks, English only. Everything is fetched from the Publications Office CELLAR service. Every CELEX number was verified against a live fetch, and every parse was checked against the real article count (e.g. TFEU 358, Charter 54, GDPR 99). Chunks are article paragraphs, **recitals**, **annex parts** and judgment paragraphs.
+81 instruments, 14,880 chunks, English only. Everything is fetched from the Publications Office CELLAR service. Every CELEX number was verified against a live fetch (the dates and titles of the later additions were read from CELLAR itself), and every parse was checked against the real article or paragraph count with no numbering gaps.
 
-| Primary law | CELEX |
-|---|---|
-| Treaty on European Union (consolidated) | 12016M/TXT |
-| Treaty on the Functioning of the EU (consolidated) | 12016E/TXT |
-| Charter of Fundamental Rights | 12016P/TXT |
+**Consolidated texts.** For the acts that have been amended since publication (ePrivacy, e-Commerce, InfoSoc, the AI Act and 16 of the later additions) the articles are read from the latest consolidated version, so amended and deleted provisions read as they do today; the recitals and annexes still come from the original text, because a consolidated text has none. The acts marked "consolidated" below were checked to differ from the original text in at least one provision. Acts with no later consolidated version are unchanged since they were adopted. Directive 95/46/EC is kept although repealed, because judgments interpret it, and is flagged as repealed in answers.
 
-| Legislation | CELEX |
-|---|---|
-| GDPR, Regulation (EU) 2016/679 | 32016R0679 |
-| Law Enforcement Directive, (EU) 2016/680 | 32016L0680 |
-| EU institutions' data protection, (EU) 2018/1725 | 32018R1725 |
-| Digital Services Act, (EU) 2022/2065 | 32022R2065 |
-| Digital Markets Act, (EU) 2022/1925 | 32022R1925 |
-| Data Governance Act, (EU) 2022/868 | 32022R0868 |
-| Data Act, (EU) 2023/2854 | 32023R2854 |
-| NIS 2 Directive, (EU) 2022/2555 | 32022L2555 |
-| AI Act, (EU) 2024/1689 | 32024R1689 |
-| Data Protection Directive 95/46/EC | 31995L0046 |
-| ePrivacy Directive 2002/58/EC | 32002L0058 |
-| e-Commerce Directive 2000/31/EC | 32000L0031 |
-| InfoSoc Directive 2001/29/EC | 32001L0029 |
+| Primary law | CELEX | chunks |
+|---|---|---|
+| Consolidated version of the Treaty on European Union (TEU) | 12016M/TXT | 160 |
+| Consolidated version of the Treaty on the Functioning of the European Union (TFEU) | 12016E/TXT | 726 |
+| Charter of Fundamental Rights of the European Union | 12016P/TXT | 91 |
 
-CJEU judgments: Google Spain (C-131/12), Schrems I (C-362/14), Schrems II (C-311/18), Digital Rights Ireland (C-293/12), Tele2 Sverige (C-203/15), La Quadrature du Net (C-511/18), Breyer (C-582/14), Wirtschaftsakademie (C-210/16), Fashion ID (C-40/17), Planet49 (C-673/17), Nowak (C-434/16), GC and Others v CNIL (C-136/17), Österreichische Post (C-300/21), Meta v Bundeskartellamt (C-252/21), SCHUFA (C-634/21).
+| Data protection and digital law | CELEX | chunks |
+|---|---|---|
+| Regulation (EU) 2016/679 (General Data Protection Regulation) | 32016R0679 | 562 |
+| Directive (EU) 2016/680 (Law Enforcement Directive) | 32016L0680 | 296 |
+| Regulation (EU) 2018/1725 (data protection by EU institutions, bodies, offices and agencies) | 32018R1725 | 413 |
+| Regulation (EU) 2022/2065 (Digital Services Act) | 32022R2065 | 519 |
+| Regulation (EU) 2022/1925 (Digital Markets Act) | 32022R1925 | 358 |
+| Regulation (EU) 2022/868 (Data Governance Act) | 32022R0868 | 206 |
+| Regulation (EU) 2023/2854 (Data Act) | 32023R2854 | 354 |
+| Directive (EU) 2022/2555 (NIS 2 Directive) | 32022L2555 | 356 |
+| Regulation (EU) 2024/1689 (Artificial Intelligence Act) (consolidated 2026-07-27) | 32024R1689 | 789 |
+| Directive 95/46/EC (Data Protection Directive) | 31995L0046 | 163 |
+| Directive 2002/58/EC (ePrivacy Directive) (consolidated 2009-12-19) | 32002L0058 | 115 |
+| Directive 2000/31/EC (e-Commerce Directive) (consolidated 2024-02-17) | 32000L0031 | 118 |
+| Directive 2001/29/EC (InfoSoc Directive) (consolidated 2019-06-06) | 32001L0029 | 96 |
 
-Not covered: other languages, national law, Advocate General opinions, Treaty protocols and declarations, and consolidated (amended-as-of-today) versions of the secondary legislation.
+| Consumer and contract law | CELEX | chunks |
+|---|---|---|
+| Directive 2011/83/EU (Consumer Rights Directive) (consolidated 2026-09-27) | 32011L0083 | 223 |
+| Directive 2005/29/EC (Unfair Commercial Practices Directive) (consolidated 2026-09-27) | 32005L0029 | 83 |
+| Council Directive 93/13/EEC (Unfair Terms in Consumer Contracts) (consolidated 2022-05-28) | 31993L0013 | 29 |
+| Directive (EU) 2019/770 (Digital Content and Digital Services) | 32019L0770 | 157 |
+| Directive (EU) 2019/771 (Sale of Goods) (consolidated 2026-07-31) | 32019L0771 | 138 |
+| Directive (EU) 2024/2853 (Product Liability Directive) (consolidated 2024-11-18) | 32024L2853 | 122 |
+
+| Private international law and competition | CELEX | chunks |
+|---|---|---|
+| Regulation (EC) No 593/2008 (Rome I: law applicable to contractual obligations) (consolidated 2008-07-24) | 32008R0593 | 116 |
+| Regulation (EC) No 864/2007 (Rome II: law applicable to non-contractual obligations) | 32007R0864 | 100 |
+| Regulation (EU) No 1215/2012 (Brussels I Recast: jurisdiction and judgments) (consolidated 2015-02-26) | 32012R1215 | 221 |
+| Council Regulation (EC) No 1/2003 (enforcement of the competition rules) (consolidated 2009-07-01) | 32003R0001 | 149 |
+| Council Regulation (EC) No 139/2004 (EU Merger Regulation) | 32004R0139 | 164 |
+| Directive 2014/104/EU (Antitrust Damages Directive) | 32014L0104 | 130 |
+
+| Employment and equality | CELEX | chunks |
+|---|---|---|
+| Directive 2003/88/EC (Working Time Directive) | 32003L0088 | 77 |
+| Directive (EU) 2023/970 (Pay Transparency Directive) | 32023L0970 | 160 |
+| Directive (EU) 2024/2831 (Platform Work Directive) (consolidated 2024-11-11) | 32024L2831 | 156 |
+| Council Directive 2001/23/EC (Transfers of Undertakings) (consolidated 2015-10-09) | 32001L0023 | 40 |
+| Council Directive 2000/78/EC (Employment Equality Directive) | 32000L0078 | 78 |
+| Council Directive 2000/43/EC (Racial Equality Directive) (consolidated 2026-06-19) | 32000L0043 | 59 |
+| Directive (EU) 2019/1152 (Transparent and Predictable Working Conditions) | 32019L1152 | 112 |
+| Directive (EU) 2019/1937 (Whistleblower Directive) (consolidated 2024-12-30) | 32019L1937 | 219 |
+
+| Other areas | CELEX | chunks |
+|---|---|---|
+| Directive (EU) 2016/943 (Trade Secrets Directive) | 32016L0943 | 90 |
+| Directive 2004/38/EC (Citizens' Rights / Free Movement Directive) (consolidated 2011-06-16) | 32004L0038 | 128 |
+| Regulation (EU) 2024/1624 (Anti-Money Laundering Regulation) | 32024R1624 | 495 |
+| Regulation (EU) 2023/1114 (Markets in Crypto-Assets, MiCA) (consolidated 2024-01-09) | 32023R1114 | 917 |
+| Directive (EU) 2019/790 (Copyright in the Digital Single Market) | 32019L0790 | 171 |
+| Regulation (EU) 2024/2847 (Cyber Resilience Act) (consolidated 2024-11-20) | 32024R2847 | 464 |
+| Regulation (EU) No 604/2013 (Dublin III Regulation) (consolidated 2013-06-29) | 32013R0604 | 198 |
+
+CJEU judgments (38), with every paragraph and the operative part (the ruling): Google Spain SL and Google Inc. (C-131/12); GC and Others (C-136/17); Maximillian Schrems (C-362/14); Data Protection Commissioner (C-311/18); Unabhängiges Landeszentrum für Datensc (C-210/16); Fashion ID GmbH & Co. KG (C-40/17); Bundesverband der Verbraucherzentralen (C-673/17); Patrick Breyer (C-582/14); Digital Rights Ireland Ltd (C-293/12); Tele2 Sverige AB (C-203/15); Peter Nowak (C-434/16); La Quadrature du Net and Others (C-511/18); UI (C-300/21); Meta Platforms Inc. and Others (C-252/21); OQ (C-634/21); Yassin Abdullah Kadi and Al Barakaat I (C-402/05); Andrea Francovich and Danila Bonifaci  (C-6/90); Gerardo Ruiz Zambrano (C-34/09); Union royale belge des sociétés de foo (C-415/93); Association Belge des Consommateurs Te (C-236/09); Slowakische Republik (C-284/16); Associação Sindical dos Juízes Portugu (C-64/16); Andy Wightman and Others (C-621/18); Thomas Pringle (C-370/12); Peter Gauweiler and Others (C-62/14); Proceedings brought by Heinrich Weiss  (C-493/17); European Commission (C-619/18); A. K. and Others (C-585/18); Asociaţia 'Forumul Judecătorilor din R (C-83/19); Intel Corp. (C-413/14); Google LLC and Alphabet Inc. (C-48/22); Vera Egenberger (C-414/16); Stadt Wuppertal (C-569/16); Mohamed Aziz (C-415/11); Árpád Kásler and Hajnalka Káslerné Ráb (C-26/13); eDate Advertising GmbH and Others (C-509/09); Konkurrensverket (C-52/09); Åklagaren (C-617/10)
+
+Not covered: other languages, national law, Advocate General opinions, Treaty protocols and declarations, and **Strasbourg law** (the European Convention on Human Rights and European Court of Human Rights case law). The Court's HUDOC database and the Convention PDF on echr.coe.int both refuse scripted access, and this project does not work around such filters. Judgments from before about 1991, which are in capitals with the paragraph numbers run into the text, are not parsed either (so Van Gend en Loos, Costa v ENEL and Cassis de Dijon are missing).
 
 ## Evaluation
 
-The citation tables below were measured with v1, the default until v4 was promoted; v4 on the same 25 questions scores 0.81 / 0.88 (see *Answer quality* for why it replaced v1). All rows below ran on the same retrieval (6,872 chunks, article headings indexed, at most one recital in the result list, no reranker), the same parser and the same judge (stock Qwen2.5-7B). P = share of cited sources that point at the gold article or case; R = whether at least one does.
+The citation tables below were measured with v1, the default until v4 was promoted; v4 on the same 25 questions scores 0.81 / 0.88 (see *Answer quality* for why it replaced v1). All rows below ran on the same retrieval over the earlier 31-instrument, 6,872-chunk corpus ( article headings indexed, at most one recital in the result list, no reranker), the same parser and the same judge (stock Qwen2.5-7B). P = share of cited sources that point at the gold article or case; R = whether at least one does.
 
 | generator | 42 templated (P / R) | 25 natural-language (P / R) | legislation (13) | judgments (12) |
 |---|---|---|---|---|
