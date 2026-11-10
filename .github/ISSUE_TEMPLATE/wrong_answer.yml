@@ -1,0 +1,29 @@
+name: Wrong or misleading answer
+description: The assistant cited the wrong provision, missed a condition, or labelled an unsupported statement as supported.
+labels: ["answer-quality"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Concrete examples are how the evaluation sets grow. Please do not include personal data or confidential facts in the question.
+  - type: textarea
+    id: question
+    attributes: { label: The question you asked, description: Include the "Law" setting if you chose one. }
+    validations: { required: true }
+  - type: textarea
+    id: answer
+    attributes: { label: What the answer said, description: Paste the statements and their labels, or the JSON from `ask --json`. }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What it should have said, description: "The provision (for example Article 15 GDPR, or C-311/18 para. 105) and what it says." }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Version, description: "Commit hash or release, and the generator model (shown in the answer)." }
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem
+      options: ["Wrong provision cited", "Missed a condition or exception", "Statement not backed by its source", "Cited repealed or outdated law", "Refused a question it should answer", "Answered a question it should refuse", "Other"]
+    validations: { required: true }

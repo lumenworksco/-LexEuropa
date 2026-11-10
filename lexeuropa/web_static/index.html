@@ -174,6 +174,8 @@
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--s-supported); flex: none; position: relative; top: -1px; }
   .dot.mixed { background: var(--s-interpretative); } .dot.bad { background: var(--s-unsupported); } .dot.none { background: var(--s-uncertain); }
   .meta { color: var(--faint); font-size: .82rem; }
+  .static-banner { position: sticky; top: 0; z-index: 30; background: var(--accent-soft); color: var(--ink); border-bottom: 1px solid var(--rule-strong); padding: 9px 16px; font: .86rem/1.45 var(--sans); text-align: center; }
+  .static-banner a { color: var(--accent); font-weight: 600; }
   .note { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; margin: 14px 0; font-size: .9rem; color: var(--ink); }
   .note.bad { border-color: var(--s-unsupported); } .note.info { border-color: var(--accent); }
   .note strong { font-weight: 600; }
@@ -280,6 +282,7 @@
 </style>
 </head>
 <body data-view="empty">
+<div class="static-banner" id="static-banner" hidden>Static demo of the interface: it shows a built-in example answer and sends nothing anywhere. To ask your own questions, <a href="https://github.com/lumenworksco/-LexEuropa#quickstart">run LexEuropa locally</a>.</div>
 <div class="app">
   <nav class="rail" id="rail" aria-label="History">
     <div class="brand">
@@ -397,6 +400,9 @@
   var HISTORY_KEY = "lexeuropa.history.v1", MAX_HISTORY = 15, MAX_STORED_TEXT = 6000;
 
   var $ = function (id) { return document.getElementById(id); };
+  // Served from anywhere other than this computer (the GitHub Pages demo): no backend, so show the built-in example.
+  var STATIC_DEMO = !/^(127\.0\.0\.1|localhost|\[::1\]|)$/.test(location.hostname);
+  if (STATIC_DEMO) $("static-banner").hidden = false;
   var body = document.body, form = $("form"), qEl = $("question"), askBtn = $("ask-btn"), out = $("out"), pane = $("sources");
   var controller = null, tick = null, DEFAULT_PH = qEl.getAttribute("placeholder");
 
@@ -527,7 +533,7 @@
   Array.prototype.forEach.call(document.querySelectorAll("dialog [data-close]"), function (b) { b.addEventListener("click", function () { closeDialog(b.closest("dialog")); }); });
   Array.prototype.forEach.call(document.querySelectorAll("dialog"), function (d) { d.addEventListener("click", function (e) { if (e.target === d) closeDialog(d); }); });
 
-  fetch("/api/info").then(function (r) { return r.json(); }).then(function (info) {
+  fetch(STATIC_DEMO ? "info.json" : "/api/info").then(function (r) { return r.json(); }).then(function (info) {
     var cb = $("cov-body"); cb.textContent = "";
     if (info.error) { cb.textContent = info.error; return; }
     cb.appendChild(el("p", { text: info.instruments.length + " documents, " + info.chunks.toLocaleString() + " passages. English only. No national law." }));
@@ -580,6 +586,7 @@
   function ask() {
     var q = qEl.value.trim();
     if (q.length < 3) { qEl.focus(); return; }
+    if (STATIC_DEMO) { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); return; }
     var lawValue = law.value || null;
     controller = new AbortController();
     askBtn.disabled = true; askBtn.textContent = "Working…";
@@ -809,7 +816,7 @@
   }
 
   autosize(); renderHist();
-  if (location.hash === "#example") { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); }
+  if (STATIC_DEMO || location.hash === "#example") { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); }
 })();
 </script>
 </body>

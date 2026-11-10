@@ -21,15 +21,15 @@ function stream(lines) {
   const enc = new TextEncoder(); const chunks = lines.map(l => enc.encode(l + "\n")); let i = 0;
   return { ok: true, status: 200, body: { getReader: () => ({ read: () => Promise.resolve(i < chunks.length ? {done:false, value: chunks[i++]} : {done:true}) }) } };
 }
-async function boot(hash, askLines, fail) {
-  const dom = new JSDOM(html, { runScripts: "dangerously", url: "http://127.0.0.1:8765/" + (hash||""), pretendToBeVisual: true,
+async function boot(hash, askLines, fail, origin) {
+  const dom = new JSDOM(html, { runScripts: "dangerously", url: (origin || "http://127.0.0.1:8765/") + (hash||""), pretendToBeVisual: true,
     beforeParse(w) {
       w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.scrollTo = () => {};
       w.HTMLElement.prototype.scrollIntoView = function(){ this.dataset.scrolled = "1"; };
       w.__asks = [];
       w.fetch = (url, opts) => {
         if (url === "/api/ask") w.__asks.push(JSON.parse(opts.body));
-        if (url === "/api/info") return Promise.resolve({ ok: true, json: () => Promise.resolve(INFO) });
+        if (url === "/api/info" || url === "info.json") return Promise.resolve({ ok: true, json: () => Promise.resolve(INFO) });
         if (fail) return Promise.reject(new Error("net"));
         return Promise.resolve(stream(askLines));
       };
@@ -180,6 +180,16 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   assert(wnote && wnote.textContent.includes("different point"), "a withheld answer says why");
   assert(doc.querySelector(".withheld ol li").textContent.includes("Generic GDPR principle."), "the withheld statements stay reachable behind a disclosure");
   assert(doc.querySelectorAll("li.stmt").length === 1 && doc.querySelector(".stmt .txt").textContent.includes("do not contain information"), "only the refusal is shown as the answer");
+
+  // 4f. served from a public host (GitHub Pages): a banner, the built-in example, and no request to any API
+  d = await boot("", null, false, "https://lumenworksco.github.io/-LexEuropa/demo/"); doc = d.window.document;
+  assert(!doc.getElementById("static-banner").hidden, "the static demo says it is a static demo");
+  assert(doc.querySelectorAll("li.stmt").length > 0, "the built-in example answer is shown on load");
+  doc.getElementById("question").value = "Anything at all?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(60);
+  assert(d.window.__asks.length === 0, "nothing the visitor types is sent anywhere");
+  assert(doc.getElementById("question").value !== "Anything at all?", "asking shows the example instead");
+  d = await boot(""); assert(d.window.document.getElementById("static-banner").hidden, "no banner when running locally");
 
   // 5. a source cited by many statements reads as a range
   const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;

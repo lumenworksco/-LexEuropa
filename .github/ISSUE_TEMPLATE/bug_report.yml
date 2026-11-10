@@ -1,0 +1,14 @@
+name: Bug report
+description: Something in the code, interface or ingestion does not work.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: "What you did, what you expected, what you saw. Paste the full error if there is one." }
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes: { label: Steps to reproduce, placeholder: "1. python -m lexeuropa.cli ...\n2. ..." }
+  - type: input
+    id: env
+    attributes: { label: Environment, description: "OS, Python version, whether the `rerank` extra is installed, local or HF embeddings." }

@@ -3,10 +3,14 @@
 [![CI](https://github.com/lumenworksco/-LexEuropa/actions/workflows/ci.yml/badge.svg)](https://github.com/lumenworksco/-LexEuropa/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+[![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-1d3f8c)](https://lumenworksco.github.io/-LexEuropa/)
+[![Model on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20model-lexeuropa--qwen3b--v4-yellow)](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v4)
 
-**An open-model AI legal research assistant for EU data protection and digital law, with every citation verified.**
+[![LexEuropa: EU legal research with checked citations](site/og.png)](https://lumenworksco.github.io/-LexEuropa/)
 
-LexEuropa runs on models published on Hugging Face (a LoRA-tuned [Qwen2.5-3B generator](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged) served from an Inference Endpoint), so nothing heavy lives on your machine. It fetches real EU legal texts from the Publications Office CELLAR service, chunks them at article/paragraph granularity, retrieves with a hybrid BM25 + dense + exact-reference pipeline, generates an answer as structured *claims with citations*, and then **checks every citation against what was actually retrieved**. Each claim in the answer carries a label: `supported`, `interpretative`, `analysis`, `unsupported` or `uncertain`.
+**An open-model AI legal research assistant for EU law, with every citation verified.** [Try the interface](https://lumenworksco.github.io/-LexEuropa/demo/#example) (a static demo with a built-in example answer) · [project page](https://lumenworksco.github.io/-LexEuropa/)
+
+LexEuropa runs on models published on Hugging Face (a LoRA-tuned [Qwen2.5-3B generator](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v4) served from an Inference Endpoint), so nothing heavy lives on your machine. It fetches real EU legal texts from the Publications Office CELLAR service, chunks them at article/paragraph granularity, retrieves with a hybrid BM25 + dense + exact-reference pipeline, generates an answer as structured *claims with citations*, and then **checks every citation against what was actually retrieved**. Each claim in the answer carries a label: `supported`, `interpretative`, `analysis`, `unsupported` or `uncertain`.
 
 > Not legal advice. This is a research prototype; its output does not replace a qualified legal professional.
 
@@ -199,17 +203,26 @@ What was tried:
 
 ## Known limitations
 
-- English only; no national law. The corpus holds the **original text of each act, not consolidated versions**, so later amendments are missing (for example ePrivacy Article 5(3) is the 2002 wording, which was later amended to require consent for cookies; answers about it would be out of date).
-- Answers are often incomplete (two in five in the quality set); treat them as a starting point and read the cited text. Known remaining errors: a question that does not name its law is not restricted, and provisions for different addressees of the *same* act can still be blended (the AI Act fine answer adds a EUR 1.5 million fine that applies only to EU institutions); a few answers (e.g. the Digital Markets Act gatekeeper criteria, Schrems II) list many passages without conveying the key points.
-- Retrieval surfaces the right provision for about 24 of 25 natural questions on the tuned set and 31 of 34 on fresh ones; the remaining misses are mostly judgments quoting a statute outranking it.
-- The fine-tuned model sometimes refuses when the sources do answer the question (mitigated by the fallback; the fallback fires on roughly a quarter of questions) and sometimes quotes a recital instead of the operative article.
-- The live adapter (v4) copies the passages it is given, so irrelevant sources can leak into an answer (expansion is restricted to one instrument for this reason). It was trained on 19 instruments and three judgments, evaluated with n=25 and one run per configuration.
+- English only; no national law. **No Strasbourg law** (the European Convention on Human Rights and European Court of Human Rights case law): the source sites refuse automated access and this project does not work around such filters. Judgments from before about 1991 are not parsed (their paragraph numbers are run into the text), so Van Gend en Loos, Costa v ENEL and Cassis de Dijon are missing. No Advocate General opinions.
+- Acts that have a later consolidated version are read from it, but an act without one is the text as adopted, so amendments made by other acts may be missing for those. Directive 95/46/EC is kept although repealed (judgments interpret it) and is flagged as such.
+- Answers are often incomplete: in the quality set about three in ten are not fully complete. Treat them as a starting point and read the cited text. Weak spots seen: broad everyday questions that name no law (look-alike provisions in other acts now compete, for example the GDPR right of access), and answers that quote judgment paragraphs but miss points the ruling states (Planet49, Schrems I).
+- Retrieval surfaces the right provision for about 24 of 25 natural questions on the tuned set, 31 of 34 on fresh ones and 37 of 43 on questions about the later additions; the remaining misses are mostly broad questions with no law named, or judgments quoting a statute outranking it.
+- The fine-tuned model sometimes refuses when the sources do answer the question (mitigated by a fallback model, which produced 5 of 32 answers in the final quality run) and sometimes quotes a recital instead of the operative article.
+- The live adapter (v4) copies the passages it is given, so irrelevant sources can leak into an answer (expansion is restricted to one instrument for this reason). It was trained on 19 instruments and three judgments, and all measurements use small question sets run once. **End-to-end quality has not yet been measured on the full 81-instrument library**; a retrain on it is prepared (`docs/V5_RUNBOOK.md`).
 - The judge rarely uses the `analysis` label; treat that label as unreliable.
 - Output is research assistance, not legal advice.
 
 ## Roadmap
 
-See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: judge answer quality beyond which sources are cited (human or rubric review of answers), prefer operative articles over recitals when both are retrieved, and add Advocate General opinions and treaty protocols.
+See [`docs/VISION.md`](docs/VISION.md) for the long-term plan. Next concrete steps: the end-to-end run on the 81-instrument library and the v5 retrain under its pre-declared promotion rule, answer review beyond which sources are cited (human or rubric review), Advocate General opinions, and Strasbourg case law if a source that permits automated access can be found.
+
+## Contributing and support
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Use the issue forms to report a **wrong or misleading answer** (the most useful kind of report, since it grows the evaluation sets), a bug, or a document you would like added. Security reports go through the [private advisory form](https://github.com/lumenworksco/-LexEuropa/security/advisories/new) (see [SECURITY.md](SECURITY.md)).
+
+## Citing
+
+GitHub's "Cite this repository" button reads [`CITATION.cff`](CITATION.cff).
 
 ## License
 

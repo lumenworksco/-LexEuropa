@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use LexEuropa in your work, please cite it as below."
+title: "LexEuropa: citation-verified legal research over EU law"
+type: software
+authors:
+  - family-names: Braun
+    given-names: Florian
+version: 0.9.0
+date-released: 2026-11-10
+license: MIT
+repository-code: "https://github.com/lumenworksco/-LexEuropa"
+url: "https://lumenworksco.github.io/-LexEuropa/"
+abstract: >-
+  An open-model research assistant for EU law. Questions are answered in short statements, each tied to the
+  exact article or judgment paragraph it comes from and checked by an existence gate and an independent judge
+  model. The library holds 81 EU instruments (treaties, legislation, Court of Justice judgments) in English.
+  It is a research aid and gives no legal advice.
+keywords:
+  - legal-tech
+  - eu-law
+  - retrieval-augmented-generation
+  - citation-verification
+  - lora

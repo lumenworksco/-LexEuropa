@@ -1,0 +1,11 @@
+name: Feature or corpus request
+description: Suggest a feature, or a law or judgment to add.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What would you like, description: "For a new document give its CELEX number if you know it (from EUR-Lex)." }
+    validations: { required: true }
+  - type: textarea
+    id: why
+    attributes: { label: Why it matters, description: "The question you could not get answered, or the use case." }

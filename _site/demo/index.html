@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LexEuropa</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231d3f8c'/%3E%3Cg fill='%23f2c94c'%3E%3Ccircle cx=%2212.00%22 cy=%223.40%22 r=%221.25%22/%3E%3Ccircle cx=%2216.30%22 cy=%224.55%22 r=%221.25%22/%3E%3Ccircle cx=%2219.45%22 cy=%227.70%22 r=%221.25%22/%3E%3Ccircle cx=%2220.60%22 cy=%2212.00%22 r=%221.25%22/%3E%3Ccircle cx=%2219.45%22 cy=%2216.30%22 r=%221.25%22/%3E%3Ccircle cx=%2216.30%22 cy=%2219.45%22 r=%221.25%22/%3E%3Ccircle cx=%2212.00%22 cy=%2220.60%22 r=%221.25%22/%3E%3Ccircle cx=%227.70%22 cy=%2219.45%22 r=%221.25%22/%3E%3Ccircle cx=%224.55%22 cy=%2216.30%22 r=%221.25%22/%3E%3Ccircle cx=%223.40%22 cy=%2212.00%22 r=%221.25%22/%3E%3Ccircle cx=%224.55%22 cy=%227.70%22 r=%221.25%22/%3E%3Ccircle cx=%227.70%22 cy=%224.55%22 r=%221.25%22/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light dark;
+    --paper: #fbfaf7; --raised: #ffffff; --panel: #f3f1ec; --ink: #1b1d21; --muted: #5f646c; --faint: #8a8f97;
+    --rule: #e3e0d8; --rule-strong: #c9c5ba; --accent: #1d3f8c; --accent-soft: #e9eef9;
+    --btn: #1d3f8c; --btn-ink: #ffffff; --gold: #a97c12; --focus: #2a63e0; --shadow: 0 14px 38px rgba(30, 34, 44, .16);
+    --s-supported: #1b7a49; --s-interpretative: #8a6100; --s-analysis: #6a49ad; --s-unsupported: #b03a2c; --s-uncertain: #5d6672;
+    --serif: "Iowan Old Style", "Charter", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --rail: 252px; --sources: 410px; --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14161a; --raised: #1b1e23; --panel: #181b20; --ink: #e8e6e1; --muted: #a0a5ad; --faint: #7d838c;
+      --rule: #272b32; --rule-strong: #3a3f48; --accent: #8fb0ff; --accent-soft: #1c2740;
+      --btn: #3d6ae0; --btn-ink: #ffffff; --gold: #d4a63a; --focus: #7aa2ff; --shadow: 0 16px 40px rgba(0, 0, 0, .5);
+      --s-supported: #6fcf9a; --s-interpretative: #e0b64d; --s-analysis: #b9a2f2; --s-unsupported: #f0897c; --s-uncertain: #a3acb8;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--accent-soft); color: var(--ink); }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rail, .sources-pane, .dlg-body, .picker-list { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
+
+  /* ---------- one button system ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--rule-strong); background: var(--raised); color: var(--ink);
+    border-radius: 7px; padding: 8px 14px; font-size: .86rem; font-weight: 600; line-height: 1.2; transition: border-color .15s var(--ease), background .15s var(--ease), color .15s var(--ease);
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .btn.primary { background: var(--btn); border-color: var(--btn); color: var(--btn-ink); padding: 9px 20px; font-size: .92rem; }
+  .btn.primary:hover { filter: brightness(1.12); color: var(--btn-ink); }
+  .btn.primary[disabled] { opacity: .55; cursor: progress; }
+  .btn.ghost { background: transparent; border-style: dashed; }
+  .btn.block { width: 100%; justify-content: flex-start; }
+
+  /* ---------- shell ---------- */
+  .app { display: grid; grid-template-columns: var(--rail) minmax(0, 1fr); min-height: 100vh; }
+  .rail {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 24px;
+    padding: 24px 16px 16px; background: var(--panel); border-right: 1px solid var(--rule);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 0 4px; }
+  .brand svg { width: 30px; height: 30px; fill: var(--accent); flex: none; }
+  .brand b { display: block; font: 600 1.32rem/1.05 var(--serif); letter-spacing: .01em; }
+  .brand small { display: block; font-size: .7rem; color: var(--muted); margin-top: 4px; letter-spacing: .14em; text-transform: uppercase; }
+  .rail h2 { margin: 0 0 6px; padding: 0 8px; font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .hist { list-style: none; margin: 0; padding: 0; }
+  .hist li { position: relative; }
+  .hist-open {
+    display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 7px; padding: 8px 28px 8px 8px;
+    font-size: .88rem; line-height: 1.35; transition: background .15s var(--ease);
+  }
+  .hist-open:hover, .hist li:focus-within .hist-open { background: var(--raised); }
+  .hist-open .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hist-open small { color: var(--faint); font-size: .72rem; }
+  .hist-del { position: absolute; right: 4px; top: 8px; width: 22px; height: 22px; border: 0; border-radius: 4px; background: none; color: var(--faint); opacity: 0; font-size: 1rem; line-height: 1; }
+  .hist li:hover .hist-del, .hist-del:focus-visible { opacity: 1; }
+  .hist-del:hover { color: var(--s-unsupported); background: var(--panel); }
+  .hist-empty { margin: 0; padding: 0 8px; font-size: .84rem; color: var(--faint); }
+  .rail-foot { margin-top: auto; display: grid; gap: 2px; }
+  .rail-link {
+    display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 7px; padding: 7px 8px;
+    color: var(--muted); font-size: .86rem; transition: background .15s var(--ease), color .15s var(--ease);
+  }
+  .rail-link:hover { background: var(--raised); color: var(--ink); }
+  .rail-foot p { margin: 12px 0 0; padding: 0 8px; color: var(--faint); font-size: .72rem; line-height: 1.5; }
+
+  .topbar { display: none; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+  body[data-view="result"] .workspace { grid-template-columns: minmax(0, 1fr) var(--sources); }
+  .main { position: relative; padding: 40px clamp(20px, 5vw, 64px) 96px; min-width: 0; overflow: hidden; }
+  .col { position: relative; max-width: 44rem; margin: 0 auto; }
+
+  /* ---------- Latin margins ---------- */
+  .marg { display: none; position: absolute; top: 15vh; gap: 16px; color: var(--faint); pointer-events: none; user-select: none; }
+  .marg.l { left: clamp(22px, 4vw, 68px); } .marg.r { right: clamp(22px, 4vw, 68px); flex-direction: row-reverse; }
+  .marg::before { content: ""; width: 1px; height: 150px; align-self: stretch; max-height: 36vh; background: linear-gradient(var(--rule-strong), transparent); }
+  .marg .lat { writing-mode: vertical-rl; font: 600 .92rem/1 var(--serif); letter-spacing: .42em; text-transform: uppercase; color: var(--muted); }
+  .marg .en { writing-mode: vertical-rl; font: italic .82rem/1 var(--serif); letter-spacing: .06em; }
+  .marg.l .lat, .marg.l .en { transform: rotate(180deg); }
+  @media (min-width: 1240px) { body[data-view="empty"] .marg { display: flex; } }
+
+  /* ---------- masthead / empty state ---------- */
+  .hero { position: relative; margin: 11vh auto 0; }
+  body[data-view="result"] .hero, body[data-view="loading"] .hero, body[data-view="result"] .try, body[data-view="loading"] .try { display: none; }
+  .hero .ring { position: absolute; right: -90px; top: -78px; width: 300px; height: 300px; fill: var(--accent); opacity: .075; pointer-events: none; }
+  .hero .rule { display: block; width: 46px; height: 3px; background: var(--gold); margin: 0 0 18px; border-radius: 2px; }
+  .hero h1 { position: relative; font: 600 clamp(1.8rem, 3.6vw, 2.45rem)/1.15 var(--serif); margin: 0 0 12px; letter-spacing: -.01em; }
+  .hero p.lede { position: relative; color: var(--muted); margin: 0 0 26px; max-width: 37rem; }
+  .try { margin: 30px 0 0; }
+  .try h2 { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px; }
+  .try ul { list-style: none; margin: 0; padding: 0; }
+  .try li button {
+    display: flex; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 11px 2px; text-align: left;
+    color: var(--ink); font: 1.03rem/1.4 var(--serif); transition: color .15s var(--ease), padding .2s var(--ease);
+  }
+  .try li button::before { content: "\2192"; color: var(--accent); font-family: var(--sans); transition: transform .2s var(--ease); }
+  .try li button:hover { color: var(--accent); }
+  .try li button:hover::before { transform: translateX(3px); }
+  .try .ex { margin-top: 18px; }
+
+  /* ---------- composer ---------- */
+  .composer { border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--raised); transition: border-color .15s var(--ease), box-shadow .15s var(--ease); }
+  .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .composer textarea {
+    display: block; width: 100%; border: 0; background: none; resize: none; outline: none; padding: 15px 18px 6px;
+    font: 1.1rem/1.5 var(--serif); min-height: 3.4em; max-height: 14em;
+  }
+  .composer textarea::placeholder { color: var(--faint); }
+  .composer .bar { display: flex; align-items: center; gap: 12px; padding: 8px 10px 10px 12px; }
+  .composer .keys { margin-left: auto; font-size: .74rem; color: var(--faint); }
+  body[data-view="result"] .composer, body[data-view="loading"] .composer { margin-bottom: 32px; }
+  body[data-view="result"] .composer textarea, body[data-view="loading"] .composer textarea { min-height: 2.9em; }
+
+  /* ---------- law picker (replaces the native select) ---------- */
+  .picker { position: relative; }
+  .picker-btn {
+    display: inline-flex; align-items: center; gap: 8px; max-width: 17rem; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 7px;
+    background: var(--panel); font-size: .84rem; transition: border-color .15s var(--ease);
+  }
+  .picker-btn:hover, .picker-btn[aria-expanded="true"] { border-color: var(--accent); }
+  .picker-btn .k { color: var(--muted); }
+  .picker-btn .v { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker-btn svg { width: 10px; height: 10px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .picker-pop { position: absolute; left: 0; top: calc(100% + 8px); z-index: 40; width: min(25rem, 86vw); background: var(--raised); border: 1px solid var(--rule-strong); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .picker-pop input { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--rule); background: none; padding: 12px 14px; font-size: .9rem; outline: none; }
+  .picker-pop input::placeholder { color: var(--faint); }
+  .picker-list { list-style: none; margin: 0; padding: 6px; max-height: 19rem; overflow-y: auto; }
+  .picker-group { padding: 10px 10px 4px; font-size: .66rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .picker-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: .88rem; }
+  .picker-opt.active { background: var(--accent-soft); }
+  .picker-opt .nm { display: flex; gap: 8px; }
+  .picker-opt .nm::before { content: ""; width: .9em; flex: none; }
+  .picker-opt[aria-selected="true"] .nm::before { content: "\2713"; color: var(--accent); font-weight: 700; }
+  .picker-opt small { color: var(--faint); font-size: .74rem; white-space: nowrap; }
+  .picker-empty { padding: 14px 10px; color: var(--faint); font-size: .86rem; }
+
+  /* ---------- progress ---------- */
+  .progress { margin: 8px 0 0; }
+  .progress h2 { font: 600 1.3rem/1.3 var(--serif); margin: 0 0 14px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .step { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: baseline; color: var(--faint); }
+  .step.done { color: var(--muted); }
+  .step.active { color: var(--ink); }
+  .step .mark { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule-strong); margin-top: 3px; }
+  .step.done .mark { background: var(--s-supported); border-color: var(--s-supported); }
+  .step.active .mark { border-color: var(--rule-strong); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+  .step .sub { display: block; font-size: .84rem; color: var(--muted); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .step.active .mark { animation: none; border-top-color: var(--accent); } * { transition: none !important; } }
+  .cancel { margin-top: 16px; }
+
+  /* ---------- answer ---------- */
+  .q-label { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 0; }
+  .q-text { font: 600 1.55rem/1.3 var(--serif); margin: 4px 0 18px; letter-spacing: -.005em; }
+  .verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 6px; }
+  .verdict .v { font-weight: 600; display: inline-flex; gap: 8px; align-items: baseline; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--s-supported); flex: none; position: relative; top: -1px; }
+  .dot.mixed { background: var(--s-interpretative); } .dot.bad { background: var(--s-unsupported); } .dot.none { background: var(--s-uncertain); }
+  .meta { color: var(--faint); font-size: .82rem; }
+  .static-banner { position: sticky; top: 0; z-index: 30; background: var(--accent-soft); color: var(--ink); border-bottom: 1px solid var(--rule-strong); padding: 9px 16px; font: .86rem/1.45 var(--sans); text-align: center; }
+  .static-banner a { color: var(--accent); font-weight: 600; }
+  .note { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; margin: 14px 0; font-size: .9rem; color: var(--ink); }
+  .note.bad { border-color: var(--s-unsupported); } .note.info { border-color: var(--accent); }
+  .note strong { font-weight: 600; }
+  .example-tag { display: inline-block; font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 1px 6px; margin-right: 8px; }
+
+  ol.statements { list-style: none; margin: 20px 0 0; padding: 0; }
+  .stmt { display: grid; grid-template-columns: 2rem minmax(0, 1fr); padding: 18px 0; border-top: 1px solid var(--rule); }
+  .stmt:last-child { border-bottom: 1px solid var(--rule); }
+  .stmt .n { color: var(--faint); font: .9rem/1.9 var(--sans); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .stmt .n .sd { width: 8px; height: 8px; border-radius: 50%; background: var(--c); display: block; margin: 0 0 0 2px; }
+  .stmt p { margin: 0; font: 1.08rem/1.7 var(--serif); }
+  .txt.clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .inst-tag { display: inline-block; font: 600 .68rem/1.5 var(--sans); letter-spacing: .04em; color: var(--muted); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 0 6px; }
+  .warn-tag { color: var(--s-interpretative); border-color: var(--s-interpretative); }
+  .src .stale { margin: 8px 0 0; font-size: .8rem; color: var(--s-interpretative); }
+  .withheld { margin-top: 8px; font-size: .86rem; }
+  .withheld summary { cursor: pointer; color: var(--accent); }
+  .withheld ol { margin: 8px 0 0; padding-left: 1.2rem; color: var(--muted); }
+  .more { background: none; border: 0; padding: 0; color: var(--accent); font-size: .8rem; text-decoration: underline; text-underline-offset: 2px; }
+  .cite {
+    display: inline-block; vertical-align: baseline; margin-left: 2px; padding: 0 3px; border: 0; background: none; color: var(--accent);
+    font: 600 .72rem/1 var(--sans); position: relative; top: -.42em; border-radius: 3px;
+  }
+  .cite:hover, .cite.on { background: var(--accent-soft); }
+  .status { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; margin-top: 8px; font: .8rem/1.4 var(--sans); }
+  .status .lab { display: inline-flex; gap: 6px; align-items: baseline; font-weight: 600; color: var(--c, var(--s-uncertain)); }
+  .status .lab i { font-style: normal; }
+  .status .why { color: var(--muted); }
+  .l-supported { --c: var(--s-supported); } .l-interpretative { --c: var(--s-interpretative); } .l-analysis { --c: var(--s-analysis); }
+  .l-unsupported { --c: var(--s-unsupported); } .l-uncertain { --c: var(--s-uncertain); }
+
+  .howto { font-size: .88rem; color: var(--muted); }
+  .howto dl { margin: 10px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+  .howto dt { font-weight: 600; color: var(--c); } .howto dd { margin: 0; }
+  .howto p { margin: 10px 0 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; }
+  .disclaimer { margin: 18px 0 0; font-size: .78rem; color: var(--faint); max-width: 40rem; }
+
+  /* ---------- sources ---------- */
+  .sources-pane { display: none; }
+  body[data-view="result"] .sources-pane {
+    display: block; position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 28px 22px 40px;
+    border-left: 1px solid var(--rule); background: var(--panel);
+  }
+  .src-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 0 4px; }
+  .src-head h2 { margin: 0; font: 600 1.15rem/1.3 var(--serif); }
+  .src-close { display: none; background: none; border: 0; font-size: 1.4rem; line-height: 1; color: var(--muted); }
+  .src-hint { margin: 0 0 16px; font-size: .8rem; color: var(--faint); }
+  .src { border: 1px solid var(--rule); border-radius: 10px; background: var(--raised); padding: 14px 14px 12px; margin: 0 0 12px; scroll-margin: 12px; transition: border-color .2s var(--ease), box-shadow .2s var(--ease); }
+  .src.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .src header { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; }
+  .src .num { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); font: 600 .74rem/20px var(--sans); text-align: center; }
+  .src .title { font-weight: 600; font-size: .94rem; line-height: 1.35; }
+  .src .inst { color: var(--muted); font-size: .78rem; }
+  .src .text { margin: 10px 0 0; font: .98rem/1.62 var(--serif); white-space: pre-wrap; }
+  .src .text.clamp { max-height: 12.5em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+  .src .row { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-top: 10px; font-size: .78rem; color: var(--muted); }
+  .src .row button { background: none; border: 0; padding: 0; color: var(--accent); font-size: .78rem; text-decoration: underline; text-underline-offset: 2px; }
+  .others summary { cursor: pointer; font-weight: 600; font-size: .86rem; margin: 18px 0 10px; }
+  .others .src .num { border-color: var(--rule-strong); color: var(--faint); }
+
+  /* ---------- dialogs ---------- */
+  dialog { border: 1px solid var(--rule-strong); border-radius: 14px; background: var(--raised); color: var(--ink); max-width: min(40rem, 94vw); width: 100%; padding: 0; box-shadow: var(--shadow); }
+  dialog::backdrop { background: rgba(10, 12, 16, .55); }
+  .dlg-head { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 22px 8px; }
+  .dlg-head h2 { margin: 0; font: 600 1.25rem/1.3 var(--serif); }
+  .dlg-head button { background: none; border: 0; font-size: 1.5rem; line-height: 1; color: var(--muted); }
+  .dlg-body { padding: 4px 22px 22px; max-height: 70vh; overflow: auto; font-size: .9rem; }
+  .cov h3 { margin: 16px 0 4px; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .cov ul { list-style: none; margin: 0; padding: 0; }
+  .cov li { padding: 3px 0; display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--rule); }
+  .cov li span:last-child { color: var(--faint); white-space: nowrap; }
+
+  /* ---------- narrower screens ---------- */
+  @media (max-width: 1099px) {
+    body[data-view="result"] .workspace { grid-template-columns: minmax(0, 1fr); }
+    body[data-view="result"] .sources-pane {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; height: auto; max-height: 72vh; z-index: 20;
+      border-left: 0; border-top: 1px solid var(--rule-strong); border-radius: 16px 16px 0 0; transform: translateY(105%); transition: transform .22s var(--ease);
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, .2);
+    }
+    body[data-view="result"].sheet-open .sources-pane { transform: none; }
+    .src-close { display: block; }
+  }
+  @media (max-width: 859px) {
+    .app { grid-template-columns: minmax(0, 1fr); }
+    .rail { position: fixed; z-index: 30; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-105%); transition: transform .22s var(--ease); box-shadow: 8px 0 28px rgba(0, 0, 0, .2); }
+    body.rail-open .rail { transform: none; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--panel); position: sticky; top: 0; z-index: 10; }
+    .topbar b { font: 600 1.1rem var(--serif); }
+    .main { padding: 24px 16px 80px; }
+    .hero { margin-top: 5vh; }
+    .hero .ring { right: -120px; width: 240px; height: 240px; }
+    .composer .keys { display: none; }
+    .stmt { grid-template-columns: 1.5rem minmax(0, 1fr); }
+  }
+  @media print {
+    .rail, .topbar, .composer, .actions, .cancel, .src-close, .marg, .ring { display: none !important; }
+    .app, .workspace, body[data-view="result"] .workspace { display: block; }
+    body[data-view="result"] .sources-pane { position: static; height: auto; transform: none; display: block; border: 0; background: none; padding: 24px 0 0; }
+    body { background: #fff; color: #000; }
+    .src .text.clamp { max-height: none; -webkit-mask-image: none; mask-image: none; }
+  }
+</style>
+</head>
+<body data-view="empty">
+<div class="static-banner" id="static-banner" hidden>Static demo of the interface: it shows a built-in example answer and sends nothing anywhere. To ask your own questions, <a href="https://github.com/lumenworksco/-LexEuropa#quickstart">run LexEuropa locally</a>.</div>
+<div class="app">
+  <nav class="rail" id="rail" aria-label="History">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12.00" cy="3.40" r="1.25"/><circle cx="16.30" cy="4.55" r="1.25"/><circle cx="19.45" cy="7.70" r="1.25"/><circle cx="20.60" cy="12.00" r="1.25"/><circle cx="19.45" cy="16.30" r="1.25"/><circle cx="16.30" cy="19.45" r="1.25"/><circle cx="12.00" cy="20.60" r="1.25"/><circle cx="7.70" cy="19.45" r="1.25"/><circle cx="4.55" cy="16.30" r="1.25"/><circle cx="3.40" cy="12.00" r="1.25"/><circle cx="4.55" cy="7.70" r="1.25"/><circle cx="7.70" cy="4.55" r="1.25"/></svg>
+      <div><b>LexEuropa</b><small>EU law research</small></div>
+    </div>
+    <button type="button" class="btn block" id="new-btn"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>New question</button>
+    <div>
+      <h2>Recent</h2>
+      <p class="hist-empty" id="hist-empty">Questions you ask will appear here. They stay in this browser.</p>
+      <ul class="hist" id="hist"></ul>
+    </div>
+    <div class="rail-foot">
+      <button type="button" class="rail-link" id="open-coverage">What it covers</button>
+      <button type="button" class="rail-link" id="open-howto">How to read an answer</button>
+      <p>Questions are processed by models hosted on Hugging Face &mdash; do not enter confidential details. This page is only reachable from this computer. Research aid, not legal advice.</p>
+    </div>
+  </nav>
+
+  <div class="workspace">
+    <div>
+      <div class="topbar"><button type="button" class="btn" id="menu-btn" aria-controls="rail" aria-expanded="false">Menu</button><b>LexEuropa</b><button type="button" class="btn" id="new-btn-2">New</button></div>
+      <main class="main" id="main">
+        <aside class="marg l" aria-hidden="true"><span class="lat" id="marg-l-la"></span><span class="en" id="marg-l-en"></span></aside>
+        <aside class="marg r" aria-hidden="true"><span class="lat" id="marg-r-la"></span><span class="en" id="marg-r-en"></span></aside>
+        <div class="col">
+          <section class="hero" id="hero">
+            <svg class="ring" viewBox="0 0 240 240" aria-hidden="true"><polygon points="120.00,19.00 123.06,27.79 132.36,27.98 124.95,33.61 127.64,42.52 120.00,37.20 112.36,42.52 115.05,33.61 107.64,27.98 116.94,27.79"/><polygon points="164.00,30.79 167.06,39.58 176.36,39.77 168.95,45.40 171.64,54.31 164.00,48.99 156.36,54.31 159.05,45.40 151.64,39.77 160.94,39.58"/><polygon points="196.21,63.00 199.27,71.79 208.57,71.98 201.16,77.61 203.85,86.52 196.21,81.20 188.57,86.52 191.26,77.61 183.85,71.98 193.15,71.79"/><polygon points="208.00,107.00 211.06,115.79 220.36,115.98 212.95,121.61 215.64,130.52 208.00,125.20 200.36,130.52 203.05,121.61 195.64,115.98 204.94,115.79"/><polygon points="196.21,151.00 199.27,159.79 208.57,159.98 201.16,165.61 203.85,174.52 196.21,169.20 188.57,174.52 191.26,165.61 183.85,159.98 193.15,159.79"/><polygon points="164.00,183.21 167.06,192.00 176.36,192.19 168.95,197.82 171.64,206.73 164.00,201.41 156.36,206.73 159.05,197.82 151.64,192.19 160.94,192.00"/><polygon points="120.00,195.00 123.06,203.79 132.36,203.98 124.95,209.61 127.64,218.52 120.00,213.20 112.36,218.52 115.05,209.61 107.64,203.98 116.94,203.79"/><polygon points="76.00,183.21 79.06,192.00 88.36,192.19 80.95,197.82 83.64,206.73 76.00,201.41 68.36,206.73 71.05,197.82 63.64,192.19 72.94,192.00"/><polygon points="43.79,151.00 46.85,159.79 56.15,159.98 48.74,165.61 51.43,174.52 43.79,169.20 36.15,174.52 38.84,165.61 31.43,159.98 40.73,159.79"/><polygon points="32.00,107.00 35.06,115.79 44.36,115.98 36.95,121.61 39.64,130.52 32.00,125.20 24.36,130.52 27.05,121.61 19.64,115.98 28.94,115.79"/><polygon points="43.79,63.00 46.85,71.79 56.15,71.98 48.74,77.61 51.43,86.52 43.79,81.20 36.15,86.52 38.84,77.61 31.43,71.98 40.73,71.79"/><polygon points="76.00,30.79 79.06,39.58 88.36,39.77 80.95,45.40 83.64,54.31 76.00,48.99 68.36,54.31 71.05,45.40 63.64,39.77 72.94,39.58"/></svg>
+            <span class="rule" aria-hidden="true"></span>
+            <h1>What would you like to look up?</h1>
+            <p class="lede">Ask about EU data protection, digital and fundamental-rights law. Every statement in the answer is tied to the passage it comes from, so you can check it yourself.</p>
+          </section>
+
+          <form class="composer" id="form" autocomplete="off">
+            <label class="sr" for="question">Your question</label>
+            <textarea id="question" rows="2" maxlength="2000" placeholder="e.g. Can a company send marketing emails without consent?"></textarea>
+            <div class="bar">
+              <div class="picker" id="picker">
+                <button type="button" class="picker-btn" id="picker-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="picker-pop">
+                  <span class="k">Law</span><span class="v" id="picker-val">All sources</span>
+                  <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg>
+                </button>
+                <div class="picker-pop" id="picker-pop" hidden>
+                  <input type="text" id="picker-q" placeholder="Search laws&hellip;" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="picker-list" aria-label="Search laws">
+                  <ul class="picker-list" id="picker-list" role="listbox" aria-label="Laws"></ul>
+                </div>
+              </div>
+              <span class="keys">Enter to ask &middot; Shift+Enter for a new line</span>
+              <button type="submit" class="btn primary" id="ask-btn">Ask</button>
+            </div>
+          </form>
+
+          <section class="try" id="try">
+            <h2>Try asking</h2>
+            <ul id="try-list"></ul>
+            <div class="ex"><button type="button" class="btn ghost" id="show-example"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.8h5.2L12.4 5v9.2H4z"/><path d="M9 1.8V5h3.4M6 8.2h4.4M6 10.8h4.4"/></svg>See an example answer</button></div>
+          </section>
+
+          <div id="out" aria-live="polite"></div>
+        </div>
+      </main>
+    </div>
+
+    <aside class="sources-pane" id="sources" aria-label="Sources"></aside>
+  </div>
+</div>
+
+<dialog id="dlg-coverage" aria-labelledby="dlg-cov-h">
+  <div class="dlg-head"><h2 id="dlg-cov-h">What it covers</h2><button type="button" data-close aria-label="Close">&times;</button></div>
+  <div class="dlg-body cov" id="cov-body">Loading&hellip;</div>
+</dialog>
+<dialog id="dlg-howto" aria-labelledby="dlg-how-h">
+  <div class="dlg-head"><h2 id="dlg-how-h">How to read an answer</h2><button type="button" data-close aria-label="Close">&times;</button></div>
+  <div class="dlg-body" id="how-body"></div>
+</dialog>
+
+<script>
+"use strict";
+(function () {
+  var LABELS = {
+    supported: ["●", "Supported", "The cited passage directly backs this statement."],
+    interpretative: ["◐", "Interpretative", "The cited passage supports it only through legal interpretation."],
+    analysis: ["◆", "Analysis", "Combines several sources into a conclusion. Treat with extra care."],
+    unsupported: ["✕", "Not supported", "The cited passage does not back this statement, or it was not among the retrieved sources."],
+    uncertain: ["○", "No source", "No citation was given for this statement."]
+  };
+  var STAGES = {
+    retrieving: "Finding the relevant provisions",
+    generating: "Writing the answer",
+    reviewing: "Checking that it answers your question",
+    second_opinion: "Asking a larger model for a second opinion",
+    checking: "Checking each citation against its source"
+  };
+  var EXAMPLES = [
+    "Can a company send marketing emails without consent?",
+    "What are the conditions for erasure under Article 17 GDPR?",
+    "Which AI practices are prohibited under the AI Act?",
+    "Does the right to be forgotten oblige a search engine to remove links?"
+  ];
+  var MAXIMS = [
+    ["Fiat iustitia, ruat caelum", "Let justice be done, though the heavens fall"],
+    ["Pacta sunt servanda", "Agreements must be kept"],
+    ["Audiatur et altera pars", "Let the other side be heard as well"],
+    ["Nemo iudex in causa sua", "No one should be judge in their own cause"],
+    ["Ubi ius, ibi remedium", "Where there is a right, there is a remedy"],
+    ["Lex specialis derogat legi generali", "The specific law overrides the general"],
+    ["Lex posterior derogat legi priori", "A later law overrides an earlier one"],
+    ["Nulla poena sine lege", "No punishment without law"],
+    ["Ignorantia legis neminem excusat", "Ignorance of the law excuses no one"],
+    ["Res iudicata pro veritate habetur", "A matter judged is taken as truth"],
+    ["Ex iniuria ius non oritur", "Right does not arise from wrong"],
+    ["Dura lex, sed lex", "The law is harsh, but it is the law"]
+  ];
+  var SAMPLE = {"question": "Can a company send marketing emails without consent?", "language": "en", "generator": "primary", "generator_model": null, "answers_question": true, "relevance_reason": null, "elapsed_s": null, "example": true, "retrieved": [{"id": "32002L0058:en:art_13:001", "celex": "32002L0058", "citation": "Article 13(1) ePrivacy Directive", "instrument_title": "Directive 2002/58/EC (ePrivacy Directive)", "text": "1. The use of automated calling systems without human intervention (automatic calling machines), facsimile machines (fax) or electronic mail for the purposes of direct marketing may only be allowed in respect of subscribers who have given their prior consent."}, {"id": "32002L0058:en:art_13:002", "celex": "32002L0058", "citation": "Article 13(2) ePrivacy Directive", "instrument_title": "Directive 2002/58/EC (ePrivacy Directive)", "text": "2. Notwithstanding paragraph 1, where a natural or legal person obtains from its customers their electronic contact details for electronic mail, in the context of the sale of a product or a service, in accordance with Directive 95/46/EC, the same natural or legal person may use these electronic contact details for direct marketing of its own similar products or services provided that customers clearly and distinctly are given the opportunity to object, free of charge and in an easy manner, to such use of electronic contact details when they are collected and on the occasion of each message in case the customer has not initially refused such use."}, {"id": "32002L0058:en:art_13:003", "celex": "32002L0058", "citation": "Article 13(3) ePrivacy Directive", "instrument_title": "Directive 2002/58/EC (ePrivacy Directive)", "text": "3. Member States shall take appropriate measures to ensure that, free of charge, unsolicited communications for purposes of direct marketing, in cases other than those referred to in paragraphs 1 and 2, are not allowed either without the consent of the subscribers concerned or in respect of subscribers who do not wish to receive these communications, the choice between these options to be determined by national legislation."}], "claims": [{"text": "Using email for direct marketing is allowed only for subscribers who have given their prior consent.", "citations": ["32002L0058:en:art_13:001"], "label": "supported", "reason": "", "citation_labels": {}}, {"text": "There is one exception. A business that obtained a customer's email address in the context of a sale of a product or service may use it to market its own similar products or services, as long as customers are clearly and distinctly offered a free and easy way to object, both when the address is collected and in every later message (unless they refused from the start).", "citations": ["32002L0058:en:art_13:002"], "label": "supported", "reason": "", "citation_labels": {}}], "disclaimer": "This is AI-assisted legal research output, not legal advice. It does not replace a qualified legal professional."};
+  var HISTORY_KEY = "lexeuropa.history.v1", MAX_HISTORY = 15, MAX_STORED_TEXT = 6000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  // Served from anywhere other than this computer (the GitHub Pages demo): no backend, so show the built-in example.
+  var STATIC_DEMO = !/^(127\.0\.0\.1|localhost|\[::1\]|)$/.test(location.hostname);
+  if (STATIC_DEMO) $("static-banner").hidden = false;
+  var body = document.body, form = $("form"), qEl = $("question"), askBtn = $("ask-btn"), out = $("out"), pane = $("sources");
+  var controller = null, tick = null, DEFAULT_PH = qEl.getAttribute("placeholder");
+
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    if (props) Object.keys(props).forEach(function (k) {
+      if (k === "class") n.className = props[k]; else if (k === "text") n.textContent = props[k]; else n.setAttribute(k, props[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function openDialog(d) { if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", ""); }
+  function closeDialog(d) { if (typeof d.close === "function") d.close(); else d.removeAttribute("open"); }
+  function setView(v) { body.setAttribute("data-view", v); if (v !== "result") body.classList.remove("sheet-open"); }
+  function autosize() { qEl.style.height = "auto"; qEl.style.height = Math.min(qEl.scrollHeight, 224) + "px"; }
+
+  // ---------- Latin margins: two different maxims per visit ----------
+  (function () {
+    var a = Math.floor(Math.random() * MAXIMS.length), b;
+    do { b = Math.floor(Math.random() * MAXIMS.length); } while (b === a);
+    $("marg-l-la").textContent = MAXIMS[a][0]; $("marg-l-en").textContent = MAXIMS[a][1];
+    $("marg-r-la").textContent = MAXIMS[b][0]; $("marg-r-en").textContent = MAXIMS[b][1];
+  })();
+
+  // ---------- law picker ----------
+  var law = { value: "", label: "All sources" };
+  var lawItems = [{ value: "", label: "All sources", group: "", meta: "" }];
+  var pk = { shown: [], active: 0 };
+  var pkBtn = $("picker-btn"), pkPop = $("picker-pop"), pkQ = $("picker-q"), pkList = $("picker-list");
+
+  function setLaw(value, label) {
+    law.value = value || "";
+    var found = lawItems.filter(function (i) { return i.value === law.value; })[0];
+    law.label = label || (found ? found.label : "All sources");
+    $("picker-val").textContent = law.label;
+  }
+  function markActive() {
+    var opts = pkList.querySelectorAll(".picker-opt");
+    Array.prototype.forEach.call(opts, function (n, i) { n.classList.toggle("active", i === pk.active); n.setAttribute("aria-selected", String(pk.shown[i] && pk.shown[i].value === law.value)); });
+    pkQ.setAttribute("aria-activedescendant", opts[pk.active] ? opts[pk.active].id : "");
+    if (opts[pk.active] && opts[pk.active].scrollIntoView) opts[pk.active].scrollIntoView({ block: "nearest" });
+  }
+  function renderPicker() {
+    var q = pkQ.value.trim().toLowerCase();
+    pk.shown = lawItems.filter(function (it) { return !q || it.label.toLowerCase().indexOf(q) !== -1 || it.value.toLowerCase().indexOf(q) !== -1; });
+    if (pk.active >= pk.shown.length) pk.active = Math.max(0, pk.shown.length - 1);
+    pkList.textContent = "";
+    var last = null;
+    pk.shown.forEach(function (it, i) {
+      if (it.group && it.group !== last) pkList.appendChild(el("li", { class: "picker-group", role: "presentation", text: it.group }));
+      last = it.group;
+      var li = el("li", { class: "picker-opt", role: "option", id: "opt-" + i }, [el("span", { class: "nm", text: it.label }), it.meta ? el("small", { text: it.meta }) : null]);
+      li.addEventListener("mousedown", function (e) { e.preventDefault(); choose(i); });
+      li.addEventListener("mousemove", function () { if (pk.active !== i) { pk.active = i; markActive(); } });
+      pkList.appendChild(li);
+    });
+    if (!pk.shown.length) pkList.appendChild(el("li", { class: "picker-empty", text: "No law matches." }));
+    markActive();
+  }
+  function openPicker() {
+    pkPop.hidden = false; pkBtn.setAttribute("aria-expanded", "true"); pkQ.value = "";
+    pk.active = Math.max(0, lawItems.map(function (i) { return i.value; }).indexOf(law.value));
+    renderPicker(); pkQ.focus();
+  }
+  function closePicker(refocus) { pkPop.hidden = true; pkBtn.setAttribute("aria-expanded", "false"); if (refocus) pkBtn.focus(); }
+  function choose(i) { var it = pk.shown[i]; if (!it) return; setLaw(it.value, it.label); closePicker(true); }
+  pkBtn.addEventListener("click", function () { if (pkPop.hidden) openPicker(); else closePicker(false); });
+  pkBtn.addEventListener("keydown", function (e) { if (e.key === "ArrowDown" && pkPop.hidden) { e.preventDefault(); openPicker(); } });
+  pkQ.addEventListener("input", function () { pk.active = 0; renderPicker(); });
+  pkQ.addEventListener("keydown", function (e) {
+    var n = pk.shown.length;
+    if (e.key === "ArrowDown") { e.preventDefault(); if (n) { pk.active = (pk.active + 1) % n; markActive(); } }
+    else if (e.key === "ArrowUp") { e.preventDefault(); if (n) { pk.active = (pk.active - 1 + n) % n; markActive(); } }
+    else if (e.key === "Enter") { e.preventDefault(); choose(pk.active); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePicker(true); }
+    else if (e.key === "Tab") { closePicker(false); }
+  });
+  document.addEventListener("mousedown", function (e) { if (!pkPop.hidden && !$("picker").contains(e.target)) closePicker(false); });
+
+  // ---------- history ----------
+  function readHist() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (e) { return []; } }
+  function writeHist(items) {
+    while (true) { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); return; } catch (e) { if (!items.length) return; items.pop(); } }
+  }
+  function slim(result) {
+    var c = JSON.parse(JSON.stringify(result));
+    (c.retrieved || []).forEach(function (s) { if (s.text && s.text.length > MAX_STORED_TEXT) s.text = s.text.slice(0, MAX_STORED_TEXT) + " … [shortened in saved history]"; });
+    return c;
+  }
+  function saveHist(q, lawValue, result) {
+    var items = readHist().filter(function (h) { return h.q !== q; });
+    items.unshift({ q: q, law: lawValue, t: Date.now(), result: slim(result) });
+    writeHist(items.slice(0, MAX_HISTORY)); renderHist();
+  }
+  function renderHist() {
+    var items = readHist(), ul = $("hist");
+    ul.textContent = ""; $("hist-empty").hidden = items.length > 0;
+    items.forEach(function (h, i) {
+      var open = el("button", { type: "button", class: "hist-open" }, [el("span", { class: "t", text: h.q }), el("small", { text: new Date(h.t).toLocaleDateString(undefined, { day: "numeric", month: "short" }) })]);
+      open.addEventListener("click", function () { qEl.value = h.q; setLaw(h.law || ""); autosize(); showResult(h.q, h.result); body.classList.remove("rail-open"); });
+      var del = el("button", { type: "button", class: "hist-del", "aria-label": "Remove from history", title: "Remove", text: "×" });
+      del.addEventListener("click", function () { var all = readHist(); all.splice(i, 1); writeHist(all); renderHist(); });
+      ul.appendChild(el("li", null, [open, del]));
+    });
+  }
+
+  // ---------- static content ----------
+  (function () {
+    var list = $("try-list");
+    EXAMPLES.forEach(function (q) {
+      var b = el("button", { type: "button", text: q });
+      b.addEventListener("click", function () { qEl.value = q; autosize(); qEl.focus(); });
+      list.appendChild(el("li", null, [b]));
+    });
+    var dl = el("dl");
+    Object.keys(LABELS).forEach(function (k) {
+      dl.appendChild(el("dt", { class: "l-" + k, text: LABELS[k][0] + " " + LABELS[k][1] }));
+      dl.appendChild(el("dd", { text: LABELS[k][2] }));
+    });
+    $("how-body").appendChild(el("div", { class: "howto" }, [
+      el("p", { text: "Each statement in an answer is checked against the passage it cites. The label tells you how well that passage backs the statement." }), dl,
+      el("p", { text: "A “supported” label does not mean the statement is complete or that nothing relevant is missing — for example, conditions or exceptions can sit in a neighbouring provision. Open the cited passage and read it. A second check asks whether the statements answer your question at all, and says so if it cannot confirm that." })
+    ]));
+  })();
+  $("show-example").addEventListener("click", function () { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); });
+  $("open-howto").addEventListener("click", function () { openDialog($("dlg-howto")); });
+  $("open-coverage").addEventListener("click", function () { openDialog($("dlg-coverage")); });
+  Array.prototype.forEach.call(document.querySelectorAll("dialog [data-close]"), function (b) { b.addEventListener("click", function () { closeDialog(b.closest("dialog")); }); });
+  Array.prototype.forEach.call(document.querySelectorAll("dialog"), function (d) { d.addEventListener("click", function (e) { if (e.target === d) closeDialog(d); }); });
+
+  fetch(STATIC_DEMO ? "info.json" : "/api/info").then(function (r) { return r.json(); }).then(function (info) {
+    var cb = $("cov-body"); cb.textContent = "";
+    if (info.error) { cb.textContent = info.error; return; }
+    cb.appendChild(el("p", { text: info.instruments.length + " documents, " + info.chunks.toLocaleString() + " passages. English only. No national law." }));
+    var groups = [["Treaties and the Charter", function (i) { return i.doc_type === "treaty"; }], ["Legislation", function (i) { return i.doc_type !== "treaty" && i.doc_type !== "judgment"; }], ["Court of Justice case law", function (i) { return i.doc_type === "judgment"; }]];
+    groups.forEach(function (g) {
+      var items = info.instruments.filter(g[1]); if (!items.length) return;
+      var ul = el("ul");
+      items.forEach(function (i) {
+        var name = i.case_number ? i.case_number + " – " + i.title.split(" (")[0] : i.title;
+        ul.appendChild(el("li", null, [el("span", { text: name }), el("span", { text: i.chunks + " passages" })]));
+      });
+      cb.appendChild(el("h3", { text: g[0] })); cb.appendChild(ul);
+    });
+    var pickable = info.instruments.filter(function (i) { return i.alias && i.doc_type !== "judgment"; }).map(function (i) {
+      return { value: i.alias, label: i.title.replace(/^(Regulation|Directive) \(EU\) /, "").replace(/^Consolidated version of the /, ""), group: i.doc_type === "treaty" ? "Treaties and the Charter" : "Legislation", meta: i.date ? i.date.slice(0, 4) : "" };
+    });
+    ["Legislation", "Treaties and the Charter"].forEach(function (g) {
+      pickable.filter(function (p) { return p.group === g; }).sort(function (a, b) { return a.label.localeCompare(b.label); }).forEach(function (p) { lawItems.push(p); });
+    });
+    setLaw(law.value);
+  }).catch(function () { $("cov-body").textContent = "Could not load the coverage list."; });
+
+  // ---------- asking ----------
+  function showProgress(started) {
+    out.textContent = ""; setView("loading");
+    var steps = el("ol", { class: "steps" });
+    var cancel = el("button", { type: "button", class: "btn cancel", text: "Cancel" });
+    cancel.addEventListener("click", function () { if (controller) controller.abort(); });
+    out.appendChild(el("section", { class: "progress" }, [el("h2", { text: "Researching…" }), steps, cancel]));
+    var state = { order: [], active: null, since: started };
+    function paint() {
+      steps.textContent = "";
+      state.order.forEach(function (s) {
+        var done = s !== state.active;
+        var li = el("li", { class: "step " + (done ? "done" : "active") });
+        li.appendChild(el("span", { class: "mark" }));
+        var txt = el("span", { text: STAGES[s] || s });
+        if (!done && s === "generating") {
+          var secs = Math.round((Date.now() - state.since) / 1000);
+          if (secs >= 25) txt.appendChild(el("span", { class: "sub", text: "The model is starting up after being idle — this can take a minute or two (" + secs + " s)." }));
+        }
+        li.appendChild(txt); steps.appendChild(li);
+      });
+    }
+    tick = setInterval(paint, 1000);
+    return { stage: function (s) { if (state.order.indexOf(s) === -1) state.order.push(s); state.active = s; state.since = Date.now(); paint(); } };
+  }
+  function stopProgress() { if (tick) { clearInterval(tick); tick = null; } }
+
+  function ask() {
+    var q = qEl.value.trim();
+    if (q.length < 3) { qEl.focus(); return; }
+    if (STATIC_DEMO) { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); return; }
+    var lawValue = law.value || null;
+    controller = new AbortController();
+    askBtn.disabled = true; askBtn.textContent = "Working…";
+    var prog = showProgress(Date.now()); prog.stage("retrieving");
+    var finished = false;
+    function fail(msg, data) { finished = true; stopProgress(); showError(q, msg, data); }
+    fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, instrument: lawValue, stream: true }), signal: controller.signal })
+      .then(function (r) {
+        if (!r.ok || !r.body || !r.body.getReader) return r.json().then(function (d) { fail(d.error || "The request failed."); });
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = "";
+        function handle(line) {
+          if (!line.trim()) return;
+          var ev; try { ev = JSON.parse(line); } catch (e) { return; }
+          if (ev.stage) prog.stage(ev.stage);
+          else if (ev.result) { finished = true; stopProgress(); if (ev.result.error) showError(q, ev.result.error, ev.result); else { showResult(q, ev.result); saveHist(q, lawValue, ev.result); } }
+          else if (ev.error) fail(ev.error);
+        }
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (chunk.done) { buf.split("\n").forEach(handle); if (!finished) fail("The connection closed before an answer arrived."); return; }
+            buf += dec.decode(chunk.value, { stream: true });
+            var lines = buf.split("\n"); buf = lines.pop(); lines.forEach(handle);
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .catch(function (e) {
+        if (e && e.name === "AbortError") { stopProgress(); out.textContent = ""; setView("empty"); return; }
+        fail("Could not reach the local LexEuropa server. Is it still running in your terminal?");
+      })
+      .then(function () { askBtn.disabled = false; askBtn.textContent = "Ask"; });
+  }
+  form.addEventListener("submit", function (e) { e.preventDefault(); ask(); });
+  qEl.addEventListener("input", autosize);
+  qEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); }
+  });
+  document.addEventListener("keydown", function (e) {
+    var t = e.target && e.target.tagName;
+    if (e.key === "/" && t !== "TEXTAREA" && t !== "INPUT") { e.preventDefault(); qEl.focus(); }
+    if (e.key === "Escape") { body.classList.remove("sheet-open"); body.classList.remove("rail-open"); }
+  });
+  function newQuestion() { stopProgress(); out.textContent = ""; pane.textContent = ""; qEl.value = ""; qEl.setAttribute("placeholder", DEFAULT_PH); autosize(); setView("empty"); body.classList.remove("rail-open"); qEl.focus(); window.scrollTo(0, 0); }
+  $("new-btn").addEventListener("click", newQuestion); $("new-btn-2").addEventListener("click", newQuestion);
+  $("menu-btn").addEventListener("click", function () { var o = body.classList.toggle("rail-open"); $("menu-btn").setAttribute("aria-expanded", String(o)); });
+
+  // ---------- rendering ----------
+  function showError(q, msg, data) {
+    out.textContent = ""; pane.textContent = "";
+    var box = el("section", null, [el("p", { class: "q-label", text: "Your question" }), el("h1", { class: "q-text", text: q }), el("div", { class: "note bad", role: "alert" }, [el("strong", { text: "Could not answer. " }), msg])]);
+    if (/503|unavailable|time/i.test(msg)) box.appendChild(el("p", { class: "meta", text: "The answering model is probably still starting up after being idle. Wait a minute or two and ask again." }));
+    out.appendChild(box);
+    if (data && data.retrieved && data.retrieved.length) { setView("result"); buildPane(data, {}, {}); } else { setView("loading"); }
+  }
+
+  function tidy(t) { return t.replace(/^\s*\d{1,2}\.\s+(?=\S)/, ""); }   // drop a copied paragraph number ("1. ...")
+  function ranges(nums) {
+    var a = nums.slice().sort(function (x, y) { return x - y; }), out = [], i = 0;
+    while (i < a.length) { var j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++; out.push(j > i + 1 ? a[i] + "\u2013" + a[j] : (j === i ? String(a[i]) : a[i] + ", " + a[j])); i = j + 1; }
+    return out.join(", ");
+  }
+  function instOf(chunk) { return chunk.instrument_short || chunk.instrument_title; }
+  function isLegislation(chunk) { return !/CJ\d/.test(chunk.celex); }   // judgments quote statutes; only legislation counts as a "regime"
+  function citeName(id, byId) { return byId[id] ? byId[id].citation : id; }
+
+  function sourceCard(chunk, num, citedBy) {
+    var url = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:" + encodeURIComponent(chunk.celex);
+    var card = el("article", { class: "src", "data-id": chunk.id });
+    card.appendChild(el("header", null, [num ? el("span", { class: "num", text: String(num) }) : el("span"), el("div", null, [el("div", { class: "title", text: chunk.citation }), el("div", { class: "inst", text: chunk.instrument_title })])]));
+    var long = chunk.text.length > 650;
+    var text = el("div", { class: "text" + (long ? " clamp" : ""), text: chunk.text });
+    card.appendChild(text);
+    if (chunk.notice) card.appendChild(el("p", { class: "stale", text: (chunk.notice_kind === "repealed" ? "Repealed. " : "Amended since. ") + chunk.notice }));
+    var row = el("div", { class: "row" });
+    if (citedBy && citedBy.length) row.appendChild(el("span", { text: "Cited in statement" + (citedBy.length > 1 ? "s " : " ") + ranges(citedBy) }));
+    if (long) {
+      var tog = el("button", { type: "button", text: "Show full passage" });
+      tog.addEventListener("click", function () { var c = text.classList.toggle("clamp"); tog.textContent = c ? "Show full passage" : "Show less"; });
+      row.appendChild(tog);
+    }
+    row.appendChild(el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "Open on EUR-Lex ↗" }));
+    card.appendChild(row);
+    return card;
+  }
+
+  function buildPane(result, numOf, citedByMap) {
+    pane.textContent = "";
+    var retrieved = result.retrieved || [];
+    var cited = retrieved.filter(function (c) { return numOf[c.id]; }).sort(function (a, b) { return numOf[a.id] - numOf[b.id]; });
+    var others = retrieved.filter(function (c) { return !numOf[c.id]; });
+    var head = el("div", { class: "src-head" }, [el("h2", { text: "Sources" })]);
+    var close = el("button", { type: "button", class: "src-close", "aria-label": "Close sources", text: "×" });
+    close.addEventListener("click", function () { body.classList.remove("sheet-open"); });
+    head.appendChild(close);
+    pane.appendChild(head);
+    pane.appendChild(el("p", { class: "src-hint", text: cited.length ? "The passages these statements rely on. Select a number in the answer to jump to its source." : "No passage was cited. These are the sources that were retrieved." }));
+    cited.forEach(function (c) { pane.appendChild(sourceCard(c, numOf[c.id], citedByMap[c.id])); });
+    if (others.length) {
+      var d = el("details", { class: "others" }, [el("summary", { text: (cited.length ? "Also retrieved, not cited (" : "Retrieved (") + others.length + ")" })]);
+      others.forEach(function (c) { d.appendChild(sourceCard(c, null, null)); });
+      if (!cited.length) d.setAttribute("open", "");
+      pane.appendChild(d);
+    }
+  }
+
+  function focusSource(id) {
+    var card = null;
+    Array.prototype.forEach.call(pane.querySelectorAll(".src"), function (n) { if (n.getAttribute("data-id") === id) card = n; });
+    if (!card) return;
+    var det = card.closest("details"); if (det) det.setAttribute("open", "");
+    body.classList.add("sheet-open");
+    Array.prototype.forEach.call(pane.querySelectorAll(".src.flash"), function (n) { n.classList.remove("flash"); });
+    card.classList.add("flash");
+    if (card.scrollIntoView) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(function () { card.classList.remove("flash"); }, 2200);
+  }
+
+  function plain(q, result, byId) {
+    var lines = ["Question: " + q, ""];
+    result.claims.forEach(function (c, i) {
+      lines.push((i + 1) + ". " + tidy(c.text) + "  [" + (LABELS[c.label] ? LABELS[c.label][1] : c.label) + "]");
+      lines.push("   Sources: " + (c.citations.map(function (id) { return citeName(id, byId); }).join("; ") || "none"));
+    });
+    lines.push("", result.disclaimer || "This is AI-assisted research, not legal advice."); return lines.join("\n");
+  }
+
+  function showResult(q, result) {
+    if (result.error) { showError(q, result.error, result); return; }
+    stopProgress(); out.textContent = ""; setView("result");
+    qEl.value = ""; qEl.setAttribute("placeholder", "Ask another question\u2026"); autosize();
+    var byId = {}, numOf = {}, citedByMap = {}, n = 0;
+    (result.retrieved || []).forEach(function (c) { byId[c.id] = c; });
+    result.claims.forEach(function (c, i) {
+      c.citations.forEach(function (id) {
+        if (!byId[id]) return;
+        if (!numOf[id]) numOf[id] = ++n;
+        citedByMap[id] = citedByMap[id] || [];
+        if (citedByMap[id].indexOf(i + 1) === -1) citedByMap[id].push(i + 1);
+      });
+    });
+
+    var regimes = {};
+    result.claims.forEach(function (c) { c.citations.forEach(function (id) { var ch = byId[id]; if (ch && isLegislation(ch)) regimes[ch.celex] = instOf(ch); }); });
+    var regimeNames = Object.keys(regimes).map(function (k) { return regimes[k]; });
+    var mixed = regimeNames.length >= 2;
+
+    var sec = el("section");
+    sec.appendChild(el("p", { class: "q-label", text: "Your question" }));
+    sec.appendChild(el("h1", { class: "q-text", text: q }));
+
+    var total = result.claims.length, ok = result.claims.filter(function (c) { return c.label === "supported"; }).length;
+    var noSource = result.claims.every(function (c) { return !c.citations.length; });
+    var dotClass = "dot", verdict;
+    if (!total || noSource) { dotClass += " none"; verdict = "No answer could be given from the sources"; }
+    else if (ok === total) { verdict = (total === 1 ? "The statement is" : (total === 2 ? "Both statements are" : "All " + total + " statements are")) + " supported by the cited text"; }
+    else { dotClass += ok ? " mixed" : " bad"; verdict = ok + " of " + total + " statements supported — check the others"; }
+    var meta = [];
+    if (result.example) meta.push("example");
+    else { if (result.elapsed_s) meta.push(Math.round(result.elapsed_s) + " s"); meta.push(result.generator === "fallback" ? "second opinion by " + (result.generator_model || "a larger model").replace(/^.*\//, "") : "LexEuropa model"); }
+    sec.appendChild(el("p", { class: "verdict" }, [el("span", { class: "v" }, [el("span", { class: dotClass }), verdict]), el("span", { class: "meta", text: meta.join(" · ") })]));
+
+    if (result.example) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Example" }), "Written by hand from the text of the Directive to show the format — not generated live."]));
+    if (result.generator === "fallback") sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Second opinion. " }), "The main LexEuropa model declined or did not answer this question well, so a larger general-purpose model wrote the answer from the same sources."]));
+    if (result.withheld_claims && result.withheld_claims.length) {
+      var held = el("details", { class: "withheld" }, [el("summary", { text: "Show the withheld statements anyway" })]);
+      var hl = el("ol");
+      result.withheld_claims.forEach(function (c) { hl.appendChild(el("li", { text: tidy(c.text) + (c.citations.length ? "  [" + c.citations.map(function (id) { return citeName(id, byId); }).join("; ") + "]" : "") })); });
+      held.appendChild(hl);
+      sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Withheld. " }), "The system drafted statements but could not confirm that they answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ", so they are not shown as an answer. ", held]));
+    } else if (result.answers_question === false) sec.appendChild(el("div", { class: "note bad" }, [el("strong", { text: "Check this carefully. " }), "We could not confirm that these statements answer your question" + (result.relevance_reason ? " (" + result.relevance_reason.replace(/\.$/, "") + ")" : "") + ". They may address a different point."]));
+
+    if (mixed) sec.appendChild(el("div", { class: "note info" }, [el("strong", { text: "More than one regime. " }), "This answer draws on " + regimeNames.length + " different instruments (" + regimeNames.join(", ") + "). Look-alike rules can differ by who they apply to \u2014 for example the GDPR for most organisations, a separate regulation for EU institutions, a directive for law-enforcement authorities. Check which one applies to you; the \u201cLaw\u201d menu above can focus a question on one instrument."]));
+
+    var stale = {};
+    result.claims.forEach(function (c) { c.citations.forEach(function (id) { var ch = byId[id]; if (ch && ch.notice) stale[ch.notice] = ch.notice_kind; }); });
+    var staleNotes = Object.keys(stale);
+    if (staleNotes.length) sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Out of date. " }), "This answer cites provisions that have since been " + (staleNotes.some(function (n) { return stale[n] === "repealed"; }) ? "repealed or amended" : "amended") + ": " + staleNotes.join(" ") + " Check the current law before relying on it."]));
+
+    var ol = el("ol", { class: "statements" });
+    result.claims.forEach(function (c, i) {
+      var text = tidy(c.text), long = text.length > 420;
+      var txt = el("span", { class: "txt" + (long ? " clamp" : ""), text: text });
+      var p = el("p", null, [txt]);
+      c.citations.forEach(function (id) {
+        if (!numOf[id]) return;
+        var b = el("button", { type: "button", class: "cite", "aria-label": "Source " + numOf[id] + ": " + citeName(id, byId), title: citeName(id, byId), text: String(numOf[id]) });
+        b.addEventListener("click", function () { Array.prototype.forEach.call(document.querySelectorAll(".cite.on"), function (x) { x.classList.remove("on"); }); b.classList.add("on"); focusSource(id); });
+        p.appendChild(b);
+      });
+      var key = LABELS[c.label] ? c.label : "uncertain", lab = LABELS[key];
+      // A supported statement needs no label row (the verdict line and a small dot say so);
+      // anything else is spelled out, with the reason.
+      var row = el("div", { class: "status l-" + key });
+      if (key !== "supported") {
+        row.appendChild(el("span", { class: "lab", title: lab[2] }, [el("i", { "aria-hidden": "true", text: lab[0] }), lab[1]]));
+        if (c.reason) row.appendChild(el("span", { class: "why", text: c.reason }));
+      }
+      if (long) {
+        var more = el("button", { type: "button", class: "more", text: "Show full statement" });
+        more.addEventListener("click", function () { var on = txt.classList.toggle("clamp"); more.textContent = on ? "Show full statement" : "Show less"; });
+        row.appendChild(more);
+      }
+      if (mixed) {
+        var seenInst = {};
+        c.citations.forEach(function (id) { var ch = byId[id]; if (ch && isLegislation(ch) && !seenInst[ch.celex]) { seenInst[ch.celex] = 1; row.insertBefore(el("span", { class: "inst-tag", text: instOf(ch) }), row.firstChild); } });
+      }
+      c.citations.forEach(function (id) { var ch = byId[id]; if (ch && ch.notice) row.appendChild(el("span", { class: "inst-tag warn-tag", title: ch.notice, text: ch.notice_kind === "repealed" ? "Repealed law" : "Amended since" })); });
+      var kids = [p]; if (row.childNodes.length) kids.push(row);
+      var gutter = el("span", { class: "n l-" + key }, [el("span", { text: String(i + 1) }), key === "supported" ? el("i", { class: "sd", role: "img", "aria-label": "Supported", title: lab[2] }) : null]);
+      ol.appendChild(el("li", { class: "stmt" }, [gutter, el("div", null, kids)]));
+    });
+    sec.appendChild(ol);
+
+    var copy = el("button", { type: "button", class: "btn", text: "Copy answer with sources" });
+    copy.addEventListener("click", function () {
+      var t = plain(q, result, byId), done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy answer with sources"; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () {});
+    });
+    var again = el("button", { type: "button", class: "btn", text: "New question" }); again.addEventListener("click", newQuestion);
+    var howto = el("button", { type: "button", class: "btn", text: "How to read this" }); howto.addEventListener("click", function () { openDialog($("dlg-howto")); });
+    sec.appendChild(el("div", { class: "actions" }, [copy, howto, again]));
+    sec.appendChild(el("p", { class: "disclaimer", text: (result.disclaimer || "This is AI-assisted research, not legal advice.") + " A “supported” label means the cited passage backs the statement, not that nothing relevant is missing — read the sources." }));
+    out.appendChild(sec);
+    buildPane(result, numOf, citedByMap);
+    window.scrollTo({ top: 0 });
+  }
+
+  autosize(); renderHist();
+  if (STATIC_DEMO || location.hash === "#example") { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); }
+})();
+</script>
+</body>
+</html>

@@ -28,3 +28,8 @@ jobs:
       - name: Web page behaviour tests (jsdom)
         if: matrix.python-version == '3.12'
         run: cd tests/ui && npm install --no-audit --no-fund && npm test
+      - name: Pages site builds
+        if: matrix.python-version == '3.12'
+        run: |
+          python scripts/build_site.py
+          test -s _site/index.html && test -s _site/demo/index.html && test -s _site/demo/info.json
