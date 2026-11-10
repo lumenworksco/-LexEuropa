@@ -174,6 +174,10 @@
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--s-supported); flex: none; position: relative; top: -1px; }
   .dot.mixed { background: var(--s-interpretative); } .dot.bad { background: var(--s-unsupported); } .dot.none { background: var(--s-uncertain); }
   .meta { color: var(--faint); font-size: .82rem; }
+  .authbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 18px; padding: 10px 14px; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--accent-soft); font: .86rem/1.45 var(--sans); }
+  .authbar[hidden] { display: none; }
+  .authbar .grow { flex: 1 1 260px; color: var(--ink); }
+  .authbar .btn { padding: 6px 14px; text-decoration: none; }
   .static-banner { position: sticky; top: 0; z-index: 30; background: var(--accent-soft); color: var(--ink); border-bottom: 1px solid var(--rule-strong); padding: 9px 16px; font: .86rem/1.45 var(--sans); text-align: center; }
   .static-banner a { color: var(--accent); font-weight: 600; }
   .note { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; margin: 14px 0; font-size: .9rem; color: var(--ink); }
@@ -309,6 +313,7 @@
         <aside class="marg l" aria-hidden="true"><span class="lat" id="marg-l-la"></span><span class="en" id="marg-l-en"></span></aside>
         <aside class="marg r" aria-hidden="true"><span class="lat" id="marg-r-la"></span><span class="en" id="marg-r-en"></span></aside>
         <div class="col">
+          <div class="authbar" id="authbar" hidden role="status"></div>
           <section class="hero" id="hero">
             <svg class="ring" viewBox="0 0 240 240" aria-hidden="true"><polygon points="120.00,19.00 123.06,27.79 132.36,27.98 124.95,33.61 127.64,42.52 120.00,37.20 112.36,42.52 115.05,33.61 107.64,27.98 116.94,27.79"/><polygon points="164.00,30.79 167.06,39.58 176.36,39.77 168.95,45.40 171.64,54.31 164.00,48.99 156.36,54.31 159.05,45.40 151.64,39.77 160.94,39.58"/><polygon points="196.21,63.00 199.27,71.79 208.57,71.98 201.16,77.61 203.85,86.52 196.21,81.20 188.57,86.52 191.26,77.61 183.85,71.98 193.15,71.79"/><polygon points="208.00,107.00 211.06,115.79 220.36,115.98 212.95,121.61 215.64,130.52 208.00,125.20 200.36,130.52 203.05,121.61 195.64,115.98 204.94,115.79"/><polygon points="196.21,151.00 199.27,159.79 208.57,159.98 201.16,165.61 203.85,174.52 196.21,169.20 188.57,174.52 191.26,165.61 183.85,159.98 193.15,159.79"/><polygon points="164.00,183.21 167.06,192.00 176.36,192.19 168.95,197.82 171.64,206.73 164.00,201.41 156.36,206.73 159.05,197.82 151.64,192.19 160.94,192.00"/><polygon points="120.00,195.00 123.06,203.79 132.36,203.98 124.95,209.61 127.64,218.52 120.00,213.20 112.36,218.52 115.05,209.61 107.64,203.98 116.94,203.79"/><polygon points="76.00,183.21 79.06,192.00 88.36,192.19 80.95,197.82 83.64,206.73 76.00,201.41 68.36,206.73 71.05,197.82 63.64,192.19 72.94,192.00"/><polygon points="43.79,151.00 46.85,159.79 56.15,159.98 48.74,165.61 51.43,174.52 43.79,169.20 36.15,174.52 38.84,165.61 31.43,159.98 40.73,159.79"/><polygon points="32.00,107.00 35.06,115.79 44.36,115.98 36.95,121.61 39.64,130.52 32.00,125.20 24.36,130.52 27.05,121.61 19.64,115.98 28.94,115.79"/><polygon points="43.79,63.00 46.85,71.79 56.15,71.98 48.74,77.61 51.43,86.52 43.79,81.20 36.15,86.52 38.84,77.61 31.43,71.98 40.73,71.79"/><polygon points="76.00,30.79 79.06,39.58 88.36,39.77 80.95,45.40 83.64,54.31 76.00,48.99 68.36,54.31 71.05,45.40 63.64,39.77 72.94,39.58"/></svg>
             <span class="rule" aria-hidden="true"></span>
@@ -583,6 +588,30 @@
   }
   function stopProgress() { if (tick) { clearInterval(tick); tick = null; } }
 
+  // The API's plain refusals, as advice rather than codes.
+  function apiMessage(d) {
+    if (d.error === "sign_in_required") return "Sign in with Hugging Face (the bar at the top) to ask a live question.";
+    return d.message || d.error || "The request failed.";
+  }
+
+  // Public demo only: /auth/status exists, and a visitor signs in so their own Hugging Face account pays.
+  var authBar = $("authbar");
+  function showAuth(st) {
+    if (st) authState = st;
+    var s = authState; authBar.textContent = ""; authBar.hidden = false;
+    if (s && s.signed_in) {
+      authBar.appendChild(el("span", { class: "grow", text: "Signed in" + (s.name ? " as " + s.name : "") + ". Answers are written by " + (s.model || "a stock model") + " (a stock model, not the fine-tuned one) and paid by your Hugging Face account." }));
+      var out = el("button", { type: "button", class: "btn", text: "Sign out" });
+      out.addEventListener("click", function () { fetch("/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(function () { authState = { signed_in: false }; showAuth(null); }); });
+      authBar.appendChild(out);
+    } else {
+      authBar.appendChild(el("span", { class: "grow", text: "Live demo: sign in with Hugging Face so your own free inference credit pays for answers. This site holds no credentials of its own and only learns your username." }));
+      authBar.appendChild(el("a", { class: "btn primary", href: "/login", text: "Sign in with Hugging Face" }));
+    }
+  }
+  var authState = null;
+  if (!STATIC_DEMO) fetch("/auth/status").then(function (r) { return r.ok ? r.json() : null; }).then(function (st) { if (st && st.enabled) showAuth(st); }).catch(function () {});
+
   function ask() {
     var q = qEl.value.trim();
     if (q.length < 3) { qEl.focus(); return; }
@@ -595,7 +624,7 @@
     function fail(msg, data) { finished = true; stopProgress(); showError(q, msg, data); }
     fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q, instrument: lawValue, stream: true }), signal: controller.signal })
       .then(function (r) {
-        if (!r.ok || !r.body || !r.body.getReader) return r.json().then(function (d) { fail(d.error || "The request failed."); });
+        if (!r.ok || !r.body || !r.body.getReader) return r.json().then(function (d) { if (d.error === "sign_in_required") { showAuth(null); } fail(apiMessage(d)); });
         var reader = r.body.getReader(), dec = new TextDecoder(), buf = "";
         function handle(line) {
           if (!line.trim()) return;
@@ -746,7 +775,7 @@
     else { dotClass += ok ? " mixed" : " bad"; verdict = ok + " of " + total + " statements supported — check the others"; }
     var meta = [];
     if (result.example) meta.push("example");
-    else { if (result.elapsed_s) meta.push(Math.round(result.elapsed_s) + " s"); meta.push(result.generator === "fallback" ? "second opinion by " + (result.generator_model || "a larger model").replace(/^.*\//, "") : "LexEuropa model"); }
+    else { if (result.elapsed_s) meta.push(Math.round(result.elapsed_s) + " s"); meta.push(result.generator === "fallback" ? "second opinion by " + (result.generator_model || "a larger model").replace(/^.*\//, "") : result.generator === "stock" ? "written by " + (result.generator_model || "a stock model").replace(/^.*\//, "") + " (stock model)" : "LexEuropa model"); }
     sec.appendChild(el("p", { class: "verdict" }, [el("span", { class: "v" }, [el("span", { class: dotClass }), verdict]), el("span", { class: "meta", text: meta.join(" · ") })]));
 
     if (result.example) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Example" }), "Written by hand from the text of the Directive to show the format — not generated live."]));
