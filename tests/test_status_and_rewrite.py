@@ -22,9 +22,8 @@ class _NoDense:
 def test_status_registry_marks_repealed_and_amended_provisions():
     assert status_of(_c("31995L0046", "7"))[0] == "repealed"                       # the whole directive
     assert status_of(_c("31995L0046", "0", unit="recital"))[0] == "repealed"       # including its recitals
-    assert status_of(_c("32000L0031", "12"))[0] == "repealed" and status_of(_c("32000L0031", "16")) is None   # only Arts 12-15
-    kind, note = status_of(_c("32002L0058", "5"))
-    assert kind == "amended" and "2009/136" in note and status_of(_c("32002L0058", "13")) is None
+    # ePrivacy and e-Commerce are read from their consolidated texts now, so nothing is flagged
+    assert status_of(_c("32000L0031", "12")) is None and status_of(_c("32002L0058", "5")) is None
     assert status_of(_c("32016R0679", "17")) is None
 
 

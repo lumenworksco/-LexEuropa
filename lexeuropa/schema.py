@@ -14,6 +14,8 @@ class Instrument:
     languages: list[str] = field(default_factory=list)
     # e.g. {"interprets": ["32016R0679"], "amends": [], "cites": ["62012CJ0131"]}
     relations: dict[str, list[str]] = field(default_factory=dict)
+    # set when the articles were read from a consolidated text: {"celex": ..., "date": "YYYY-MM-DD"}
+    consolidated: dict[str, str] | None = None
 
 
 @dataclass

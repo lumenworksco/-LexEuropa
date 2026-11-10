@@ -7,7 +7,7 @@ import json
 from lexeuropa.config import BM25_INDEX_PATH, CHUNKS_PATH, DENSE_INDEX_PATH, INSTRUMENTS_PATH
 from lexeuropa.ingest import cellar
 from lexeuropa.ingest.chunker import chunk_instrument
-from lexeuropa.ingest.seed_corpus import SEED_INSTRUMENTS
+from lexeuropa.ingest.seed_corpus import CONSOLIDATED_SOURCE, SEED_INSTRUMENTS
 from lexeuropa.retrieval.bm25_index import BM25Index
 from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.schema import Chunk, Instrument
@@ -33,7 +33,13 @@ def run_ingest(instruments: list[Instrument] = SEED_INSTRUMENTS, *, build_dense:
         for lang in instrument.languages:
             print(f"fetching {instrument.celex} ({lang}) ...")
             xhtml = cellar.fetch(instrument.celex, lang)
-            chunks = chunk_instrument(instrument, lang, xhtml)
+            consolidated = CONSOLIDATED_SOURCE.get(instrument.celex)
+            if consolidated:
+                print(f"  articles from consolidated text {consolidated[0]}")
+                instrument.consolidated = {"celex": consolidated[0], "date": consolidated[1]}
+            chunks = chunk_instrument(
+                instrument, lang, xhtml, cellar.fetch(consolidated[0], lang) if consolidated else None
+            )
             print(f"  -> {len(chunks)} chunks")
             all_chunks.extend(chunks)
 

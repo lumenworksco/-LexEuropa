@@ -113,6 +113,72 @@ def parse_legislation(xhtml: str) -> list[ParsedUnit]:
     return units
 
 
+def parse_consolidated_articles(xhtml: str) -> list[ParsedUnit]:
+    """Articles of a CONSOLIDATED text (CELEX 0YYYYTNNNN-date).
+
+    Same `eli-subdivision id="art_N"` container as the original, but paragraphs are
+    `<div class="norm">` blocks without ids (number in `<span class="no-parag">`), and
+    `<p class="modref">` markers (the "▼M2" amendment flags) sit between them. Recitals
+    are not part of a consolidated text.
+    """
+    doc = lxml_html.fromstring(xhtml.encode("utf-8"))
+    units: list[ParsedUnit] = []
+    for art_div in doc.xpath('//div[@class="eli-subdivision"]'):
+        m = ARTICLE_ID_RE.match(art_div.get("id", ""))
+        if not m:
+            continue
+        article = m.group(1)
+        title_el = art_div.xpath('./div[@class="eli-title"]//p')
+        title = _clean_text(title_el[0]) if title_el else None
+
+        # amendment flags ("▼M2"): inline or between blocks; not part of the law's text
+        for flag in art_div.xpath('.//*[contains(concat(" ", normalize-space(@class), " "), " modref ")]'):
+            flag.drop_tree()
+
+        def has_class(el, name: str) -> bool:
+            return name in (el.get("class") or "").split()
+
+        # Children of the article, in order: a "norm" block starts (or, when it has no number,
+        # continues) a paragraph; list items (grid-container) belong to the paragraph before them.
+        paragraphs: list[list[str]] = []   # [number, text]
+        for child in art_div:
+            if child.tag not in ("p", "div", "table") or has_class(child, "title-article-norm") or has_class(child, "eli-title"):
+                continue
+            text = _clean_text(child)
+            if not text:
+                continue
+            if has_class(child, "norm"):
+                num_el = child.xpath('./span[@class="no-parag"]')
+                if num_el:
+                    number = re.sub(r"[^0-9a-z]", "", _clean_text(num_el[0]).lower()) or str(len(paragraphs) + 1)
+                    paragraphs.append([number, text])
+                    continue
+                if not paragraphs:
+                    paragraphs.append(["1", text])
+                    continue
+            if paragraphs:
+                paragraphs[-1][1] = f"{paragraphs[-1][1]} {text}"
+            else:
+                paragraphs.append(["1", text])
+        seen: set[str] = set()
+        for number, text in map(tuple, paragraphs):
+            if number in seen:  # keep keys unique if a paragraph number repeats
+                number = f"{number}x{len(seen)}"
+            seen.add(number)
+            only = len(paragraphs) == 1
+            units.append(
+                ParsedUnit(
+                    unit_type="article_paragraph",
+                    article=article,
+                    para_index=number,
+                    citation=f"Article {article}" if only else f"Article {article}({number})",
+                    text=text,
+                    title=title,
+                )
+            )
+    return units
+
+
 LEGACY_ARTICLE_RE = re.compile(r"^Article\s+(\d+[a-z]?)$", re.IGNORECASE)
 LEGACY_PARA_RE = re.compile(r"^(\d+)\.\s+")
 LEGACY_BODY_CLASSES = {"normal", "sp-normal", "final"}
@@ -389,7 +455,7 @@ def parse_annexes(doc) -> list[ParsedUnit]:
     return units
 
 
-OPERATIVE_RE = re.compile(r"hereby (?:rules|declares|decides)", re.IGNORECASE)
+OPERATIVE_RE = re.compile(r"hereby(?::|\s+(?:rules|declares|decides))", re.IGNORECASE)
 OPERATIVE_NUMBER_RE = re.compile(r"^\d+\.$")
 
 
@@ -398,7 +464,7 @@ def parse_operative_part(doc) -> list[ParsedUnit]:
     number ("1.") and its text, then the signatures. These points are the holdings, the most
     quoted part of a judgment, and they are unnumbered as paragraphs, so the paragraph parser
     never sees them."""
-    marks = doc.xpath("//p[contains(normalize-space(.), 'hereby ')]")
+    marks = doc.xpath("//p[contains(normalize-space(.), 'hereby')]")
     marks = [m for m in marks if OPERATIVE_RE.search(_clean_text(m))]
     if not marks:
         return []
@@ -458,6 +524,52 @@ def parse_judgment(xhtml: str) -> list[ParsedUnit]:
         for p in doc.xpath('//p[@class="coj-count"]')
         if p.text_content().strip().isdigit()
     ]
+
+    if not count_ps and doc.xpath('//a[@name="MO"]'):
+        # Judgments of roughly 1991-1998: the "Grounds" section is a run of plain paragraphs
+        # "N text" up to the operative part. Judgments before ~1990 are in capitals with the number
+        # glued to the first word and are not parsed (they would be unreadable as quotations).
+        body_ps = []
+        for el in doc.xpath('//a[@name="MO"]/following::*'):
+            if el.tag == "a" and el.get("name") in ("CO", "DI"):
+                break
+            if el.tag == "p":
+                body_ps.append(el)
+        for p in body_ps:
+            text = _clean_text(p)
+            m = re.match(r"^(\d+)\s+(\S.*)$", text, re.DOTALL)
+            if not m or text.isupper() or sum(c.isupper() for c in text) > 0.6 * max(1, sum(c.isalpha() for c in text)):
+                continue
+            units.append(
+                ParsedUnit(
+                    unit_type="judgment_paragraph",
+                    article=None,
+                    para_index=m.group(1),
+                    citation=f"para. {m.group(1)}",
+                    text=m.group(2).strip(),
+                )
+            )
+
+    if not count_ps and not units:
+        # Judgments of roughly 1990-2009: a plain <p> per paragraph, the number an anchor
+        # <a name="pointN">N</a> followed by the text (no table).
+        for p in doc.xpath('//p[.//a[starts-with(@name, "point")]]'):
+            anchor = p.xpath('.//a[starts-with(@name, "point")]')[0]
+            number = (anchor.text_content() or "").strip()
+            if not number.isdigit():
+                continue
+            text = _clean_text(p)
+            text = re.sub(rf"^{number}\s*", "", text).strip()
+            if text:
+                units.append(
+                    ParsedUnit(
+                        unit_type="judgment_paragraph",
+                        article=None,
+                        para_index=number,
+                        citation=f"para. {number}",
+                        text=text,
+                    )
+                )
 
     for count_p, para_num in count_ps:
 

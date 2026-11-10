@@ -149,3 +149,34 @@ def test_eli_article_title_is_captured_and_indexed_but_not_in_text():
     assert art17 and all(c.title and c.title.startswith("Right to erasure") for c in art17)
     assert not art17[0].text.startswith("Right to erasure")        # display text stays verbatim
     assert art17[0].index_text.startswith("Right to erasure")      # indexed text carries the heading
+
+
+def _consolidated_units():
+    from pathlib import Path
+    from lexeuropa.ingest.parser import parse_consolidated_articles
+
+    xhtml = (Path(__file__).parent / "fixtures" / "consolidated_excerpt.xhtml").read_text(encoding="utf-8")
+    return parse_consolidated_articles(xhtml)
+
+
+def test_consolidated_article_reads_as_amended_and_carries_no_amendment_flags():
+    # art_5 in the fixture is ePrivacy Article 5, whose paragraph 3 was replaced by Directive 2009/136/EC
+    units = [u for u in _consolidated_units() if u.article == "5"]
+    assert [u.para_index for u in units] == ["1", "2", "3"]
+    para3 = units[2].text
+    assert "has given his or her consent" in para3 and "right to refuse" not in para3
+    assert not any(ch in u.text for u in units for ch in "▼►◄")
+
+
+def test_consolidated_article_keeps_list_items_with_the_paragraph_they_belong_to():
+    # InfoSoc Article 2 is one lead-in sentence followed by a list (a)-(e) in separate blocks
+    (para,) = [u for u in _consolidated_units() if u.article == "6"]
+    assert para.citation == "Article 6" and para.title == "Reproduction right"
+    assert para.text.startswith("Member States shall provide for the exclusive right")
+    assert "(a)" in para.text and "for authors, of their works" in para.text and "(e)" in para.text and "satellite" in para.text
+
+
+def test_consolidated_article_keeps_definitions_written_as_tables():
+    # e-Commerce Article 2 writes its definitions (a)-(h) as one table per definition
+    (para,) = [u for u in _consolidated_units() if u.article == "7"]
+    assert "‘service provider’" in para.text and "‘established service provider’" in para.text

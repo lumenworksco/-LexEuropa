@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from lexeuropa.config import CELLAR_BASE
-from lexeuropa.ingest.parser import parse
+from lexeuropa.ingest.parser import parse, parse_consolidated_articles
 from lexeuropa.schema import Chunk, Instrument
 
 SHORT_NAMES = {
@@ -22,11 +22,44 @@ SHORT_NAMES = {
     "32002L0058": "ePrivacy Directive",
     "32000L0031": "e-Commerce Directive",
     "32001L0029": "InfoSoc Directive",
+    "32011L0083": "Consumer Rights Directive",
+    "32005L0029": "UCPD",
+    "31993L0013": "Unfair Terms Directive",
+    "32019L0770": "Digital Content Directive",
+    "32019L0771": "Sale of Goods Directive",
+    "32024L2853": "Product Liability Directive",
+    "32008R0593": "Rome I",
+    "32007R0864": "Rome II",
+    "32012R1215": "Brussels I Recast",
+    "32003R0001": "Regulation 1/2003",
+    "32004R0139": "EU Merger Regulation",
+    "32003L0088": "Working Time Directive",
+    "32023L0970": "Pay Transparency Directive",
+    "32024L2831": "Platform Work Directive",
+    "32001L0023": "Transfers of Undertakings Directive",
+    "32000L0078": "Employment Equality Directive",
+    "32000L0043": "Racial Equality Directive",
+    "32019L1937": "Whistleblower Directive",
+    "32016L0943": "Trade Secrets Directive",
+    "32004L0038": "Citizens' Rights Directive",
+    "32024R1624": "AML Regulation",
+    "32023R1114": "MiCA",
+    "32019L0790": "DSM Copyright Directive",
+    "32024R2847": "Cyber Resilience Act",
+    "32013R0604": "Dublin III",
+    "32019L1152": "Working Conditions Directive",
+    "32014L0104": "Antitrust Damages Directive",
 }
 
 
-def chunk_instrument(instrument: Instrument, lang: str, xhtml: str) -> list[Chunk]:
+def chunk_instrument(
+    instrument: Instrument, lang: str, xhtml: str, consolidated_xhtml: str | None = None
+) -> list[Chunk]:
+    """`consolidated_xhtml`, when given, supplies the ARTICLES (as amended); the recitals and
+    annexes still come from the original text, because a consolidated text has no recitals."""
     units = parse(xhtml, instrument.doc_type)
+    if consolidated_xhtml is not None:
+        units = [u for u in units if u.unit_type != "article_paragraph"] + parse_consolidated_articles(consolidated_xhtml)
     source_url = f"{CELLAR_BASE}{instrument.celex}"
     short = SHORT_NAMES.get(instrument.celex)
 
