@@ -77,6 +77,7 @@ def _check_label_masking(trainer: SFTTrainer, tokenizer, raw_completion_text: st
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", required=True, help="HF dataset repo id, e.g. user/lexeuropa-sft")
+    parser.add_argument("--dataset-revision", default=None, help="branch/tag of the dataset repo (v5 is uploaded as revision v5)")
     parser.add_argument("--base-model", default="Qwen/Qwen2.5-3B-Instruct")
     parser.add_argument("--output-repo", required=True, help="HF model repo id to push the adapter to")
     parser.add_argument("--max-steps", type=int, default=None, help="cap steps for a smoke run")
@@ -89,7 +90,7 @@ def main() -> None:
     parser.add_argument("--grad-accum", type=int, default=16)
     args = parser.parse_args()
 
-    dataset = load_dataset(args.dataset, split="train")
+    dataset = load_dataset(args.dataset, split="train", revision=args.dataset_revision)
     print(f"loaded {len(dataset)} training examples, columns: {dataset.column_names}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)

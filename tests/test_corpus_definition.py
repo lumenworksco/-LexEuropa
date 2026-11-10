@@ -52,3 +52,9 @@ def test_eu_retrieval_questions_are_grounded_in_their_gold_provision():
             c.text for c in chunks if c.celex == q["gold_celex"] and (q["gold_article"] is None or c.article == q["gold_article"])
         ).lower()
         assert q["check"].lower() in text, f"{q['question']!r}: {q['check']!r} not in the gold provision"
+
+
+def test_paragraph_numbers_sort_naturally_including_lettered_ones():
+    from lexeuropa.schema import para_sort_key
+
+    assert sorted(["10", "2", "1a", "1", "1b"], key=para_sort_key) == ["1", "1a", "1b", "2", "10"]

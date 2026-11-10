@@ -73,6 +73,55 @@ def _is_held_out(c: Chunk, unseen_articles: set, unseen_judgments: set) -> bool:
     return n % STRIDE == 0
 
 
+# --- v5 split: the 81-instrument corpus -----------------------------------------------------
+# The v1-v4 split above is frozen (held_out_provisions.json). The v5 split keeps everything it held
+# out, applies the same stride rules to the instruments added later, and ALSO holds out every
+# provision that any evaluation question points at (the natural-language retrieval sets and the
+# answer-quality set), so that no evaluation measures text the adapter trained on.
+HELD_OUT_SPLIT_V5_PATH = DATA_DIR / "finetune" / "held_out_provisions_v5.json"
+EVAL_DIR = DATA_DIR.parent / "eval"
+EVAL_GOLD_FILES = ["questions_unseen.jsonl", "questions_retrieval.jsonl", "questions_retrieval_eu.jsonl", "answer_quality.jsonl"]
+
+
+def _all_eval_targets() -> tuple[set[tuple[str, str]], set[str]]:
+    """(celex, article) pairs and whole-judgment celexes named as gold by ANY evaluation file."""
+    articles: set[tuple[str, str]] = set()
+    judgments: set[str] = set()
+    for name in EVAL_GOLD_FILES:
+        path = EVAL_DIR / name
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            q = json.loads(line)
+            golds = q["gold"] if "gold" in q else [{"celex": q["gold_celex"], "article": q.get("gold_article")}]
+            for g in golds:
+                if g.get("article"):
+                    articles.add((g["celex"], g["article"]))
+                else:
+                    judgments.add(g["celex"])
+    return articles, judgments
+
+
+def compute_split_v5(chunks: list[Chunk]) -> dict:
+    """v5: everything the frozen split held out, plus the stride rules and the eval targets."""
+    previous = set(json.loads(HELD_OUT_SPLIT_PATH.read_text())["held_out_ids"]) if HELD_OUT_SPLIT_PATH.exists() else set()
+    articles, judgments = _all_eval_targets()
+    held_ids: list[str] = []
+    train_ids: list[str] = []
+    for c in chunks:
+        held = c.id in previous or _is_held_out(c, articles, judgments)
+        (held_ids if held else train_ids).append(c.id)
+    return {"held_out_ids": held_ids, "train_ids": train_ids}
+
+
+def save_split_v5(chunks: list[Chunk]) -> dict:
+    split = compute_split_v5(chunks)
+    HELD_OUT_SPLIT_V5_PATH.write_text(json.dumps(split, indent=2))
+    return split
+
+
 def compute_split(chunks: list[Chunk]) -> dict:
     unseen_articles, unseen_judgments = _unseen_eval_targets()
     held_ids: list[str] = []
@@ -90,8 +139,8 @@ def save_split(chunks: list[Chunk]) -> dict:
     return split
 
 
-def load_split() -> dict:
-    return json.loads(HELD_OUT_SPLIT_PATH.read_text())
+def load_split(path=None) -> dict:
+    return json.loads((path or HELD_OUT_SPLIT_PATH).read_text())
 
 
 def partition_chunks(
@@ -106,10 +155,16 @@ def partition_chunks(
 
 
 if __name__ == "__main__":
+    import sys
+
     from lexeuropa.ingest.pipeline import load_chunks
 
     chunks = load_chunks()
-    split = save_split(chunks)
+    if "--v5" in sys.argv:
+        split = save_split_v5(chunks)
+        HELD_OUT_SPLIT_PATH = HELD_OUT_SPLIT_V5_PATH
+    else:
+        split = save_split(chunks)
     train, held = partition_chunks(chunks, split)
 
     print(f"total chunks: {len(chunks)}")

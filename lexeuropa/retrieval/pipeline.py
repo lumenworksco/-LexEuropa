@@ -25,7 +25,7 @@ from lexeuropa.retrieval.dense_index import DenseIndex
 from lexeuropa.retrieval.fusion import reciprocal_rank_fusion
 from lexeuropa.retrieval.reference_resolver import ReferenceResolver
 from lexeuropa.retrieval.reranker import RerankerUnavailable, rerank
-from lexeuropa.schema import Chunk
+from lexeuropa.schema import para_sort_key, Chunk
 
 # A resolver hit is pinned into the final result only when it's a small,
 # precise set (an exact "Article N(M)" match) — not a bare case-number
@@ -35,6 +35,8 @@ MAX_PINNED_RESOLVER_HITS = 4
 MAX_CASE_LAW_WHEN_RESTRICTED = 2
 # Extra slots (beyond MAX_SOURCES) for the rulings of the top judgments.
 MAX_RULING_CHUNKS = 4
+# Soft boost for the statute that leads the top results when no law is named (0 = off).
+ROUTE_BOOST = float(os.environ.get("LEXEUROPA_ROUTE_BOOST", "0"))
 # Weight of the query-rewrite rankings in fusion, relative to the original question's (1.0).
 REWRITE_WEIGHT = float(os.environ.get("LEXEUROPA_REWRITE_WEIGHT", "0.5"))
 
@@ -128,7 +130,7 @@ def expand_articles(
     out = list(chunks)
     seen = {c.id for c in out}
     for key in top[:n_articles]:
-        siblings = sorted(by_article.get(key, []), key=lambda c: int(c.para_index) if c.para_index.isdigit() else 0)
+        siblings = sorted(by_article.get(key, []), key=lambda c: para_sort_key(c.para_index))
         for c in siblings[:10]:
             if c.id not in seen and len(out) < max_sources:
                 out.append(c)
@@ -162,6 +164,32 @@ def expand_rulings(chunks: list[Chunk], all_chunks: list[Chunk], n_cases: int, m
     return out
 
 
+def route_by_instrument(
+    fused: list[tuple[Chunk, float]], boost: float, top_m: int = 40, min_share: float = 0.25
+) -> list[tuple[Chunk, float]]:
+    """Soft routing for questions that name no law. With 80+ instruments, look-alike provisions
+    ("access to data", "requests for information") scatter the top results over many acts. The
+    statute that holds the largest share of the top-`top_m` score mass is probably the one the
+    question is about; its chunks get their score multiplied by (1 + boost). Nothing is dropped
+    or restricted, and nothing happens unless one statute clearly leads (>= `min_share` of the
+    mass), so questions that span several laws are left alone. Judgments are not boosted."""
+    if boost <= 0 or not fused:
+        return fused
+    mass: dict[str, float] = {}
+    for c, sc in fused[:top_m]:
+        if c.unit_type != "judgment_paragraph" and c.unit_type != "judgment_operative":
+            mass[c.celex] = mass.get(c.celex, 0.0) + sc
+    total = sum(mass.values())
+    if not mass or total <= 0:
+        return fused
+    leader, lead_mass = max(mass.items(), key=lambda kv: kv[1])
+    if lead_mass / total < min_share:
+        return fused
+    boosted = [(c, sc * (1 + boost) if c.celex == leader else sc) for c, sc in fused]
+    boosted.sort(key=lambda x: -x[1])
+    return boosted
+
+
 def retrieve(
     query: str,
     *,
@@ -175,6 +203,7 @@ def retrieve(
     expand: int | None = None,
     restrict_celex: str | None = None,
     extra_queries: tuple[str, ...] = (),
+    route_boost: float | None = None,
 ) -> RetrievalResult:
     if use_reranker is None:
         use_reranker = USE_RERANKER
@@ -199,6 +228,8 @@ def retrieve(
         rankings.append([c for c, _ in dense_index.search(extra, depth)])
         weights += [REWRITE_WEIGHT, REWRITE_WEIGHT]
     fused = reciprocal_rank_fusion(rankings, weights=weights)
+    if not restrict_celex:
+        fused = route_by_instrument(fused, ROUTE_BOOST if route_boost is None else route_boost)
     # Out-of-date and institution-only provisions are skipped unless the question asks for them:
     # repealed law (Directive 95/46, e-Commerce Arts 12-15) is only wanted when named, and
     # provisions for EU institutions (e.g. the AI Act's fines on Union bodies) only when asked.

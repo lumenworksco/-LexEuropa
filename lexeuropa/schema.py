@@ -1,6 +1,8 @@
 """Core data model: legal instruments and their citable chunks."""
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 
 
@@ -47,3 +49,9 @@ class Chunk:
     @classmethod
     def from_dict(cls, d: dict) -> "Chunk":
         return cls(**d)
+
+
+def para_sort_key(para_index: str | None) -> tuple[int, str]:
+    """Natural order for paragraph numbers: "1" < "1a" < "2" < "10" (consolidated texts have "1a")."""
+    m = re.match(r"(\d+)(.*)$", para_index or "")
+    return (int(m.group(1)), m.group(2)) if m else (0, para_index or "")

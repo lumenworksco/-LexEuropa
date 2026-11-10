@@ -1052,6 +1052,43 @@ Done with no HF credits (CELLAR downloads, parsing, and `LEXEUROPA_EMBED_BACKEND
 - Not done: the frozen train/held-out split and the adapters know nothing about the new instruments; a retrain needs
   credits and a new per-type split.
 
+## Retrain preparation, diagnosis and the v5 promotion rule (2026-11-10, no credits used)
+
+**v5 split** (`finetune/split.py --v5` -> `held_out_provisions_v5.json`): keeps every id the frozen v1-v4 split held
+out (2,406 of 2,406), applies the same stride rules to the added instruments, and ALSO holds out every provision
+that any evaluation file points at (`questions_unseen`, `questions_retrieval`, `questions_retrieval_eu`,
+`answer_quality`): 180 chunks moved from train to held-out, 0 eval targets remain in train. 9,286 train / 5,594
+held-out chunks; 28 of 38 judgments are held out whole because the eval sets name them. v4 trained on some quality-set
+provisions that v5 holds out, which favours v4 slightly in any comparison.
+
+**v5 dataset** (`build_dataset.py --limit 2000 --no-rerank --split ... --output sft_dataset_v5.jsonl`, local
+embeddings): 2,400 examples (1,100 topic + 900 reference + 400 refusals, 53 instruments as gold, 16-78 each), gold
+handle spread over S1-S8, 0 failures. Verified: 18,105 source passages checked, none is held-out-only text; no
+gold chunk is held out; no training question is an eval question; max 4,827 Qwen tokens (limit 5,120), mean 1,636;
+all completions valid JSON. v4's files are kept as `sft_dataset_v4*.jsonl`. `para_sort_key` fixes lettered
+paragraph numbers ("1a") that crashed the builder. `train.py --dataset-revision` selects the dataset revision.
+Cost and steps: `docs/V5_RUNBOOK.md` (about $4-5).
+
+**Diagnosis of the five weakest answers** (current index; key-point phrases checked against the retrieved text):
+planet49, schrems1 and gdpr_breach had every key point IN the sources and still missed some: generation
+(v4 quotes judgment paragraphs or one line and ignores the appended rulings). dma_gatekeeper: Art. 3(2) (turnover and
+user thresholds) never retrieved: retrieval. gdpr_access: GDPR Art. 15 not in the top results, which are look-alike
+"access"/"information request" provisions of the Merger Regulation, Data Act, DSA etc.: a side effect of the larger
+corpus. Offline gold-in-top-8 on the quality set is still 36/37.
+
+**Instrument routing tried and rejected** (`route_by_instrument`, `LEXEUROPA_ROUTE_BOOST`, default 0 = off): boosting
+the statute that holds the most top-40 score mass when no law is named. hit@8 / MRR, boost 0 vs best (0.3):
+unseen 24 -> 25 of 25 (MRR .797 -> .762), retrieval 31 -> 29 of 34 (.569 -> .508), EU 37 -> 38 of 43 (.582 -> .570),
+quality 36 -> 34 of 37 (.663 -> .632): net loss. Kept in the code, off.
+
+**Promotion rule for v5 (declared before any v5 measurement).** v4 and v5 are both run on the SAME retrieval (81-
+instrument corpus, rewrite off, no reranker, local query embeddings), the same grader and the same files. v5 replaces
+v4 only if ALL hold: (a) mean completeness on the 37 in-scope quality questions >= v4's + 0.03; (b) citation
+precision and recall on `questions_unseen.jsonl` are each >= v4's - 0.03; (c) all 4 trap questions are still
+declined; (d) flagged contradictions <= v4's + 1; (e) the nine new-area questions (crd_withdrawal ... zambrano) score
+no lower on average than under v4. Otherwise v4 stays; the corpus and retrieval gains ship either way. n is small
+and each model is run once, so a smaller gap than 0.03 is treated as noise.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

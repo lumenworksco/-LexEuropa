@@ -17,12 +17,14 @@ as distractors.
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import json
 import random
 import re
 
 from lexeuropa.config import DENSE_INDEX_PATH, PROJECT_ROOT
 from lexeuropa.finetune.split import load_split, partition_chunks
+from lexeuropa.schema import para_sort_key
 from lexeuropa.ingest.chunker import SHORT_NAMES
 from lexeuropa.generation.prompts import build_messages, parse_response
 from lexeuropa.ingest.pipeline import load_chunks
@@ -166,7 +168,7 @@ def article_groups(chunks: list[Chunk]) -> dict[tuple[str, str], list[Chunk]]:
         if c.unit_type == "article_paragraph" and c.title and c.article:
             groups.setdefault((c.celex, c.article), []).append(c)
     for g in groups.values():
-        g.sort(key=lambda c: int(c.para_index))
+        g.sort(key=lambda c: para_sort_key(c.para_index))
     return groups
 
 
@@ -320,15 +322,21 @@ def main() -> None:
         help="share of positives that are natural-language topic questions over a whole article",
     )
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--split", type=Path, default=None, help="held-out split file (default: the frozen v1-v4 split)")
+    parser.add_argument("--output", type=Path, default=None, help="dataset file to write (default: sft_dataset.jsonl)")
     parser.add_argument("--no-rerank", action="store_true", help="pick distractors from the fused ranking, skipping the slow CPU reranker")
     args = parser.parse_args()
     global USE_RERANKER
     USE_RERANKER = not args.no_rerank
 
     random.seed(args.seed)
+    global OUTPUT_PATH, STATS_PATH
+    if args.output:
+        OUTPUT_PATH = args.output
+        STATS_PATH = args.output.with_name(args.output.stem + "_stats.json")
 
     all_chunks = load_chunks()
-    split = load_split()
+    split = load_split(args.split)
     train_chunks, _held = partition_chunks(all_chunks, split)
     train_ids = {c.id for c in train_chunks}
 

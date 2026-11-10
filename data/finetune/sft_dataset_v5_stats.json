@@ -1,0 +1,22 @@
+{
+  "total": 2400,
+  "positive": 2000,
+  "positive_by_task": {
+    "topic": 1100,
+    "reference": 900
+  },
+  "refusal": 400,
+  "refusal_fraction": 0.16666666666666666,
+  "failed_positive": 0,
+  "failed_refusal": 0,
+  "gold_handle_position_histogram": {
+    "S1": 231,
+    "S2": 252,
+    "S3": 298,
+    "S4": 265,
+    "S5": 251,
+    "S6": 253,
+    "S7": 270,
+    "S8": 180
+  }
+}
