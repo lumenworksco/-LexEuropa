@@ -21,7 +21,8 @@ function stream(lines) {
   const enc = new TextEncoder(); const chunks = lines.map(l => enc.encode(l + "\n")); let i = 0;
   return { ok: true, status: 200, body: { getReader: () => ({ read: () => Promise.resolve(i < chunks.length ? {done:false, value: chunks[i++]} : {done:true}) }) } };
 }
-async function boot(hash, askLines, fail, origin) {
+async function boot(hash, askLines, fail, origin, mock) {
+  mock = mock || {};
   const dom = new JSDOM(html, { runScripts: "dangerously", url: (origin || "http://127.0.0.1:8765/") + (hash||""), pretendToBeVisual: true,
     beforeParse(w) {
       w.TextEncoder = TextEncoder; w.TextDecoder = TextDecoder; w.scrollTo = () => {};
@@ -29,6 +30,9 @@ async function boot(hash, askLines, fail, origin) {
       w.__asks = [];
       w.fetch = (url, opts) => {
         if (url === "/api/ask") w.__asks.push(JSON.parse(opts.body));
+        if (url === "/auth/status") return mock.auth ? Promise.resolve({ ok: true, json: () => Promise.resolve(mock.auth) }) : Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
+        if (url === "/auth/logout") { w.__logouts = (w.__logouts || 0) + 1; return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) }); }
+        if (url === "/api/ask" && mock.askStatus) return Promise.resolve({ ok: false, status: mock.askStatus, json: () => Promise.resolve(mock.askBody) });
         if (url === "/api/info" || url === "info.json") return Promise.resolve({ ok: true, json: () => Promise.resolve(INFO) });
         if (fail) return Promise.reject(new Error("net"));
         return Promise.resolve(stream(askLines));
@@ -190,6 +194,27 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   assert(d.window.__asks.length === 0, "nothing the visitor types is sent anywhere");
   assert(doc.getElementById("question").value !== "Anything at all?", "asking shows the example instead");
   d = await boot(""); assert(d.window.document.getElementById("static-banner").hidden, "no banner when running locally");
+
+  // 4g. public demo: the sign-in bar, plain refusals, and the stock-model label
+  d = await boot("", null, false, undefined, { auth: { enabled: true, signed_in: false, name: null } }); doc = d.window.document;
+  let bar = doc.getElementById("authbar");
+  assert(!bar.hidden && bar.textContent.includes("Sign in with Hugging Face") && bar.querySelector("a.btn").getAttribute("href") === "/login", "signed out: a sign-in link to /login");
+  d = await boot("", null, false, undefined, { auth: { enabled: true, signed_in: true, name: "alice", model: "Qwen3-235B-A22B-Instruct-2507" } }); doc = d.window.document;
+  bar = doc.getElementById("authbar");
+  assert(!bar.hidden && bar.textContent.includes("Signed in as alice") && bar.textContent.includes("Qwen3-235B-A22B-Instruct-2507"), "signed in: says who, and which model");
+  Array.from(bar.querySelectorAll("button")).find(b => b.textContent === "Sign out").click(); await tick(60);
+  assert(d.window.__logouts === 1 && bar.textContent.includes("Sign in with Hugging Face"), "sign out calls the server and shows the sign-in prompt again");
+  d = await boot(""); assert(d.window.document.getElementById("authbar").hidden, "running locally (no /auth/status): no bar");
+  d = await boot("", null, false, undefined, { auth: { enabled: true, signed_in: false }, askStatus: 401, askBody: { error: "sign_in_required" } }); doc = d.window.document;
+  doc.getElementById("question").value = "What is a controller?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true})); await tick(80);
+  assert(doc.body.textContent.includes("Sign in with Hugging Face (the bar at the top)"), "a 401 explains how to sign in");
+  d = await boot("", null, false, undefined, { auth: { enabled: true, signed_in: true, name: "a" }, askStatus: 429, askBody: { error: "busy", message: "The demo is answering other questions right now. Please try again in a minute." } }); doc = d.window.document;
+  doc.getElementById("question").value = "What is a controller?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true})); await tick(80);
+  assert(doc.body.textContent.includes("answering other questions right now"), "a 429 shows the server's plain message, not a code");
+  const stock = JSON.parse(JSON.stringify(RESULT)); stock.generator = "stock"; stock.generator_model = "Qwen/Qwen3-235B-A22B-Instruct-2507"; stock.answers_question = true;
+  d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: stock})]); doc = d.window.document;
+  doc.getElementById("question").value = "What is a controller?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true})); await tick(100);
+  assert(doc.body.textContent.includes("written by Qwen3-235B-A22B-Instruct-2507 (stock model)"), "a stock-generator answer says which model wrote it");
 
   // 5. a source cited by many statements reads as a range
   const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;

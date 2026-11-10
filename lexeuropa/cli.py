@@ -77,6 +77,12 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     return serve(port=args.port, open_browser=not args.no_browser)
 
 
+def _cmd_serve_public(args: argparse.Namespace) -> int:
+    from lexeuropa.web_public import serve_public
+
+    return serve_public(port=args.port)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="lexeuropa")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -103,6 +109,13 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--port", type=int, default=8765)
     p_serve.add_argument("--no-browser", action="store_true", help="do not open a browser tab")
     p_serve.set_defaults(func=_cmd_serve)
+
+    p_public = sub.add_parser(
+        "serve-public",
+        help="run the PUBLIC demo server (Hugging Face Space); needs LEXEUROPA_PUBLIC=1, visitors sign in with their own HF account",
+    )
+    p_public.add_argument("--port", type=int, default=7860)
+    p_public.set_defaults(func=_cmd_serve_public)
 
     args = parser.parse_args(argv)
     return args.func(args)

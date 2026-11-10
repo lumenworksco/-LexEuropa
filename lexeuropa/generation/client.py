@@ -7,7 +7,8 @@ import urllib.error
 import urllib.request
 from typing import NamedTuple
 
-from lexeuropa.config import HF_TOKEN, HTTP_USER_AGENT, LLM_BASE_URL, LLM_MODEL
+from lexeuropa.auth_context import SignInRequired, current_token
+from lexeuropa.config import HTTP_USER_AGENT, LLM_BASE_URL, LLM_MODEL, PUBLIC_MODE
 
 
 class GenerationError(RuntimeError):
@@ -39,9 +40,13 @@ def chat(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+    token = current_token()
+    if token is None and PUBLIC_MODE:
+        # Public demo: never make a model call that is not paid by the signed-in visitor.
+        raise SignInRequired("sign in with Hugging Face to ask a question")
     headers = {"Content-Type": "application/json", "User-Agent": HTTP_USER_AGENT}
-    if HF_TOKEN:
-        headers["Authorization"] = f"Bearer {HF_TOKEN}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(
         f"{base_url}/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
@@ -53,14 +58,14 @@ def chat(
             data = json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")[:500]
-        hint = "HF_TOKEN is not set (see CLAUDE.md Setup)" if not HF_TOKEN else ""
+        hint = "HF_TOKEN is not set (see CLAUDE.md Setup)" if not token else ""
         raise GenerationError(
             f"generation request to {base_url} failed: HTTP {e.code}: {body} {hint}".strip()
         ) from e
     except Exception as e:
         hint = (
             "HF_TOKEN is not set (see CLAUDE.md Setup)"
-            if not HF_TOKEN and "huggingface.co" in base_url
+            if not token and "huggingface.co" in base_url
             else f"is `ollama serve` running, and does `ollama list` show {model!r}?"
         )
         raise GenerationError(f"generation request to {base_url} failed: {e} ({hint})") from e

@@ -11,7 +11,8 @@ import urllib.request
 
 import numpy as np
 
-from lexeuropa.config import EMBED_BACKEND, EMBED_MODEL, HF_INFERENCE_BASE_URL, HF_TOKEN, HTTP_USER_AGENT
+from lexeuropa.auth_context import current_token
+from lexeuropa.config import EMBED_BACKEND, EMBED_MODEL, HF_INFERENCE_BASE_URL, HTTP_USER_AGENT, PUBLIC_MODE
 from lexeuropa.schema import Chunk
 
 # Per the model card: add to queries only, never to indexed passages.
@@ -51,8 +52,9 @@ def embed_texts(texts: list[str], *, retries: int = 3) -> np.ndarray:
     if not texts:
         return np.zeros((0, 0), dtype=np.float32)
     headers = {"Content-Type": "application/json", "User-Agent": HTTP_USER_AGENT}
-    if HF_TOKEN:
-        headers["Authorization"] = f"Bearer {HF_TOKEN}"
+    token = current_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(
         f"{HF_INFERENCE_BASE_URL}/models/{EMBED_MODEL}/pipeline/feature-extraction",
         data=json.dumps({"inputs": texts}).encode("utf-8"),
@@ -68,7 +70,7 @@ def embed_texts(texts: list[str], *, retries: int = 3) -> np.ndarray:
             break
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")[:500]
-            hint = " (HF_TOKEN is not set — see CLAUDE.md Setup)" if not HF_TOKEN else ""
+            hint = " (HF_TOKEN is not set — see CLAUDE.md Setup)" if not token else ""
             raise EmbeddingError(
                 f"embedding request to {HF_INFERENCE_BASE_URL} failed: HTTP {e.code}: {body}{hint}"
             ) from e
@@ -77,7 +79,7 @@ def embed_texts(texts: list[str], *, retries: int = 3) -> np.ndarray:
             if attempt < retries - 1:
                 time.sleep(2**attempt)  # 1s, 2s, 4s, ...
                 continue
-            hint = " (HF_TOKEN is not set — see CLAUDE.md Setup)" if not HF_TOKEN else ""
+            hint = " (HF_TOKEN is not set — see CLAUDE.md Setup)" if not token else ""
             raise EmbeddingError(
                 f"embedding request to {HF_INFERENCE_BASE_URL} failed after {retries} attempts: "
                 f"{last_error}{hint}"
@@ -135,20 +137,26 @@ class DenseIndex:
         np.savez(
             path,
             vectors=self.vectors,
-            ids=np.array([c.id for c in self.chunks], dtype=object),
+            ids=np.array([c.id for c in self.chunks], dtype=str),   # plain unicode: loads without pickle
             embed_model=EMBED_MODEL,
         )
 
     @classmethod
     def load(cls, path, chunks_by_id: dict[str, Chunk]) -> "DenseIndex":
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
+        try:
+            ids = data["ids"].tolist()      # arrays load lazily: an object-array index only fails here
+        except ValueError:
+            if PUBLIC_MODE:
+                raise   # an object-array index needs pickle; the public demo never unpickles
+            data = np.load(path, allow_pickle=True)   # index written by an older version
+            ids = data["ids"].tolist()
         stored_model = str(data["embed_model"]) if "embed_model" in data else None
         if stored_model is not None and stored_model != EMBED_MODEL:
             raise EmbeddingError(
                 f"dense index was built with {stored_model!r} but EMBED_MODEL is now "
                 f"{EMBED_MODEL!r} — re-run `python -m lexeuropa.cli ingest`"
             )
-        ids = data["ids"].tolist()
         chunks = [chunks_by_id[i] for i in ids]
         inst = cls.__new__(cls)
         inst.chunks = chunks

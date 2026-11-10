@@ -17,6 +17,8 @@ from __future__ import annotations
 import json
 import re
 from concurrent.futures import ThreadPoolExecutor
+
+from lexeuropa.auth_context import map_in_context
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -173,7 +175,7 @@ def verify_claim(
     # `_aggregate_citation_labels` for why.
     # Calls are independent network round-trips, so run them concurrently.
     with ThreadPoolExecutor(max_workers=min(len(cited_chunks), 8)) as pool:
-        results = list(pool.map(lambda chunk: judge_fn(text, [chunk]), cited_chunks))
+        results = map_in_context(pool, lambda chunk: judge_fn(text, [chunk]), cited_chunks)
     citation_labels = {chunk.id: r for chunk, r in zip(cited_chunks, results)}
     label, reason = _aggregate_citation_labels(citation_labels)
     return ClaimVerification(text, citations, label, reason, citation_labels)
@@ -188,4 +190,4 @@ def verify_claims(
     # Claims are independent network round-trips (an answer that quotes a long
     # article can have 14 of them), so check them concurrently; order is kept.
     with ThreadPoolExecutor(max_workers=min(len(claims), 6)) as pool:
-        return list(pool.map(lambda c: verify_claim(c, retrieved_by_id, judge_fn), claims))
+        return map_in_context(pool, lambda c: verify_claim(c, retrieved_by_id, judge_fn), claims)

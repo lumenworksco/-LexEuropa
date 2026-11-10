@@ -29,7 +29,7 @@ os.environ.setdefault("SSL_CERT_FILE", certifi.where())
 
 # Reranker weights cache into the project dir, not ~/.cache/huggingface — see CLAUDE.md.
 os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
-DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR = Path(os.environ["LEXEUROPA_DATA_DIR"]) if os.environ.get("LEXEUROPA_DATA_DIR") else PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 INDEX_DIR = DATA_DIR / "index"
@@ -53,7 +53,12 @@ LANG_TO_CELLAR = {"en": "eng"}
 # under a minute, since the model is already on the endpoint's attached
 # storage) — this is expected, not a bug, if `ask` seems to hang briefly
 # on the first call in a while.
-HF_TOKEN = os.environ.get("HF_TOKEN")
+# Public demo mode (the Hugging Face Space): no owner credentials are ever used, see auth_context.py.
+PUBLIC_MODE = os.environ.get("LEXEUROPA_PUBLIC") == "1"
+HF_TOKEN = None if PUBLIC_MODE else os.environ.get("HF_TOKEN")
+# Answer with the stock fallback model (with the extra guidance) instead of the fine-tuned endpoint model,
+# which only its owner can reach. On by default in public mode.
+STOCK_GENERATOR = os.environ.get("LEXEUROPA_STOCK_GENERATOR", "1" if PUBLIC_MODE else "0") == "1"
 LLM_BASE_URL = os.environ.get(
     "LEXEUROPA_LLM_BASE_URL", "https://6ac3628565c8b62f296a02a0.endpoints.huggingface.cloud/v1"
 )
@@ -70,7 +75,11 @@ LLM_MODEL = os.environ.get("LEXEUROPA_LLM_MODEL", "iPwnds/lexeuropa-qwen3b-merge
 # retry once on this stronger stock model via the HF router; set
 # LEXEUROPA_FALLBACK_LLM_MODEL="" to disable. The answer is labelled as a fallback.
 FALLBACK_LLM_BASE_URL = os.environ.get("LEXEUROPA_FALLBACK_LLM_BASE_URL", "https://router.huggingface.co/v1")
-FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen2.5-72B-Instruct")
+# 2026-11-10: the router stopped listing Qwen2.5-72B-Instruct and Qwen2.5-7B-Instruct ("not supported by any
+# provider you have enabled"), which silently broke the fallback, relevance check, grader and judge. These
+# defaults are the non-thinking Instruct models that answered correctly at the time; the Qwen3-32B/14B
+# "thinking" models spend their whole token budget before answering and are NOT usable. Override per env var.
+FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen3-235B-A22B-Instruct-2507")
 
 # After generation, a stronger model checks that the statements actually answer the
 # question (the per-claim judge only checks claim-vs-source). If not, the fallback
@@ -79,10 +88,10 @@ FALLBACK_LLM_MODEL = os.environ.get("LEXEUROPA_FALLBACK_LLM_MODEL", "Qwen/Qwen2.
 QUERY_REWRITE = os.environ.get("LEXEUROPA_QUERY_REWRITE", "0") == "1"   # off: helped some questions, hurt others (see CLAUDE.md)
 RELEVANCE_CHECK = os.environ.get("LEXEUROPA_RELEVANCE_CHECK", "1") != "0"
 RELEVANCE_LLM_BASE_URL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_BASE_URL", FALLBACK_LLM_BASE_URL)
-RELEVANCE_LLM_MODEL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_MODEL", FALLBACK_LLM_MODEL or "Qwen/Qwen2.5-72B-Instruct")
+RELEVANCE_LLM_MODEL = os.environ.get("LEXEUROPA_RELEVANCE_LLM_MODEL", FALLBACK_LLM_MODEL or "Qwen/Qwen3-235B-A22B-Instruct-2507")
 
 JUDGE_BASE_URL = os.environ.get("LEXEUROPA_JUDGE_BASE_URL", "https://router.huggingface.co/v1")
-JUDGE_MODEL = os.environ.get("LEXEUROPA_JUDGE_MODEL", "Qwen/Qwen2.5-7B-Instruct:featherless-ai")
+JUDGE_MODEL = os.environ.get("LEXEUROPA_JUDGE_MODEL", "Qwen/Qwen3-Next-80B-A3B-Instruct")   # no provider pin: the router picks one the account has enabled
 
 # Embeddings run on HF Inference Providers too, via hf-inference (not the OpenAI-compatible router).
 HF_INFERENCE_BASE_URL = os.environ.get(
@@ -93,7 +102,7 @@ EMBED_MODEL = os.environ.get("LEXEUROPA_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
 # credits). "local": run the same model with sentence-transformers on this machine
 # (pip install -e ".[rerank]"; ~1.3 GB of weights, free). Use "local" for offline
 # retrieval work; the indexed corpus vectors are the same model either way.
-EMBED_BACKEND = os.environ.get("LEXEUROPA_EMBED_BACKEND", "hf")
+EMBED_BACKEND = "local" if PUBLIC_MODE else os.environ.get("LEXEUROPA_EMBED_BACKEND", "hf")
 
 # The reranker runs locally (CPU, sentence-transformers) for now — see CLAUDE.md.
 RERANKER_MODEL = os.environ.get("LEXEUROPA_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")

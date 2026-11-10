@@ -105,8 +105,10 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     # -- helpers ---------------------------------------------------------
-    def _send(self, status: int, body: bytes, content_type: str) -> None:
+    def _send(self, status: int, body: bytes, content_type: str, extra_headers: tuple = ()) -> None:
         self.send_response(status)
+        for name, value in extra_headers:   # e.g. Set-Cookie / Location in the public server
+            self.send_header(name, value)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
@@ -120,8 +122,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _json(self, status: int, obj: dict) -> None:
-        self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+    def _json(self, status: int, obj: dict, extra_headers: tuple = ()) -> None:
+        self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", extra_headers)
 
     def _guard_host(self) -> bool:
         if host_is_loopback(self.headers.get("Host")):

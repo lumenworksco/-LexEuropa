@@ -13,8 +13,10 @@ from lexeuropa.config import (
     FALLBACK_LLM_BASE_URL,
     FALLBACK_LLM_MODEL,
     INSTRUMENT_ALIASES,
+    PUBLIC_MODE,
     QUERY_REWRITE,
     RELEVANCE_CHECK,
+    STOCK_GENERATOR,
 )
 from lexeuropa.generation.client import GenerationError, chat
 from lexeuropa.corpus_status import status_of
@@ -59,7 +61,8 @@ def _load_indices():
         ) from e
 
     chunks_by_id = {c.id: c for c in chunks}
-    bm25 = BM25Index.load(BM25_INDEX_PATH)
+    # The public demo never unpickles: it rebuilds the keyword index from the chunks (about half a minute).
+    bm25 = BM25Index(chunks) if PUBLIC_MODE else BM25Index.load(BM25_INDEX_PATH)
     dense = DenseIndex.load(DENSE_INDEX_PATH, chunks_by_id)
     resolver = ReferenceResolver(chunks)
     return bm25, dense, resolver
@@ -121,7 +124,12 @@ def answer_question(
         }
 
     note("generating")
-    messages, handle_to_id = build_messages(question, result.chunks)
+    # Public demo: the fine-tuned model is reachable only by its owner, so the stock model answers (with the
+    # extra guidance the fallback uses). One generation pass: no second "fallback" pass on the same model.
+    stock = STOCK_GENERATOR and bool(FALLBACK_LLM_MODEL)
+    messages, handle_to_id = build_messages(
+        question, result.chunks, extra_system=FALLBACK_GUIDANCE if stock else None
+    )
 
     def attempt(base_url: str | None = None, model: str | None = None, msgs: list[dict] | None = None):
         """One generation + parse. Returns (parsed, None) or (None, error message)."""
@@ -152,11 +160,11 @@ def answer_question(
         note("reviewing")
         return check_relevance(question, [claim["text"] for claim in parsed["claims"]])
 
-    parsed, error = attempt()
-    generator = "primary"
+    parsed, error = attempt(FALLBACK_LLM_BASE_URL, FALLBACK_LLM_MODEL) if stock else attempt()
+    generator = "stock" if stock else "primary"
     relevance = relevance_of(parsed) if error is None else None
     off_topic = relevance is not None and relevance[0] is False
-    if (error is not None or is_refusal(parsed) or off_topic) and FALLBACK_LLM_MODEL:
+    if not stock and (error is not None or is_refusal(parsed) or off_topic) and FALLBACK_LLM_MODEL:
         # The fine-tuned model sometimes declines when the sources do answer the
         # question, or answers a different point than the one asked (both observed
         # live); one retry on a stronger stock model, with extra instructions.
@@ -219,7 +227,7 @@ def answer_question(
         "question": question,
         "language": parsed.get("language"),
         "generator": generator,
-        "generator_model": FALLBACK_LLM_MODEL if generator == "fallback" else None,
+        "generator_model": FALLBACK_LLM_MODEL if generator in ("fallback", "stock") else None,
         # True / False / None (not checked or could not tell): do the statements
         # address the question, as opposed to merely being backed by their sources.
         "answers_question": relevance[0] if relevance else None,
