@@ -114,6 +114,13 @@
   .try li button:hover { color: var(--accent); }
   .try li button:hover::before { transform: translateX(3px); }
   .try .ex { margin-top: 18px; }
+  .picks { list-style: none; margin: 14px 0 0; padding: 0; }
+  .picks li button {
+    display: flex; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 11px 2px; text-align: left;
+    color: var(--ink); font: 1.03rem/1.4 var(--serif); cursor: pointer;
+  }
+  .picks li button::before { content: "\2192"; color: var(--accent); font-family: var(--sans); }
+  .picks li button:hover { color: var(--accent); }
 
   /* ---------- composer ---------- */
   .composer { border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--raised); transition: border-color .15s var(--ease), box-shadow .15s var(--ease); }
@@ -295,7 +302,7 @@
     </div>
     <button type="button" class="btn block" id="new-btn"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>New question</button>
     <div>
-      <h2>Recent</h2>
+      <h2 id="rail-h">Recent</h2>
       <p class="hist-empty" id="hist-empty">Questions you ask will appear here. They stay in this browser.</p>
       <ul class="hist" id="hist"></ul>
     </div>
@@ -615,7 +622,7 @@
   function ask() {
     var q = qEl.value.trim();
     if (q.length < 3) { qEl.focus(); return; }
-    if (STATIC_DEMO) { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); return; }
+    if (STATIC_DEMO) { if (GALLERY) { showMatches(q); return; } qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); return; }
     var lawValue = law.value || null;
     controller = new AbortController();
     askBtn.disabled = true; askBtn.textContent = "Working…";
@@ -775,9 +782,11 @@
     else { dotClass += ok ? " mixed" : " bad"; verdict = ok + " of " + total + " statements supported — check the others"; }
     var meta = [];
     if (result.example) meta.push("example");
+    else if (result.recorded) { meta.push("recorded"); if (result.elapsed_s) meta.push(Math.round(result.elapsed_s) + " s"); meta.push(result.generator === "fallback" ? "second opinion by " + (result.generator_model || "a larger model").replace(/^.*\//, "") : result.generator === "stock" ? "written by " + (result.generator_model || "a stock model").replace(/^.*\//, "") + " (stock model)" : "LexEuropa model"); }
     else { if (result.elapsed_s) meta.push(Math.round(result.elapsed_s) + " s"); meta.push(result.generator === "fallback" ? "second opinion by " + (result.generator_model || "a larger model").replace(/^.*\//, "") : result.generator === "stock" ? "written by " + (result.generator_model || "a stock model").replace(/^.*\//, "") + " (stock model)" : "LexEuropa model"); }
     sec.appendChild(el("p", { class: "verdict" }, [el("span", { class: "v" }, [el("span", { class: dotClass }), verdict]), el("span", { class: "meta", text: meta.join(" · ") })]));
 
+    if (result.recorded) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Recorded" }), "This is what LexEuropa answered" + (result.recorded_at ? " on " + result.recorded_at : "") + ", shown unedited. It was not generated just now."]));
     if (result.example) sec.appendChild(el("div", { class: "note info" }, [el("span", { class: "example-tag", text: "Example" }), "Written by hand from the text of the Directive to show the format — not generated live."]));
     if (result.generator === "fallback") sec.appendChild(el("div", { class: "note" }, [el("strong", { text: "Second opinion. " }), "The main LexEuropa model declined or did not answer this question well, so a larger general-purpose model wrote the answer from the same sources."]));
     if (result.withheld_claims && result.withheld_claims.length) {
@@ -844,8 +853,53 @@
     window.scrollTo({ top: 0 });
   }
 
+  // ---------- static demo: recorded answers ----------
+  // On a public host there is no backend. If gallery.json exists, the demo browses REAL answers recorded from the full
+  // system (unedited); otherwise it falls back to the one hand-written example.
+  var GALLERY = null;
+  function words(t) { return (t.toLowerCase().match(/[a-z0-9]{3,}/g) || []); }
+  function closest(text, n) {
+    var seen = {}; words(text).forEach(function (x) { seen[x] = 1; });
+    return GALLERY.items.map(function (it) {
+      var iw = words(it.question), hit = 0; iw.forEach(function (x) { if (seen[x]) hit++; });
+      return { it: it, s: hit / Math.sqrt(Math.max(1, iw.length) * Math.max(1, Object.keys(seen).length)) };
+    }).sort(function (a, b) { return b.s - a.s; }).slice(0, n).map(function (x) { return x.it; });
+  }
+  function openRecorded(it) { qEl.value = it.question; autosize(); showResult(it.question, it.result); body.classList.remove("rail-open"); }
+  function showMatches(q) {
+    stopProgress(); out.textContent = ""; pane.textContent = ""; setView("result");
+    var ul = el("ul", { class: "picks" });
+    closest(q, 3).forEach(function (it) { var b = el("button", { type: "button", text: it.question }); b.addEventListener("click", function () { openRecorded(it); }); ul.appendChild(el("li", null, [b])); });
+    out.appendChild(el("section", null, [
+      el("p", { class: "q-label", text: "Your question" }), el("h1", { class: "q-text", text: q }),
+      el("div", { class: "note info" }, [el("strong", { text: "This is a recorded demo. " }), "It cannot answer new questions, but you can open real answers recorded from the full system. The closest to your question:"]),
+      ul,
+      el("p", { class: "meta" }, ["To ask anything you like, ", el("a", { href: "https://github.com/lumenworksco/-LexEuropa#quickstart", text: "run LexEuropa locally" }), "."])
+    ]));
+  }
+  function renderGallery(g) {
+    $("rail-h").textContent = "Recorded answers"; $("hist-empty").hidden = true;
+    var ul = $("hist"); ul.textContent = "";
+    g.items.forEach(function (it) {
+      var open = el("button", { type: "button", class: "hist-open" }, [el("span", { class: "t", text: it.question })]);
+      open.addEventListener("click", function () { openRecorded(it); });
+      ul.appendChild(el("li", null, [open]));
+    });
+    var tl = $("try-list"); tl.textContent = "";
+    g.items.slice(0, 6).forEach(function (it) { var b = el("button", { type: "button", text: it.question }); b.addEventListener("click", function () { openRecorded(it); }); tl.appendChild(el("li", null, [b])); });
+    var banner = $("static-banner"); banner.textContent = "";
+    banner.appendChild(document.createTextNode("Recorded demo: these are real answers recorded from LexEuropa" + (g.generated_at ? " on " + g.generated_at : "") + ", shown unedited. New questions cannot be asked here; to ask your own, "));
+    banner.appendChild(el("a", { href: "https://github.com/lumenworksco/-LexEuropa#quickstart", text: "run LexEuropa locally" }));
+    banner.appendChild(document.createTextNode("."));
+  }
+  function fallbackExample() { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); }
+
   autosize(); renderHist();
-  if (STATIC_DEMO || location.hash === "#example") { qEl.value = SAMPLE.question; autosize(); showResult(SAMPLE.question, SAMPLE); }
+  if (STATIC_DEMO) {
+    fetch("gallery.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
+      if (g && g.items && g.items.length) { GALLERY = g; renderGallery(g); openRecorded(g.items[0]); } else { fallbackExample(); }
+    }).catch(fallbackExample);
+  } else if (location.hash === "#example") { fallbackExample(); }
 })();
 </script>
 </body>

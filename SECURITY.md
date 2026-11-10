@@ -16,6 +16,7 @@ You can expect an acknowledgement within a few days. This is a small research pr
 - The web interface (`python3 -m lexeuropa.cli serve`) has **no login** and therefore binds to `127.0.0.1` only. It rejects requests whose `Host` header is not a loopback name (DNS rebinding), accepts only `application/json` POSTs, limits request and question size, sends a strict Content-Security-Policy and never logs question text. Do not expose it to a network.
 - Questions are sent to Hugging Face-hosted models (embeddings, generation, the judge and the fallback) unless you point the configuration at your own servers. Do not enter confidential or personal information.
 - Secrets live in `.env` (git-ignored). Use a fine-grained, inference-only Hugging Face token, not a write-scoped one.
+- `serve-public` (the public demo server, not deployed) is a separate opt-in mode. It holds no credentials of its own; visitors sign in with Hugging Face and their own token pays. The token stays on the server behind an HttpOnly session cookie, is never logged and is scrubbed from replies; POSTs must be same-origin; per-visitor and global limits apply. See `lexeuropa/web_public.py`.
 - The GitHub Pages demo is a static page with a built-in example answer; it contains no backend and sends nothing anywhere.
 
 ## Out of scope

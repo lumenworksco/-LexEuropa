@@ -21,6 +21,15 @@ Feature-complete for EU law as a research assistant. A retrain on the full libra
 ### Measured, tried and rejected
 - Query rewriting (unstable) and instrument routing (net loss) are implemented but off by default; see `CLAUDE.md` for the numbers.
 
+## Unreleased
+
+### Added
+- `serve-public`: a public demo server where visitors sign in with Hugging Face and their own token pays (built and tested; not deployed, because hosting a Docker Space now needs HF PRO).
+- A recorded-answers mode for the static demo, and `scripts/build_gallery.py` to record real answers.
+
+### Fixed
+- The hosted fallback, relevance check, grader and citation judge had stopped working when the router dropped the Qwen2.5 models; defaults now point at available Qwen3 Instruct models.
+
 ## Earlier work (not tagged)
 
 ### 2026-11-09

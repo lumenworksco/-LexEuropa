@@ -1,0 +1,105 @@
+{
+ "note": "Fixed before any answer was generated: no question was added, dropped or reworded after seeing results. Two (tax_france, prediction) are deliberately outside the library to show a refusal.",
+ "questions": [
+  {
+   "id": "breach",
+   "question": "When must a personal data breach be reported under the GDPR, and what must the report contain?"
+  },
+  {
+   "id": "erasure",
+   "question": "What are the conditions for erasure under Article 17 GDPR?"
+  },
+  {
+   "id": "lawful_bases",
+   "question": "On what legal grounds is the processing of personal data lawful under the GDPR?"
+  },
+  {
+   "id": "planet49",
+   "question": "Is a pre-ticked checkbox valid consent for storing cookies on a website user's device?"
+  },
+  {
+   "id": "marketing_email",
+   "question": "Can a company send marketing emails without consent?"
+  },
+  {
+   "id": "schrems2",
+   "question": "What did the Court of Justice decide in Schrems II about the Privacy Shield and standard contractual clauses?"
+  },
+  {
+   "id": "google_spain",
+   "question": "What did the Court of Justice decide in Google Spain about search engines and the right to be forgotten?"
+  },
+  {
+   "id": "ai_fines",
+   "question": "What fines can be imposed for the most serious infringements of the AI Act?"
+  },
+  {
+   "id": "gatekeeper",
+   "question": "What makes a company a gatekeeper under the Digital Markets Act?"
+  },
+  {
+   "id": "mere_conduit",
+   "question": "When is a service provider that merely transmits information not liable for it?"
+  },
+  {
+   "id": "withdrawal",
+   "question": "How long does a consumer have to withdraw from an online purchase, and when does the period start?"
+  },
+  {
+   "id": "distance_info",
+   "question": "What must a trader tell a consumer before a contract is concluded at a distance?"
+  },
+  {
+   "id": "weekly_hours",
+   "question": "What does EU law say about the maximum weekly working time?"
+  },
+  {
+   "id": "annual_leave",
+   "question": "How much paid annual leave is every worker entitled to, and can it be paid out instead?"
+  },
+  {
+   "id": "whistleblower",
+   "question": "What forms of retaliation against whistleblowers does EU law prohibit?"
+  },
+  {
+   "id": "probation",
+   "question": "What is the longest probationary period allowed for a new employee?"
+  },
+  {
+   "id": "free_movement",
+   "question": "How long can an EU citizen live in another member state without needing to meet any conditions?"
+  },
+  {
+   "id": "merger",
+   "question": "When does a merger count as a concentration that needs Commission clearance?"
+  },
+  {
+   "id": "antitrust_fines",
+   "question": "How much can the Commission fine a company for breaking the antitrust rules?"
+  },
+  {
+   "id": "rome_i",
+   "question": "Which country's law applies to a contract when the parties did not choose one?"
+  },
+  {
+   "id": "test_achats",
+   "question": "Can insurers charge men and women different premiums based on sex?"
+  },
+  {
+   "id": "kadi",
+   "question": "What was the outcome of the Kadi appeal about the EU regulation freezing his funds?"
+  },
+  {
+   "id": "tdm",
+   "question": "When can text and data mining be done on copyrighted works without permission?"
+  },
+  {
+   "id": "tax_france",
+   "question": "What is the penalty for tax evasion under French law?"
+  },
+  {
+   "id": "prediction",
+   "question": "Will my company win its pending GDPR court case next month?"
+  }
+ ]
+}

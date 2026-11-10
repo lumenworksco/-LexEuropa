@@ -30,6 +30,7 @@ async function boot(hash, askLines, fail, origin, mock) {
       w.__asks = [];
       w.fetch = (url, opts) => {
         if (url === "/api/ask") w.__asks.push(JSON.parse(opts.body));
+        if (url === "gallery.json") return mock.gallery ? Promise.resolve({ ok: true, json: () => Promise.resolve(mock.gallery) }) : Promise.resolve({ ok: false, status: 404 });
         if (url === "/auth/status") return mock.auth ? Promise.resolve({ ok: true, json: () => Promise.resolve(mock.auth) }) : Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
         if (url === "/auth/logout") { w.__logouts = (w.__logouts || 0) + 1; return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) }); }
         if (url === "/api/ask" && mock.askStatus) return Promise.resolve({ ok: false, status: mock.askStatus, json: () => Promise.resolve(mock.askBody) });
@@ -215,6 +216,26 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   d = await boot("", ['{"stage":"retrieving"}', JSON.stringify({result: stock})]); doc = d.window.document;
   doc.getElementById("question").value = "What is a controller?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true})); await tick(100);
   assert(doc.body.textContent.includes("written by Qwen3-235B-A22B-Instruct-2507 (stock model)"), "a stock-generator answer says which model wrote it");
+
+  // 4h. the recorded demo (public host + gallery.json): browse real recorded answers, never an API call
+  const rec = (q, extra) => ({ id: q.slice(0, 4), question: q, result: Object.assign(JSON.parse(JSON.stringify(RESULT)), { recorded: true, recorded_at: "2026-11-12", generator: "primary", answers_question: true, example: false }, extra || {}) });
+  const gallery = { generated_at: "2026-11-12", items: [rec("When must a personal data breach be reported under the GDPR?"), rec("How long can an EU citizen live in another member state?"), rec("What is the penalty for tax evasion under French law?")] };
+  d = await boot("", null, false, "https://lex.braunf.com/demo/", { gallery }); doc = d.window.document;
+  await tick(60);
+  assert(doc.getElementById("rail-h").textContent === "Recorded answers" && doc.querySelectorAll("#hist .hist-open").length === 3, "the rail lists the recorded questions");
+  assert(doc.getElementById("static-banner").textContent.includes("real answers recorded") && doc.getElementById("static-banner").textContent.includes("2026-11-12"), "the banner says these are recorded real answers, with the date");
+  assert(doc.querySelectorAll("li.stmt").length > 0 && doc.querySelector(".q-text").textContent.includes("personal data breach"), "the first recorded answer is open on load");
+  assert(Array.from(doc.querySelectorAll(".note")).some(n => n.textContent.includes("Recorded") && n.textContent.includes("shown unedited")), "a recorded answer is labelled recorded, with its date");
+  assert(!Array.from(doc.querySelectorAll(".note")).some(n => n.textContent.includes("Written by hand")), "no hand-written EXAMPLE label on a real recorded answer");
+  doc.getElementById("question").value = "how long can i stay abroad as an EU citizen"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));
+  await tick(60);
+  assert(d.window.__asks.length === 0, "a typed question is not sent anywhere");
+  const picks = Array.from(doc.querySelectorAll(".picks button")).map(b => b.textContent);
+  assert(picks.length === 3 && picks[0].includes("EU citizen live in another member state"), "typing suggests the closest recorded question first");
+  doc.querySelector(".picks button").click(); await tick(40);
+  assert(doc.querySelector(".q-text").textContent.includes("EU citizen live"), "choosing a suggestion opens that recorded answer");
+  doc.querySelectorAll("#hist .hist-open")[2].click(); await tick(40);
+  assert(doc.querySelector(".q-text").textContent.includes("French law"), "a rail item opens its recorded answer");
 
   // 5. a source cited by many statements reads as a range
   const many = JSON.parse(JSON.stringify(RESULT)); many.generator = "primary"; many.answers_question = true;

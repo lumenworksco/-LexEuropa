@@ -1095,6 +1095,42 @@ declined; (d) flagged contradictions <= v4's + 1; (e) the nine new-area question
 no lower on average than under v4. Otherwise v4 stays; the corpus and retrieval gains ship either way. n is small
 and each model is run once, so a smaller gap than 0.03 is treated as noise.
 
+## Live demo, model drift and the recorded demo (2026-11-10)
+
+**Public server (built, tested, NOT deployed).** `lexeuropa/web_public.py` (`serve-public`, refuses to start unless
+`LEXEUROPA_PUBLIC=1`) is a separate opt-in mode: visitors "Sign in with Hugging Face" (Space OAuth, scope `inference-api`)
+and every model call for their questions uses THEIR token, so their own credit pays. Rules, each with tests
+(`tests/test_auth_context.py`, `tests/test_web_public.py`): the Space holds no owner credentials, and
+`auth_context.current_token()` never falls back to the global token in public mode (a call without a visitor token
+makes no request at all); the token lives in a `ContextVar` and thread-pool fan-out uses `map_in_context`
+(a mutation test confirmed the isolation test fails if the context is lost); the OAuth token stays server-side behind an
+HttpOnly session cookie, never in page JavaScript; state is bound to a cookie; same-origin JSON POSTs only; one question at a
+time per visitor, 20 per hour, 3 concurrent overall (excess gets 429, no queue); the token is scrubbed from replies; errors
+become advice (402 = no free credit left). Public mode uses the stock generator (`LEXEUROPA_STOCK_GENERATOR`, one pass, no
+second fallback pass), local query embeddings, rebuilds BM25 at startup and loads the dense index with `allow_pickle=False`
+(`DenseIndex.save` now writes plain unicode ids; a lazy-load bug in the first version of that check was caught by running the
+staged data). Packaging: `space/` (Dockerfile pinned to a commit, README with `hf_oauth: true`) and `scripts/deploy_space.py`.
+**Why not deployed:** creating a Docker Space returned `402: hosting Gradio and Docker Spaces on free cpu-basic requires a PRO
+subscription`. The user chose NOT to pay $9/month; the code stays ready for anyone with PRO (`python scripts/deploy_space.py
+--upload`). A local run on the Space's exact data layout worked (`/healthz`, `/api/info`, `/login`, real retrieval with no token).
+
+**MODEL DRIFT, found 2026-11-10.** The HF router no longer lists `Qwen/Qwen2.5-72B-Instruct` or `Qwen/Qwen2.5-7B-Instruct`
+("not supported by any provider you have enabled"), so the fallback, relevance check, rewrite, eval grader and citation judge
+were silently broken for any hosted call. New defaults in `config.py`: fallback, relevance and grader
+`Qwen/Qwen3-235B-A22B-Instruct-2507`; judge `Qwen/Qwen3-Next-80B-A3B-Instruct` (no provider pin). Tested live: both answer
+correctly and fast; `Qwen3-32B` and `Qwen3-14B` are "thinking" models that spend the whole token budget before answering
+(empty content), so they are NOT usable. One real question through the stock path (breach notification) gave 15 claims, all
+supported, covering the 72-hour rule, delay reasons, contents and documentation. **Consequences:** every earlier number in this
+file was measured with the Qwen2.5 judge and grader; a re-measurement under the new models is needed before comparing anything
+new to them, and the grader must be recalibrated (`run_quality.py --calibrate`: verbatim should be about .98, unrelated about 0).
+
+**Recorded demo (chosen instead).** The static demo browses REAL answers: `eval/gallery_questions.json` (25 questions fixed
+before any answer was generated, including two deliberate refusals) answered by `scripts/build_gallery.py --resume-endpoint`
+into `site/demo/gallery.json` (unedited, saved after every question, resumable; about $1 with the endpoint). The page lists them
+in the rail, suggests the closest recorded question when a visitor types, and labels every answer "Recorded <date>, shown
+unedited". Without `gallery.json` it falls back to the hand-written example. `build_site.py` copies the file if it exists.
+NOT yet recorded: needs credits.
+
 ## Extending the corpus
 
 Add entries to `lexeuropa/ingest/seed_corpus.py`. Every CELEX number there

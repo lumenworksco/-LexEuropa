@@ -39,6 +39,8 @@ def build() -> None:
             shutil.copy(SITE / name, OUT / name)
     shutil.copy(ROOT / "lexeuropa" / "web_static" / "index.html", OUT / "demo" / "index.html")
     shutil.copy(SITE / "demo" / "info.json", OUT / "demo" / "info.json")
+    if (SITE / "demo" / "gallery.json").exists():            # the recorded answers (see scripts/build_gallery.py)
+        shutil.copy(SITE / "demo" / "gallery.json", OUT / "demo" / "gallery.json")
     (OUT / ".nojekyll").write_text("")
     print(f"built {OUT} ({sum(1 for p in OUT.rglob('*') if p.is_file())} files)")
 
