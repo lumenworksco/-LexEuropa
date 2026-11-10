@@ -3,12 +3,12 @@
 [![CI](https://github.com/lumenworksco/-LexEuropa/actions/workflows/ci.yml/badge.svg)](https://github.com/lumenworksco/-LexEuropa/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
-[![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-1d3f8c)](https://lumenworksco.github.io/-LexEuropa/)
+[![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-1d3f8c)](https://lex.braunf.com/)
 [![Model on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20model-lexeuropa--qwen3b--v4-yellow)](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v4)
 
-[![LexEuropa: EU legal research with checked citations](site/og.png)](https://lumenworksco.github.io/-LexEuropa/)
+[![LexEuropa: EU legal research with checked citations](site/og.png)](https://lex.braunf.com/)
 
-**An open-model AI legal research assistant for EU law, with every citation verified.** [Try the interface](https://lumenworksco.github.io/-LexEuropa/demo/#example) (a static demo with a built-in example answer) · [project page](https://lumenworksco.github.io/-LexEuropa/)
+**An open-model AI legal research assistant for EU law, with every citation verified.** [Try the interface](https://lex.braunf.com/demo/#example) (a static demo with a built-in example answer) · [project page](https://lex.braunf.com/)
 
 LexEuropa runs on models published on Hugging Face (a LoRA-tuned [Qwen2.5-3B generator](https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v4) served from an Inference Endpoint), so nothing heavy lives on your machine. It fetches real EU legal texts from the Publications Office CELLAR service, chunks them at article/paragraph granularity, retrieves with a hybrid BM25 + dense + exact-reference pipeline, generates an answer as structured *claims with citations*, and then **checks every citation against what was actually retrieved**. Each claim in the answer carries a label: `supported`, `interpretative`, `analysis`, `unsupported` or `uncertain`.
 

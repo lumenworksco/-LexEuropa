@@ -182,7 +182,7 @@ const tick = ms => new Promise(r => setTimeout(r, ms));
   assert(doc.querySelectorAll("li.stmt").length === 1 && doc.querySelector(".stmt .txt").textContent.includes("do not contain information"), "only the refusal is shown as the answer");
 
   // 4f. served from a public host (GitHub Pages): a banner, the built-in example, and no request to any API
-  d = await boot("", null, false, "https://lumenworksco.github.io/-LexEuropa/demo/"); doc = d.window.document;
+  d = await boot("", null, false, "https://lex.braunf.com/demo/"); doc = d.window.document;
   assert(!doc.getElementById("static-banner").hidden, "the static demo says it is a static demo");
   assert(doc.querySelectorAll("li.stmt").length > 0, "the built-in example answer is shown on load");
   doc.getElementById("question").value = "Anything at all?"; doc.getElementById("form").dispatchEvent(new d.window.Event("submit", {cancelable:true}));

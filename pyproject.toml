@@ -27,7 +27,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/lumenworksco/-LexEuropa"
 Issues = "https://github.com/lumenworksco/-LexEuropa/issues"
-Demo = "https://lumenworksco.github.io/-LexEuropa/"
+Demo = "https://lex.braunf.com/"
 Models = "https://huggingface.co/iPwnds/lexeuropa-qwen3b-merged-v4"
 Changelog = "https://github.com/lumenworksco/-LexEuropa/blob/main/CHANGELOG.md"
 

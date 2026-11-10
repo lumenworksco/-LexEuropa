@@ -34,7 +34,7 @@ def build() -> None:
     if OUT.exists():
         shutil.rmtree(OUT)
     (OUT / "demo").mkdir(parents=True)
-    for name in ("index.html", "og.png"):
+    for name in ("index.html", "og.png", "CNAME"):
         if (SITE / name).exists():
             shutil.copy(SITE / name, OUT / name)
     shutil.copy(ROOT / "lexeuropa" / "web_static" / "index.html", OUT / "demo" / "index.html")

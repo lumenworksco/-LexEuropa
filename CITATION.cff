@@ -9,7 +9,7 @@ version: 0.9.0
 date-released: 2026-11-10
 license: MIT
 repository-code: "https://github.com/lumenworksco/-LexEuropa"
-url: "https://lumenworksco.github.io/-LexEuropa/"
+url: "https://lex.braunf.com/"
 abstract: >-
   An open-model research assistant for EU law. Questions are answered in short statements, each tied to the
   exact article or judgment paragraph it comes from and checked by an existence gate and an independent judge
