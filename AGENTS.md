@@ -1081,6 +1081,12 @@ the statute that holds the most top-40 score mass when no law is named. hit@8 / 
 unseen 24 -> 25 of 25 (MRR .797 -> .762), retrieval 31 -> 29 of 34 (.569 -> .508), EU 37 -> 38 of 43 (.582 -> .570),
 quality 36 -> 34 of 37 (.663 -> .632): net loss. Kept in the code, off.
 
+**Expansion by hit count** (`EXPAND_BY_HITS`, default on): the articles whose siblings are appended are now chosen by
+how many of their paragraphs ranked (ties by first appearance), not by first appearance. Offline proxy (share of
+key-point phrases present in the retrieved text, 37 quality questions): .946 -> .959, all points present for 89% -> 92%;
+only dma_gatekeeper changed (.50 -> 1.00: Art. 3 with two ranked paragraphs now beats single-hit Arts 14/12). Caveat: found
+by inspecting that question; to be confirmed end to end in the next paid run (`LEXEUROPA_EXPAND_BY_HITS=0` reverts).
+
 **Promotion rule for v5 (declared before any v5 measurement).** v4 and v5 are both run on the SAME retrieval (81-
 instrument corpus, rewrite off, no reranker, local query embeddings), the same grader and the same files. v5 replaces
 v4 only if ALL hold: (a) mean completeness on the 37 in-scope quality questions >= v4's + 0.03; (b) citation

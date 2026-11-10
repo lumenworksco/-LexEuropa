@@ -111,3 +111,20 @@ def test_rrf_weights_let_a_hint_ranking_count_for_less_than_the_original():
     weighted = [ch.article for ch, _ in reciprocal_rank_fusion([[a, b], [c, b]], weights=[1.0, 0.5])]
     assert equal[0] == "2"                           # b is in both: it wins when both count equally
     assert weighted.index("1") < weighted.index("3")  # with the second ranking down-weighted, the original's top hit beats its top hit
+
+
+def test_expand_by_hits_prefers_the_article_with_several_ranked_paragraphs():
+    from lexeuropa.retrieval.pipeline import expand_articles
+
+    def para(art, n):
+        return Chunk(id=f"X:{art}:{n}", celex="X", lang="en", instrument_title="t", citation=f"Art {art}({n})",
+                     unit_type="article_paragraph", article=art, para_index=str(n), text="x", source_url="")
+
+    corpus = [para(a, n) for a in ("14", "3") for n in (1, 2, 3, 4)]
+    # ranked: Art 14 appears first (one hit), Art 3 later with two hits
+    ranked = [para("14", 1), para("3", 1), para("3", 2)]
+    first = expand_articles(ranked, corpus, n_articles=1, max_sources=14, same_instrument=True, by_hits=False)
+    hits = expand_articles(ranked, corpus, n_articles=1, max_sources=14, same_instrument=True, by_hits=True)
+    assert {c.article for c in first[3:]} == {"14"}      # first appearance expands Art 14
+    assert {c.article for c in hits[3:]} == {"3"}        # by hits expands Art 3
+    assert [c.id for c in hits[:3]] == [c.id for c in ranked]   # ranked results untouched either way

@@ -35,6 +35,8 @@ MAX_PINNED_RESOLVER_HITS = 4
 MAX_CASE_LAW_WHEN_RESTRICTED = 2
 # Extra slots (beyond MAX_SOURCES) for the rulings of the top judgments.
 MAX_RULING_CHUNKS = 4
+# Pick the articles to expand by number of ranked hits instead of first appearance.
+EXPAND_BY_HITS = os.environ.get("LEXEUROPA_EXPAND_BY_HITS", "1") == "1"
 # Soft boost for the statute that leads the top results when no law is named (0 = off).
 ROUTE_BOOST = float(os.environ.get("LEXEUROPA_ROUTE_BOOST", "0"))
 # Weight of the query-rewrite rankings in fusion, relative to the original question's (1.0).
@@ -99,7 +101,8 @@ def _cap_recitals(items: list, k: int, max_recitals: int, chunk_of=lambda x: x) 
 
 
 def expand_articles(
-    chunks: list[Chunk], all_chunks: list[Chunk], n_articles: int, max_sources: int, same_instrument: bool = False
+    chunks: list[Chunk], all_chunks: list[Chunk], n_articles: int, max_sources: int, same_instrument: bool = False,
+    by_hits: bool = False,
 ) -> list[Chunk]:
     """Append the other paragraphs of the top articles after the ranked results.
 
@@ -127,6 +130,11 @@ def expand_articles(
             if same_instrument and c.celex != dominant:
                 continue   # a look-alike provision of another regime: do not expand it
             top.append(key)
+    if by_hits:
+        # An article with several ranked paragraphs (e.g. DMA Art. 3(1) and 3(8)) is more likely the
+        # one the question is about than an article with a single hit that merely ranked first.
+        hits = {k: sum(1 for c in chunks if (c.celex, c.article) == k and c.unit_type == "article_paragraph") for k in top}
+        top = sorted(top, key=lambda k: (-hits[k], top.index(k)))
     out = list(chunks)
     seen = {c.id for c in out}
     for key in top[:n_articles]:
@@ -294,7 +302,7 @@ def retrieve(
         scores = {c.id: s for c, s in reranked}
         if pinned_ids:
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
-        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT)
+        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT, EXPAND_BY_HITS)
         # Rulings come last, with their own small allowance, so they never use up the slots the
         # article siblings need (measured: rulings first cost two statute questions 0.2-0.25).
         chunks = expand_rulings(chunks, bm25_index.chunks, EXPAND_RULINGS if n_expand > 0 else 0, len(chunks) + MAX_RULING_CHUNKS)
@@ -308,7 +316,7 @@ def retrieve(
         scores = {c.id: s for c, s in top}
         if pinned_ids:
             chunks, scores = _ensure_pinned(chunks, scores, fused_chunks, pinned_ids)
-        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT)
+        chunks = expand_articles(chunks, bm25_index.chunks, n_expand, MAX_SOURCES, EXPAND_SAME_INSTRUMENT, EXPAND_BY_HITS)
         # Rulings come last, with their own small allowance, so they never use up the slots the
         # article siblings need (measured: rulings first cost two statute questions 0.2-0.25).
         chunks = expand_rulings(chunks, bm25_index.chunks, EXPAND_RULINGS if n_expand > 0 else 0, len(chunks) + MAX_RULING_CHUNKS)
